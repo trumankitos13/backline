@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  background-color: var(--color-zinc-950);
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-zinc-950 text-zinc-100 antialiased;
+}
+
+/* hide scrollbars on horizontal reels while keeping them scrollable */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* animated equalizer bars used by video placeholders */
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq-bounce 1s ease-in-out infinite;
+}
+.eq-paused .eq-bar {
+  animation-play-state: paused;
+}
+
+/* reel progress bar */
+@keyframes reel-progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.reel-progress {
+  animation: reel-progress linear forwards;
+}
+
+/* soft pulse for "live tonight" markers */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
