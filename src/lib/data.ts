@@ -661,7 +661,7 @@ export const FEED_POSTS: FeedPost[] = [
 
 export const SEED_CONVERSATIONS: Conversation[] = [
   {
-    id: "c-theo",
+    id: "c-m-theo",
     musicianId: "m-theo",
     unread: 1,
     messages: [
@@ -671,7 +671,7 @@ export const SEED_CONVERSATIONS: Conversation[] = [
     ],
   },
   {
-    id: "c-gus",
+    id: "c-m-gus",
     musicianId: "m-gus",
     unread: 0,
     messages: [
