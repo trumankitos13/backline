@@ -33,8 +33,8 @@ function ThreadView({ id }: { id: string }) {
     openBooking?: boolean;
   };
 
-  // Resolve the musician. Prefer an existing conversation's musicianId (seed
-  // threads use short ids like "c-theo"); otherwise strip the "c-" prefix.
+  // Resolve the musician. Prefer an existing conversation's musicianId;
+  // otherwise strip the "c-" prefix (ids follow the c-<musicianId> convention).
   const byId = state.conversations.find((c) => c.id === id);
   const musicianId = byId?.musicianId ?? id.slice(2);
   const musician = getMusician(musicianId);
