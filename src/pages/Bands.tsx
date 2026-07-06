@@ -3,19 +3,22 @@
 
 import { Link, useNavigate } from "react-router-dom";
 import { Page } from "../components/shell";
-import { Avatar, Card, SectionHeader, formatCount } from "../components/ui";
+import {
+  Avatar,
+  Card,
+  Chip,
+  Mono,
+  SectionHeader,
+  UrgentBadge,
+  formatCount,
+} from "../components/ui";
 import {
   BoltIcon,
   ChevronRightIcon,
   InstrumentIcon,
   MapPinIcon,
 } from "../components/icons";
-import {
-  FollowButton,
-  UrgentBadge,
-  isUrgent,
-  slotNoteText,
-} from "../components/bands/shared";
+import { FollowButton, isUrgent, slotNoteText } from "../components/bands/shared";
 import { BANDS, VENUES, getMusician } from "../lib/data";
 import { instrumentLabel } from "../lib/instruments";
 import type { Band, Musician } from "../lib/types";
@@ -30,14 +33,16 @@ const OPEN_SLOTS: SlotEntry[] = BANDS.flatMap((band) =>
   band.openSlots.map((slot) => ({ band, slot })),
 ).sort((a, b) => Number(isUrgent(b.slot.note)) - Number(isUrgent(a.slot.note)));
 
-function OpenSlotRow({ band, slot }: SlotEntry) {
+function OpenSlotCard({ band, slot }: SlotEntry) {
+  const navigate = useNavigate();
   const urgent = isUrgent(slot.note);
   return (
-    <div
-      className={`rounded-2xl border p-4 transition-colors ${
+    <Card
+      onClick={() => navigate(`/b/${band.id}`)}
+      className={`p-4 ${
         urgent
-          ? "border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-red-500/[0.07] to-transparent"
-          : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700"
+          ? "border-amber-500/45 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent hover:border-amber-500/70"
+          : ""
       }`}
     >
       <div className="flex items-start gap-3">
@@ -49,7 +54,7 @@ function OpenSlotRow({ band, slot }: SlotEntry) {
           </div>
           <p
             className={`mt-1 flex items-center gap-1.5 text-sm font-medium ${
-              urgent ? "text-amber-300" : "text-zinc-300"
+              urgent ? "text-amber-300" : "text-text-mid"
             }`}
           >
             <InstrumentIcon instrument={slot.instrument} size={16} />
@@ -57,25 +62,22 @@ function OpenSlotRow({ band, slot }: SlotEntry) {
           </p>
           <p
             className={`mt-1.5 text-sm leading-relaxed ${
-              urgent ? "text-zinc-200" : "text-zinc-400"
+              urgent ? "text-text-hi" : "text-text-mid"
             }`}
           >
             {slotNoteText(slot.note)}
           </p>
-          <Link
-            to={`/b/${band.id}`}
-            className={`mt-2.5 inline-flex items-center gap-1 text-sm font-medium transition-colors ${
-              urgent
-                ? "text-amber-300 hover:text-amber-200"
-                : "text-zinc-300 hover:text-amber-300"
+          <span
+            className={`mt-2.5 inline-flex items-center gap-1 text-sm font-medium ${
+              urgent ? "text-amber-300" : "text-text-mid"
             }`}
           >
             View band
             <ChevronRightIcon size={14} />
-          </Link>
+          </span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -91,15 +93,15 @@ function BandCard({ band }: { band: Band }) {
         <Avatar name={band.name} seed={band.seed} size={52} square />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-semibold">{band.name}</p>
-              <p className="mt-0.5 truncate text-xs text-zinc-400">
-                {band.genres.join(" · ")}
-              </p>
-            </div>
+            <p className="min-w-0 truncate font-semibold">{band.name}</p>
             <FollowButton id={band.id} />
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-500">
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {band.genres.map((g) => (
+              <Chip key={g}>{g}</Chip>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-text-lo">
             <span className="flex items-center gap-1.5">
               <span className="flex -space-x-1.5">
                 {members.slice(0, 4).map((m) => (
@@ -108,20 +110,24 @@ function BandCard({ band }: { band: Band }) {
                     name={m.name}
                     seed={m.seed}
                     size={18}
-                    className="ring-2 ring-zinc-950"
+                    className="ring-2 ring-surface-900"
                   />
                 ))}
               </span>
-              {band.members.length} members
+              <Mono className="text-[10px] text-text-mid">{band.members.length}</Mono>
+              members
             </span>
             <span className="flex items-center gap-1">
               <MapPinIcon size={13} />
               {band.neighborhood}
             </span>
-            <span>{formatCount(band.followers)} followers</span>
+            <span className="flex items-center gap-1">
+              <Mono className="text-[10px] text-text-mid">{formatCount(band.followers)}</Mono>
+              followers
+            </span>
           </div>
           {band.openSlots.length > 0 && (
-            <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-300/90">
+            <p className="mt-2.5 flex items-center gap-1 text-xs font-medium text-amber-300">
               <BoltIcon size={13} />
               {band.openSlots.length === 1
                 ? "1 open slot"
@@ -145,14 +151,14 @@ export default function Bands() {
         title="Open slots right now"
         className="mb-3"
         action={
-          <span className="text-xs text-zinc-500">
+          <Mono className="text-[10px] text-text-lo">
             {OPEN_SLOTS.length} across the scene
-          </span>
+          </Mono>
         }
       />
       <div className="flex flex-col gap-3">
         {OPEN_SLOTS.map(({ band, slot }) => (
-          <OpenSlotRow key={`${band.id}-${slot.instrument}`} band={band} slot={slot} />
+          <OpenSlotCard key={`${band.id}-${slot.instrument}`} band={band} slot={slot} />
         ))}
       </div>
 
@@ -160,7 +166,7 @@ export default function Bands() {
       <SectionHeader
         title="All bands"
         className="mt-8 mb-3"
-        action={<span className="text-xs text-zinc-500">{BANDS.length} in Austin</span>}
+        action={<Mono className="text-[10px] text-text-lo">{BANDS.length} in Austin</Mono>}
       />
       <div className="grid gap-3 sm:grid-cols-2">
         {BANDS.map((band) => (
@@ -173,7 +179,7 @@ export default function Bands() {
         title="Venues"
         className="mt-8 mb-3"
         action={
-          <span className="text-xs text-zinc-500">rooms that book through Backline</span>
+          <Mono className="text-[10px] text-text-lo">rooms that book here</Mono>
         }
       />
       <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">
@@ -181,18 +187,18 @@ export default function Bands() {
           <Link
             key={v.id}
             to={`/v/${v.id}`}
-            className="block w-60 shrink-0 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-900"
+            className="block w-60 shrink-0 rounded-2xl border border-hairline-subtle bg-surface-900 p-4 transition-colors hover:border-hairline-strong"
           >
             <div className="flex items-center gap-3">
               <Avatar name={v.name} seed={v.seed} size={40} square />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">{v.name}</p>
-                <p className="truncate text-xs text-zinc-500">
-                  {v.neighborhood} · cap {formatCount(v.capacity)}
+                <p className="truncate text-xs text-text-lo">
+                  {v.neighborhood} · <Mono className="text-[10px]">cap {formatCount(v.capacity)}</Mono>
                 </p>
               </div>
             </div>
-            <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-zinc-400">
+            <p className="mt-2.5 line-clamp-2 text-xs leading-relaxed text-text-mid">
               {v.vibe}
             </p>
           </Link>

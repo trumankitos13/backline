@@ -2,7 +2,7 @@
 
 import { Link } from "react-router-dom";
 import { Page } from "../components/shell";
-import { Avatar, Button, Card, EmptyState } from "../components/ui";
+import { Avatar, Button, Card, EmptyState, Mono } from "../components/ui";
 import { ChatIcon, VerifiedIcon } from "../components/icons";
 import { getMusician } from "../lib/data";
 import { instrument } from "../lib/instruments";
@@ -43,7 +43,7 @@ export default function Messages() {
           }
         />
       ) : (
-        <Card className="divide-y divide-zinc-800/70 overflow-hidden">
+        <Card className="divide-y divide-hairline-subtle overflow-hidden">
           {rows.map(({ c, m }) => {
             const last = c.messages[c.messages.length - 1];
             const hasUnread = c.unread > 0;
@@ -51,7 +51,7 @@ export default function Messages() {
               <Link
                 key={c.id}
                 to={`/messages/${c.id}`}
-                className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-zinc-900"
+                className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-surface-850"
               >
                 <Avatar name={m.name} seed={m.seed} size={46} />
                 <div className="min-w-0 flex-1">
@@ -60,8 +60,8 @@ export default function Messages() {
                       <span
                         className={`truncate ${
                           hasUnread
-                            ? "font-bold text-zinc-50"
-                            : "font-semibold text-zinc-200"
+                            ? "font-bold text-text-hi"
+                            : "font-semibold text-text-mid"
                         }`}
                       >
                         {m.name}
@@ -70,28 +70,28 @@ export default function Messages() {
                         <VerifiedIcon size={14} className="shrink-0" />
                       )}
                     </span>
-                    <span
-                      className={`shrink-0 text-[11px] ${
-                        hasUnread ? "font-semibold text-amber-300" : "text-zinc-500"
+                    <Mono
+                      className={`shrink-0 text-[10px] ${
+                        hasUnread ? "font-bold text-amber-300" : "text-text-lo"
                       }`}
                     >
                       {last?.at ?? ""}
-                    </span>
+                    </Mono>
                   </div>
-                  <p className="mt-0.5 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
+                  <Mono className="mt-0.5 block text-[10px] text-text-lo">
                     {m.instruments.map((i) => instrument(i.id).short).join(" · ")}
-                  </p>
+                  </Mono>
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <p
                       className={`truncate text-sm ${
-                        hasUnread ? "font-medium text-zinc-100" : "text-zinc-500"
+                        hasUnread ? "font-medium text-text-hi" : "text-text-lo"
                       }`}
                     >
                       {previewOf(last)}
                     </p>
                     {hasUnread && (
                       <span
-                        className="shrink-0 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-zinc-950"
+                        className="mono shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-ink-near"
                         aria-label={`${c.unread} unread`}
                       >
                         {c.unread}

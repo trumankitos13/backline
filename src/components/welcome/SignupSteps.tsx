@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import type { InstrumentId } from "../../lib/types";
 import { INSTRUMENTS } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
-import { Button, Card, Toggle } from "../ui";
+import { Button, Card, Mono, Toggle } from "../ui";
 import {
   ArrowLeftIcon,
   BoltIcon,
@@ -15,6 +15,7 @@ import {
   InstrumentIcon,
   MapPinIcon,
 } from "../icons";
+import { INPUT_CLASS } from "./shared";
 
 const NEIGHBORHOODS = [
   "East Austin",
@@ -28,9 +29,6 @@ const NEIGHBORHOODS = [
   "Riverside",
   "Cherrywood",
 ];
-
-const INPUT_CLASS =
-  "w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 transition-colors focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/15 focus:outline-none";
 
 /** "Ray Delgado Jr." → "raydelgadojr" */
 function suggestHandle(name: string): string {
@@ -47,13 +45,18 @@ const STEP_META = [
   },
   {
     title: "What do you play?",
-    sub: "Pick everything you gig on — techs count as players here.",
+    sub: "Multi-select — the more you list, the more searches you turn up in.",
   },
   {
     title: "Where's home base?",
     sub: "Backline is neighborhood-first: the closer you are, the sooner you get the call.",
   },
 ] as const;
+
+/** small uppercase field label in the mono data layer. */
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <Mono className="text-[10px] font-bold text-text-lo">{children}</Mono>;
+}
 
 function ProgressDots({ step }: { step: number }) {
   return (
@@ -63,10 +66,10 @@ function ProgressDots({ step }: { step: number }) {
           key={i}
           className={`h-1.5 rounded-full transition-all duration-300 ${
             i === step
-              ? "w-6 bg-amber-400"
+              ? "w-6 bg-amber-500"
               : i < step
-                ? "w-3 bg-amber-400/50"
-                : "w-3 bg-zinc-700"
+                ? "w-3 bg-amber-500/50"
+                : "w-3 bg-hairline-strong"
           }`}
         />
       ))}
@@ -126,6 +129,7 @@ export function SignupSteps() {
     );
 
   const finish = () => {
+    if (!stepValid) return;
     api.setUser({
       name: name.trim(),
       handle,
@@ -142,21 +146,21 @@ export function SignupSteps() {
     <Card className="p-5 sm:p-7">
       {/* header: step counter + progress dots */}
       <div className="flex items-center justify-between gap-4">
-        <span className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
+        <Mono className="text-[11px] font-bold text-text-lo">
           Step {step + 1} of 3
-        </span>
+        </Mono>
         <ProgressDots step={step} />
       </div>
 
       {/* keyed so each step gets the entrance animation from Welcome's <style> */}
       <div key={step} className="wlc-rise mt-4">
-        <h3 className="text-xl font-bold tracking-tight">{meta.title}</h3>
-        <p className="mt-1 text-sm text-zinc-400">{meta.sub}</p>
+        <h3 className="text-xl font-bold tracking-tight text-text-hi">{meta.title}</h3>
+        <p className="mt-1 text-sm text-text-mid">{meta.sub}</p>
 
         {step === 0 && (
           <div className="mt-5 flex flex-col gap-4">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-zinc-400">Name</span>
+              <FieldLabel>Name</FieldLabel>
               <input
                 value={name}
                 onChange={(e) => onNameChange(e.target.value)}
@@ -167,9 +171,9 @@ export function SignupSteps() {
               />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-zinc-400">Handle</span>
+              <FieldLabel>Handle</FieldLabel>
               <div className="relative">
-                <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-sm text-zinc-500">
+                <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-sm text-text-lo">
                   @
                 </span>
                 <input
@@ -182,7 +186,7 @@ export function SignupSteps() {
                   className={`${INPUT_CLASS} pl-9`}
                 />
               </div>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-text-lo">
                 {handle
                   ? `You'll show up in search and chat as @${handle}.`
                   : "We'll suggest one from your name — or type your own."}
@@ -204,12 +208,12 @@ export function SignupSteps() {
                     aria-pressed={selected}
                     className={`relative flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-all ${
                       selected
-                        ? "border-amber-400/70 bg-amber-400/10 text-amber-300 ring-2 ring-amber-400/50"
-                        : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100"
+                        ? "border-amber-500/70 bg-amber-500/10 text-amber-300 ring-2 ring-amber-500/50"
+                        : "border-hairline-subtle bg-surface-800 text-text-mid hover:border-hairline-strong hover:text-text-hi"
                     }`}
                   >
                     {selected && (
-                      <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-zinc-950">
+                      <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-ink-near">
                         <CheckIcon size={10} strokeWidth={3} />
                       </span>
                     )}
@@ -221,7 +225,10 @@ export function SignupSteps() {
                 );
               })}
             </div>
-            <p className="mt-3 text-xs text-zinc-500">
+            <Mono className="mt-3 block text-[10px] leading-relaxed font-bold text-text-lo">
+              Pick everything you gig on — techs count as players here
+            </Mono>
+            <p className="mt-1.5 text-xs text-text-lo">
               {instruments.length > 0
                 ? `${instruments.length} selected — bands search by instrument, so more is more.`
                 : "Pick at least one to keep going."}
@@ -232,17 +239,17 @@ export function SignupSteps() {
         {step === 2 && (
           <div className="mt-5 flex flex-col gap-4">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-zinc-400">Neighborhood</span>
+              <FieldLabel>Neighborhood</FieldLabel>
               <div className="relative">
                 <MapPinIcon
                   size={16}
-                  className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-zinc-500"
+                  className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-text-lo"
                 />
                 <select
                   value={neighborhood}
                   onChange={(e) => setNeighborhood(e.target.value)}
                   className={`${INPUT_CLASS} appearance-none pr-10 pl-10 ${
-                    neighborhood === "" ? "text-zinc-500" : ""
+                    neighborhood === "" ? "text-text-lo" : ""
                   }`}
                 >
                   <option value="" disabled>
@@ -256,7 +263,7 @@ export function SignupSteps() {
                 </select>
                 <ChevronRightIcon
                   size={16}
-                  className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 rotate-90 text-zinc-500"
+                  className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 rotate-90 text-text-lo"
                 />
               </div>
             </label>
@@ -264,22 +271,22 @@ export function SignupSteps() {
             <div
               className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${
                 availableTonight
-                  ? "border-emerald-500/40 bg-emerald-500/10"
-                  : "border-zinc-800 bg-zinc-900/60"
+                  ? "border-amber-500/40 bg-amber-500/10"
+                  : "border-hairline-subtle bg-surface-800"
               }`}
             >
               <span
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
                   availableTonight
-                    ? "bg-emerald-500/15 text-emerald-300"
-                    : "bg-zinc-800 text-zinc-400"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "bg-surface-raised text-text-mid"
                 }`}
               >
                 <BoltIcon size={18} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">Available tonight?</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+                <p className="text-sm font-semibold text-text-hi">Available tonight?</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-text-mid">
                   Flip this on and you'll show up when someone's drummer bails.
                 </p>
               </div>

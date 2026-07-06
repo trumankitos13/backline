@@ -1,8 +1,8 @@
-// /feed — the scene pulse: posts from venues and bands you follow.
+// /feed — the scene pulse: posts from venues, bands, and musicians you follow.
 
 import { useState } from "react";
 import { Page } from "../components/shell";
-import { Button, EmptyState } from "../components/ui";
+import { Button, EmptyState, Mono } from "../components/ui";
 import { PulseIcon } from "../components/icons";
 import { FEED_POSTS } from "../lib/data";
 import { useApp } from "../lib/store";
@@ -29,7 +29,7 @@ export default function Feed() {
         );
 
   return (
-    <Page wide title="Your scene" subtitle="Austin, TX">
+    <Page wide title="Your scene" subtitle={<Mono className="text-text-lo">Austin, TX</Mono>}>
       <div className="grid gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
         {/* main column */}
         <div className="min-w-0">
@@ -37,7 +37,7 @@ export default function Feed() {
           <div
             role="tablist"
             aria-label="Feed filter"
-            className="mb-4 flex rounded-xl border border-zinc-800 bg-zinc-900/60 p-1 sm:inline-flex"
+            className="mb-4 flex rounded-xl border border-hairline-subtle bg-surface-900 p-1 sm:inline-flex"
           >
             {TABS.map((t) => (
               <button
@@ -47,8 +47,8 @@ export default function Feed() {
                 onClick={() => setTab(t.id)}
                 className={`flex-1 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors sm:flex-none ${
                   tab === t.id
-                    ? "bg-zinc-800 text-amber-300"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-surface-800 text-amber-300"
+                    : "text-text-mid hover:text-text-hi"
                 }`}
               >
                 {t.label}
@@ -59,8 +59,8 @@ export default function Feed() {
           {/* nudge when every band/venue has been unfollowed but musician
               posts keep the feed alive */}
           {tab === "following" && state.following.length === 0 && posts.length > 0 && (
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
-              <p className="text-sm text-zinc-400">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-hairline-subtle bg-surface-900 px-4 py-3">
+              <p className="text-sm text-text-mid">
                 You're not following any venues or bands — only musician reels land here.
               </p>
               <Button variant="ghost" size="sm" onClick={() => setTab("everyone")}>
@@ -68,6 +68,11 @@ export default function Feed() {
               </Button>
             </div>
           )}
+
+          {/* Tonight module stays on mobile (the rail is lg+ only) */}
+          <div className="mb-4 lg:hidden">
+            <TonightInTown />
+          </div>
 
           {posts.length === 0 ? (
             <EmptyState
@@ -85,15 +90,15 @@ export default function Feed() {
               {posts.map((p) => (
                 <PostCard key={p.id} post={p} />
               ))}
-              <p className="py-2 text-center text-xs text-zinc-600">
+              <Mono className="py-2 text-center text-[10px] text-text-faint">
                 You're all caught up — go play something.
-              </p>
+              </Mono>
             </div>
           )}
         </div>
 
-        {/* side rail: right column at lg+, stacked below the feed on mobile */}
-        <div className="min-w-0 space-y-6 lg:sticky lg:top-5">
+        {/* side rail: right column at lg+ only */}
+        <div className="hidden min-w-0 space-y-6 lg:sticky lg:top-5 lg:block">
           <WhoToFollow />
           <TonightInTown />
         </div>

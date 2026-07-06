@@ -1,9 +1,11 @@
 // Shared building blocks for the profile surfaces (musician page + own profile).
+// Backline tokens throughout — mono for data atoms, amber scarce, cyan for
+// held/paid signals. The "Free tonight" badge lives in the foundation (ui.tsx).
 
 import type { BookingStatus, InstrumentId, SkillLevel } from "../../lib/types";
 import { instrument } from "../../lib/instruments";
-import { InstrumentIcon } from "../icons";
-import { Chip } from "../ui";
+import { CheckIcon, ClockIcon, CloseIcon, InstrumentIcon } from "../icons";
+import { Badge, Chip } from "../ui";
 
 const LEVEL_LABELS: Record<SkillLevel, string> = {
   pro: "Pro",
@@ -40,21 +42,9 @@ export function InstrumentChips({
   );
 }
 
-/** Emerald "Free tonight" badge with the pulsing live dot. */
-export function FreeTonightBadge({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-300 shadow-[0_0_16px_-6px_rgba(16,185,129,0.9)] ${className}`}
-    >
-      <span className="glow-pulse h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.7)]" />
-      Free tonight
-    </span>
-  );
-}
-
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/** Mon–Sun strip with the usually-free days lit up. */
+/** Mon–Sun strip with the usually-free days lit up (amber = the stage light). */
 export function AvailabilityDays({ days }: { days: string[] }) {
   return (
     <div className="flex gap-1.5">
@@ -63,10 +53,10 @@ export function AvailabilityDays({ days }: { days: string[] }) {
         return (
           <span
             key={d}
-            className={`flex-1 rounded-lg border py-1.5 text-center text-[11px] font-medium ${
+            className={`mono flex-1 rounded-lg border py-1.5 text-center text-[11px] font-bold ${
               on
-                ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
-                : "border-zinc-800 bg-zinc-900/40 text-zinc-600"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                : "border-hairline-subtle bg-surface-900 text-text-faint"
             }`}
           >
             {d}
@@ -77,21 +67,37 @@ export function AvailabilityDays({ days }: { days: string[] }) {
   );
 }
 
-const STATUS_STYLES: Record<BookingStatus, { label: string; className: string }> = {
-  offer: { label: "Offer sent", className: "border-zinc-700 bg-zinc-800/80 text-zinc-300" },
-  accepted: { label: "Accepted", className: "border-amber-400/40 bg-amber-400/10 text-amber-300" },
-  paid: { label: "Paid", className: "border-emerald-400/40 bg-emerald-500/10 text-emerald-300" },
-  declined: { label: "Declined", className: "border-red-500/40 bg-red-500/10 text-red-300" },
-};
-
-/** Booking lifecycle pill: offer → accepted → paid (declined for completeness). */
+/**
+ * Booking lifecycle pill — color is never the only signal, so each state pairs
+ * a hue with an icon + word: offer (neutral), accepted (amber), paid (cyan),
+ * declined (danger, outline).
+ */
 export function BookingStatusBadge({ status }: { status: BookingStatus }) {
-  const s = STATUS_STYLES[status];
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${s.className}`}
-    >
-      {s.label}
-    </span>
-  );
+  switch (status) {
+    case "offer":
+      return (
+        <Badge tone="neutral" icon={<ClockIcon size={11} />}>
+          Offer sent
+        </Badge>
+      );
+    case "accepted":
+      return (
+        <Badge tone="amber" icon={<CheckIcon size={11} />}>
+          Accepted
+        </Badge>
+      );
+    case "paid":
+      return (
+        <Badge tone="cyan" icon={<CheckIcon size={11} />}>
+          Paid
+        </Badge>
+      );
+    case "declined":
+      return (
+        <span className="mono inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--color-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-danger)_12%,transparent)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-danger)]">
+          <CloseIcon size={11} />
+          Declined
+        </span>
+      );
+  }
 }

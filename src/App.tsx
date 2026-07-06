@@ -16,9 +16,9 @@ import VenueDetail from "./pages/VenueDetail";
 
 function Splash() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-zinc-950 text-sm text-zinc-500">
-      <span className="flex items-center gap-2.5">
-        <span className="glow-pulse h-2 w-2 rounded-full bg-amber-400" />
+    <div className="flex min-h-dvh items-center justify-center bg-ink text-sm text-text-lo">
+      <span className="mono flex items-center gap-2.5">
+        <span className="blink h-2 w-2 rounded-full bg-amber-500" />
         Loading Backline…
       </span>
     </div>

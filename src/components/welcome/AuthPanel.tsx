@@ -5,13 +5,16 @@
 
 import { useState, type FormEvent } from "react";
 import { useApp } from "../../lib/store";
-import { Button, Card } from "../ui";
-import { BoltIcon } from "../icons";
-
-const INPUT_CLASS =
-  "w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 transition-colors focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/15 focus:outline-none";
+import { Button, Card, Mono } from "../ui";
+import { BoltIcon, CheckIcon, CloseIcon } from "../icons";
+import { INPUT_CLASS } from "./shared";
 
 type Mode = "signin" | "signup";
+
+/** small uppercase field label in the mono data layer. */
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <Mono className="text-[10px] font-bold text-text-lo">{children}</Mono>;
+}
 
 export function AuthPanel() {
   const { api } = useApp();
@@ -53,14 +56,14 @@ export function AuthPanel() {
   return (
     <Card className="p-5 sm:p-7">
       <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-400/10 text-amber-300">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
           <BoltIcon size={18} />
         </span>
         <div>
-          <h3 className="text-lg font-bold tracking-tight">
+          <h3 className="text-lg font-bold tracking-tight text-text-hi">
             {mode === "signup" ? "Create your account" : "Welcome back"}
           </h3>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-text-lo">
             {mode === "signup"
               ? "Your profile and bookings sync to your account."
               : "Sign in to pick up where you left off."}
@@ -71,7 +74,7 @@ export function AuthPanel() {
       <form onSubmit={onSubmit} className="mt-5 flex flex-col gap-3">
         {mode === "signup" && (
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-zinc-400">Name</span>
+            <FieldLabel>Name</FieldLabel>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -82,7 +85,7 @@ export function AuthPanel() {
           </label>
         )}
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400">Email</span>
+          <FieldLabel>Email</FieldLabel>
           <input
             type="email"
             value={email}
@@ -93,7 +96,7 @@ export function AuthPanel() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-zinc-400">Password</span>
+          <FieldLabel>Password</FieldLabel>
           <input
             type="password"
             value={password}
@@ -105,12 +108,14 @@ export function AuthPanel() {
         </label>
 
         {error && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <p className="flex items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-danger)_12%,transparent)] px-3 py-2 text-xs text-[var(--color-danger)]">
+            <CloseIcon size={14} />
             {error}
           </p>
         )}
         {notice && (
-          <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+          <p className="flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-300">
+            <CheckIcon size={14} />
             {notice}
           </p>
         )}
@@ -124,7 +129,7 @@ export function AuthPanel() {
         </Button>
       </form>
 
-      <p className="mt-4 text-center text-xs text-zinc-500">
+      <p className="mt-4 text-center text-xs text-text-lo">
         {mode === "signup" ? "Already have an account?" : "New to Backline?"}{" "}
         <button
           type="button"
@@ -133,7 +138,7 @@ export function AuthPanel() {
             setError(null);
             setNotice(null);
           }}
-          className="font-medium text-amber-300 transition-colors hover:text-amber-200"
+          className="font-semibold text-amber-300 transition-colors hover:text-amber-200"
         >
           {mode === "signup" ? "Sign in" : "Create one"}
         </button>

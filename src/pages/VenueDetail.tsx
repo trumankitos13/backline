@@ -8,13 +8,14 @@ import {
   Button,
   Card,
   EmptyState,
+  Mono,
   SectionHeader,
   formatCount,
 } from "../components/ui";
 import {
   ArrowLeftIcon,
-  BoltIcon,
   MapPinIcon,
+  SendIcon,
   UsersIcon,
 } from "../components/icons";
 import { FollowButton, GigRow } from "../components/bands/shared";
@@ -47,7 +48,7 @@ export default function VenueDetail() {
     <Page>
       <Link
         to="/bands"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-zinc-200"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-text-mid transition-colors hover:text-text-hi"
       >
         <ArrowLeftIcon size={16} />
         Bands & venues
@@ -58,19 +59,17 @@ export default function VenueDetail() {
         <Avatar name={venue.name} seed={venue.seed} size={84} square />
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{venue.name}</h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-lo">
             <span className="flex items-center gap-1">
               <MapPinIcon size={13} />
               {venue.neighborhood}
             </span>
             <span className="flex items-center gap-1">
               <UsersIcon size={13} />
-              cap {formatCount(venue.capacity)}
+              <Mono className="text-[10px] text-text-mid">cap {formatCount(venue.capacity)}</Mono>
             </span>
-            <span>
-              <span className="font-semibold text-zinc-300">
-                {formatCount(venue.followers)}
-              </span>{" "}
+            <span className="flex items-center gap-1">
+              <Mono className="text-[10px] text-text-mid">{formatCount(venue.followers)}</Mono>
               followers
             </span>
           </div>
@@ -81,7 +80,7 @@ export default function VenueDetail() {
         <FollowButton id={venue.id} size="md" className="w-full sm:w-auto sm:min-w-44" />
       </div>
 
-      <p className="mt-4 border-l-2 border-amber-400/60 pl-3 text-sm leading-relaxed text-zinc-300 italic">
+      <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-sm leading-relaxed text-text-mid italic">
         “{venue.vibe}”
       </p>
 
@@ -91,9 +90,9 @@ export default function VenueDetail() {
         className="mt-8 mb-3"
         action={
           gigs.length > 0 ? (
-            <span className="text-xs text-zinc-500">
+            <Mono className="text-[10px] text-text-lo">
               {gigs.length} {gigs.length === 1 ? "night" : "nights"}
-            </span>
+            </Mono>
           ) : undefined
         }
       />
@@ -116,12 +115,12 @@ export default function VenueDetail() {
       <SectionHeader title="About booking" className="mt-8 mb-3" />
       <Card className="p-4">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
-            <BoltIcon size={19} />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-300">
+            <SendIcon size={18} />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold">Want this stage?</p>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-400">
+            <p className="mt-1 text-sm leading-relaxed text-text-mid">
               Send your reel through Backline — the {venue.name} booking team checks
               profiles weekly and replies to everyone with open dates. A tight
               30-second clip beats a press kit every time.

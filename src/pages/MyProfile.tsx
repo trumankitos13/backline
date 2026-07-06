@@ -1,5 +1,6 @@
 // My profile (/profile): the current user's own view — availability toggle,
-// reels placeholder, booking history, following list, and demo reset.
+// reels placeholder, booking history, following list, demo reset, and (in cloud
+// mode) sign out. Backline tokens throughout: mono data atoms, amber scarce.
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,6 +10,8 @@ import {
   Button,
   Card,
   EmptyState,
+  FreeTonightBadge,
+  Mono,
   SectionHeader,
   Toggle,
 } from "../components/ui";
@@ -23,7 +26,6 @@ import { isCloudBackend } from "../lib/backend";
 import { getBand, getMusician, getVenue } from "../lib/data";
 import {
   BookingStatusBadge,
-  FreeTonightBadge,
   InstrumentChips,
 } from "../components/profile/shared";
 
@@ -37,13 +39,17 @@ interface FollowedEntry {
 }
 
 export default function MyProfile() {
-  const { state, api } = useApp();
+  const { state, api, auth } = useApp();
   const navigate = useNavigate();
   const [confirmReset, setConfirmReset] = useState(false);
 
   const user = state.user;
   // App.tsx redirects to /welcome when there's no user; guard anyway.
   if (!user) return null;
+
+  // a real signed-in account (cloud mode) — demo mode has status signedIn but a
+  // null auth.user, so gate sign-out on the user actually being present.
+  const signedInReal = auth.status === "signedIn" && auth.user !== null;
 
   // newest bookings first
   const bookings = [...state.bookings].reverse();
@@ -89,15 +95,15 @@ export default function MyProfile() {
       {/* -------------------------------------------------------- header */}
       <header>
         <div className="flex items-start gap-4">
-          <Avatar name={user.name} seed={99} size={80} className="ring-2 ring-zinc-800" />
+          <Avatar name={user.name} seed={99} size={80} className="ring-2 ring-hairline-strong" />
           <div className="min-w-0 pt-0.5">
             <h1 className="truncate text-2xl font-bold tracking-tight">{user.name}</h1>
-            <p className="text-sm text-zinc-500">@{user.handle}</p>
-            <p className="mt-1.5 flex items-center gap-1 text-sm text-zinc-400">
-              <MapPinIcon size={15} className="shrink-0 text-zinc-500" />
+            <Mono className="mt-0.5 block text-xs text-text-lo">@{user.handle}</Mono>
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-text-mid">
+              <MapPinIcon size={15} className="shrink-0 text-text-lo" />
               {user.neighborhood}
             </p>
-            {user.availableTonight && <FreeTonightBadge className="mt-2" />}
+            {user.availableTonight && <FreeTonightBadge className="mt-2.5" />}
           </div>
         </div>
         <InstrumentChips
@@ -109,8 +115,8 @@ export default function MyProfile() {
       {/* ---------------------------------------------- availability toggle */}
       <Card className="mt-6 flex items-center justify-between gap-4 p-4">
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Available tonight</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+          <p className="text-sm font-semibold text-text-hi">Available tonight</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
             {user.availableTonight
               ? "You're showing up in tonight's sub searches. Keep your phone loud."
               : "Flip this on and bands hunting a last-minute sub will find you."}
@@ -127,18 +133,25 @@ export default function MyProfile() {
       <section className="mt-8">
         <SectionHeader title="Your reels" className="mb-3" />
         <div className="flex items-center gap-4">
-          <div className="flex aspect-[9/16] w-32 shrink-0 flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-zinc-700/80 text-zinc-500 transition-colors hover:border-zinc-500 hover:text-zinc-400">
-            <span className="rounded-full border border-zinc-700 p-2.5">
+          <button
+            type="button"
+            disabled
+            className="flex aspect-[9/16] w-32 shrink-0 cursor-not-allowed flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-hairline-strong text-text-lo"
+          >
+            <span className="rounded-full border border-hairline-strong p-2.5">
               <PlusIcon size={18} />
             </span>
-            <span className="px-3 text-center text-xs leading-tight font-medium">
+            <Mono className="px-3 text-center text-[10px] leading-tight">
               Upload a reel
-            </span>
+            </Mono>
+          </button>
+          <div className="max-w-[230px]">
+            <Mono className="text-[10px] text-amber-300">Coming soon</Mono>
+            <p className="mt-1.5 text-xs leading-relaxed text-text-lo">
+              Thirty seconds of your best groove beats any bio — get a clip ready
+              for launch day.
+            </p>
           </div>
-          <p className="max-w-[230px] text-xs leading-relaxed text-zinc-500">
-            Reel uploads are coming soon. Thirty seconds of your best groove beats
-            any bio — get a clip ready for launch day.
-          </p>
         </div>
       </section>
 
@@ -149,9 +162,7 @@ export default function MyProfile() {
           className="mb-3"
           action={
             bookings.length > 0 ? (
-              <span className="text-xs text-zinc-500">
-                {bookings.length} total
-              </span>
+              <Mono className="text-[10px] text-text-lo">{bookings.length} total</Mono>
             ) : undefined
           }
         />
@@ -168,21 +179,21 @@ export default function MyProfile() {
                   {mus && <Avatar name={mus.name} seed={mus.seed} size={42} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium">
+                      <p className="truncate text-sm font-medium text-text-hi">
                         {mus?.name ?? "Musician"}
                       </p>
                       <BookingStatusBadge status={b.status} />
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-zinc-500">
+                    <p className="mt-0.5 truncate text-xs text-text-lo">
                       {b.gigTitle} · {b.venueName}
                     </p>
-                    <p className="truncate text-xs text-zinc-600">
+                    <Mono className="block truncate text-[10px] text-text-faint">
                       {b.date} · {b.time}
-                    </p>
+                    </Mono>
                   </div>
-                  <span className="shrink-0 text-sm font-bold text-zinc-200">
+                  <Mono className="shrink-0 text-sm font-bold text-text-hi">
                     ${b.amount}
-                  </span>
+                  </Mono>
                 </Card>
               );
             })}
@@ -208,7 +219,7 @@ export default function MyProfile() {
           className="mb-3"
           action={
             followed.length > 0 ? (
-              <span className="text-xs text-zinc-500">{followed.length}</span>
+              <Mono className="text-[10px] text-text-lo">{followed.length}</Mono>
             ) : undefined
           }
         />
@@ -219,10 +230,10 @@ export default function MyProfile() {
                 <Link to={f.to} className="group flex min-w-0 flex-1 items-center gap-3">
                   <Avatar name={f.name} seed={f.seed} size={42} square />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium transition-colors group-hover:text-amber-300">
+                    <p className="truncate text-sm font-medium text-text-hi transition-colors group-hover:text-amber-300">
                       {f.name}
                     </p>
-                    <p className="truncate text-xs text-zinc-500">
+                    <p className="truncate text-xs text-text-lo">
                       {f.kind === "band" ? "Band" : "Venue"} · {f.meta}
                     </p>
                   </div>
@@ -252,10 +263,10 @@ export default function MyProfile() {
       </section>
 
       {/* ---------------------------------------------- reset + sign out */}
-      <div className="mt-10 flex flex-col items-center gap-3 border-t border-zinc-800/70 pt-6 pb-2 text-center">
+      <div className="mt-10 flex flex-col items-center gap-3 border-t border-hairline-subtle pt-6 pb-2 text-center">
         {confirmReset ? (
           <div className="flex flex-col items-center gap-2.5">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-text-mid">
               {isCloudBackend
                 ? "This clears your chats, bookings, and follows. Your account stays."
                 : "This wipes your profile, chats, and bookings. Fresh stage, empty setlist."}
@@ -272,17 +283,17 @@ export default function MyProfile() {
         ) : (
           <button
             onClick={() => setConfirmReset(true)}
-            className="text-xs text-zinc-600 underline-offset-4 transition-colors hover:text-zinc-400 hover:underline"
+            className="mono text-[10px] text-text-faint underline-offset-4 transition-colors hover:text-text-mid hover:underline"
           >
             {isCloudBackend ? "Reset my activity" : "Reset demo data"}
           </button>
         )}
-        {isCloudBackend && (
+        {signedInReal && (
           <button
             onClick={() => {
               void api.signOut();
             }}
-            className="text-xs text-zinc-600 underline-offset-4 transition-colors hover:text-zinc-400 hover:underline"
+            className="mono text-[10px] text-text-faint underline-offset-4 transition-colors hover:text-text-mid hover:underline"
           >
             Sign out
           </button>

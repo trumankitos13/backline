@@ -1,12 +1,12 @@
-// A single feed post: author row, text, kind-specific attachment, action footer.
+// A single feed post: author row, kind pill, kind-specific attachment, footer.
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { FeedPost, Gig, VideoClip } from "../../lib/types";
+import type { FeedPost, Gig, PostKind, VideoClip } from "../../lib/types";
 import { getGig, getBand, getMusician, getVenue } from "../../lib/data";
 import { instrumentLabel } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
-import { Avatar, Button, Card, formatCount } from "../ui";
+import { Avatar, Badge, Button, Card, Mono, UrgentBadge, formatCount } from "../ui";
 import {
   CalendarIcon,
   CheckIcon,
@@ -57,6 +57,18 @@ function resolveAuthor(post: FeedPost): AuthorInfo | null {
     : null;
 }
 
+// ------------------------------------------------------------- kind pill
+
+type PillTone = "neutral" | "amber" | "cyan";
+
+const KIND_PILL: Record<PostKind, { label: string; tone: PillTone }> = {
+  gig: { label: "Gig", tone: "neutral" },
+  "open-mic": { label: "Open mic", tone: "neutral" },
+  "need-sub": { label: "Sub needed", tone: "amber" },
+  video: { label: "Reel", tone: "neutral" },
+  news: { label: "News", tone: "neutral" },
+};
+
 // ------------------------------------------------------------- gig embed
 
 function GigEmbed({ gig }: { gig: Gig }) {
@@ -65,26 +77,28 @@ function GigEmbed({ gig }: { gig: Gig }) {
   return (
     <Card className="mt-3 p-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-800/80 text-amber-300">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-800 text-amber-300">
           <CalendarIcon size={18} />
         </span>
         <div className="min-w-0 flex-1 basis-40">
-          <p className="truncate text-sm font-medium text-zinc-100">{gig.title}</p>
-          <p className="mt-0.5 text-xs text-zinc-400">
-            {gig.date} · {gig.time}
+          <p className="truncate text-sm font-medium text-text-hi">{gig.title}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-mid">
+            <Mono className="text-[11px] text-text-mid">
+              {gig.date} · {gig.time}
+            </Mono>
             {venue && (
               <>
-                {" · "}
+                <span className="text-text-faint">·</span>
                 <Link
                   to={`/v/${venue.id}`}
-                  className="font-medium text-zinc-300 hover:text-amber-300 hover:underline"
+                  className="font-medium text-text-mid hover:text-amber-300 hover:underline"
                 >
                   {venue.name}
                 </Link>
               </>
             )}
-            {" · "}
-            {gig.ticket ?? "Free"}
+            <span className="text-text-faint">·</span>
+            <Mono className="text-[11px] text-text-mid">{gig.ticket ?? "Free"}</Mono>
           </p>
         </div>
         <Button
@@ -93,7 +107,7 @@ function GigEmbed({ gig }: { gig: Gig }) {
           aria-pressed={interested}
           onClick={() => setInterested((v) => !v)}
         >
-          {interested && <CheckIcon size={14} className="text-amber-400" />}
+          {interested && <CheckIcon size={14} className="text-cyan-300" />}
           Interested
         </Button>
       </div>
@@ -116,30 +130,40 @@ function SubEmbed({
   const navigate = useNavigate();
   const responded = state.respondedSubPosts.includes(post.id);
   return (
-    <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/[0.06] p-3.5 shadow-[0_0_28px_-10px_rgba(251,191,36,0.5)]">
+    <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-3.5 shadow-[0_0_28px_-10px_rgba(248,171,60,0.5)]">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-400/15 text-amber-300">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
           <InstrumentIcon instrument={sub.instrument} size={20} />
         </span>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-amber-300">
-            Need: {instrumentLabel(sub.instrument)}
-          </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-300">
-            <span className="inline-flex items-center gap-1">
-              <ClockIcon size={13} className="text-zinc-400" />
-              {sub.date}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-amber-300">
+              Need: {instrumentLabel(sub.instrument)}
+            </p>
+            <span className="ml-auto shrink-0">
+              <UrgentBadge />
             </span>
-            <span className="text-zinc-600">·</span>
-            <span className="font-semibold text-emerald-300">${sub.payout} guaranteed</span>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <Mono className="inline-flex items-center gap-1 text-[11px] text-text-mid">
+              <ClockIcon size={12} className="text-text-lo" />
+              {sub.date}
+            </Mono>
+            <span className="text-text-faint">·</span>
+            <Mono className="text-[11px] font-bold text-amber-300">
+              ${sub.payout} guaranteed
+            </Mono>
           </p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {responded ? (
-          <Button size="sm" variant="secondary" disabled>
-            You raised your hand <CheckIcon size={14} className="text-emerald-400" />
-          </Button>
+          <button
+            disabled
+            className="inline-flex min-h-[44px] cursor-default items-center gap-1.5 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300"
+          >
+            You raised your hand <CheckIcon size={14} />
+          </button>
         ) : (
           <Button size="sm" onClick={() => api.respondToSubPost(post.id, authorName)}>
             I'm available →
@@ -148,9 +172,6 @@ function SubEmbed({
         <Button size="sm" variant="ghost" onClick={() => navigate("/")}>
           Find subs
         </Button>
-        {responded && (
-          <span className="text-xs text-zinc-400">{authorName} got your info.</span>
-        )}
       </div>
     </div>
   );
@@ -186,28 +207,30 @@ function PostFooter({ post }: { post: FeedPost }) {
   const { state, api } = useApp();
   const liked = state.likedPosts.includes(post.id);
   return (
-    <div className="mt-3 flex items-center gap-6 border-t border-zinc-800/60 pt-2.5 text-zinc-500">
+    <div className="mt-3 flex items-center gap-6 border-t border-hairline-subtle pt-2.5 text-text-lo">
       <button
         onClick={() => api.toggleLike(post.id)}
         aria-pressed={liked}
         aria-label={liked ? "Unlike" : "Like"}
-        className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
-          liked ? "text-red-400" : "hover:text-red-300"
+        className={`flex items-center gap-1.5 transition-colors ${
+          liked ? "text-[var(--color-danger)]" : "hover:text-[var(--color-danger)]"
         }`}
       >
         <HeartIcon size={17} filled={liked} />
-        {formatCount(post.likes + (liked ? 1 : 0))}
+        <Mono className={`text-[11px] transition-transform ${liked ? "scale-110" : ""}`}>
+          {formatCount(post.likes + (liked ? 1 : 0))}
+        </Mono>
       </button>
       <button
         aria-label="Comments"
-        className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-zinc-300"
+        className="flex items-center gap-1.5 transition-colors hover:text-text-hi"
       >
         <CommentIcon size={17} />
-        {formatCount(post.comments)}
+        <Mono className="text-[11px]">{formatCount(post.comments)}</Mono>
       </button>
       <button
         aria-label="Share"
-        className="ml-auto flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-zinc-300"
+        className="ml-auto flex items-center gap-1.5 transition-colors hover:text-text-hi"
       >
         <ShareIcon size={17} />
       </button>
@@ -221,6 +244,7 @@ export function PostCard({ post }: { post: FeedPost }) {
   const author = resolveAuthor(post);
   if (!author) return null;
   const gig = post.gigId ? getGig(post.gigId) : undefined;
+  const pill = KIND_PILL[post.kind];
 
   return (
     <Card className="p-4">
@@ -236,14 +260,19 @@ export function PostCard({ post }: { post: FeedPost }) {
             </Link>
             {author.verified && <VerifiedIcon size={14} className="shrink-0" />}
           </p>
-          <p className="text-xs text-zinc-500">
+          <Mono className="text-[11px] text-text-lo">
             {author.typeLabel} · {post.ago}
-          </p>
+          </Mono>
         </div>
       </div>
 
       {/* body */}
-      <p className="mt-3 text-sm leading-relaxed text-zinc-200">{post.text}</p>
+      <p className="mt-3 text-sm leading-relaxed text-text-hi">{post.text}</p>
+
+      {/* kind pill */}
+      <div className="mt-3">
+        <Badge tone={pill.tone}>{pill.label}</Badge>
+      </div>
 
       {/* kind-specific attachment */}
       {(post.kind === "gig" || post.kind === "open-mic") && gig && <GigEmbed gig={gig} />}

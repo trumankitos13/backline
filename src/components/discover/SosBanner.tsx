@@ -1,88 +1,45 @@
-// The Discover page's headline feature: an amber "gig at risk" banner that
-// flips into SOS mode — filters lock to available-tonight, sorted by fastest
-// reply — and reports how many players can cover.
+// The in-page entry to the SOS flow: a compact amber "stage light" banner that
+// opens the full SOS overlay (radar search → ranked subs). Amber is scarce, so
+// this and the shell's SOS button are the only warm CTAs on the page.
 
-import { BoltIcon, CloseIcon } from "../icons";
-import { Button } from "../ui";
+import { BoltIcon } from "../icons";
+import { Button, Mono } from "../ui";
 
 export function SosBanner({
-  active,
-  count,
-  fastestMins,
-  tonightTotal,
-  onActivate,
-  onDismiss,
+  tonightCount,
+  onOpen,
 }: {
-  active: boolean;
-  /** players matching the current filters who can cover tonight */
-  count: number;
-  /** quickest response time among them, in minutes */
-  fastestMins: number | null;
-  /** total players marked free tonight, ignoring filters */
-  tonightTotal: number;
-  onActivate: () => void;
-  onDismiss: () => void;
+  /** players marked free tonight, for the scarcity line */
+  tonightCount: number;
+  onOpen: () => void;
 }) {
-  if (!active) {
-    return (
-      <div className="relative overflow-hidden rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-400/15 via-zinc-900/60 to-zinc-900/60 p-4 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45)]">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300">
-            <BoltIcon size={20} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-amber-100">
-              Drummer bailed? Gig at risk?
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-400">
-              {tonightTotal} players nearby are marked free tonight. Flip on SOS
-              mode and we'll line them up, fastest repliers first.
-            </p>
-            <Button size="sm" className="mt-3" onClick={onActivate}>
-              <BoltIcon size={14} />
-              Find a sub for tonight
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative rounded-2xl border border-amber-400/60 bg-amber-400/10 p-4 shadow-[0_0_48px_-10px_rgba(251,191,36,0.6)]">
-      {/* pulsing ring keeps the urgency without flickering the copy */}
+    <div className="relative overflow-hidden rounded-2xl border border-amber-500/40 bg-surface-900 p-4 shadow-[0_0_36px_-14px_var(--accent)]">
+      {/* faint stage-light wash, top-left */}
       <span
-        className="glow-pulse pointer-events-none absolute -inset-px rounded-2xl border-2 border-amber-400/60"
         aria-hidden="true"
+        className="pointer-events-none absolute -top-16 -left-12 h-40 w-40 rounded-full bg-amber-500/15 blur-2xl"
       />
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-zinc-950 shadow-[0_0_20px_-2px_rgba(251,191,36,0.8)]">
-          <BoltIcon size={20} />
+      <div className="relative flex items-start gap-3">
+        <span className="pulse-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-ink-near shadow-[0_10px_30px_-10px_var(--accent)]">
+          <BoltIcon size={22} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold tracking-widest text-amber-300 uppercase">
-            SOS mode on
-          </p>
-          <h2 className="mt-0.5 text-base font-bold text-zinc-50">
-            {count === 0
-              ? "No one free tonight matches"
-              : count === 1
-                ? "1 player can cover tonight"
-                : `${count} players can cover tonight`}
+          <Mono className="text-[10px] font-bold text-amber-300">
+            Gig at risk
+          </Mono>
+          <h2 className="mt-0.5 text-base font-bold text-text-hi">
+            Someone bailed tonight?
           </h2>
-          <p className="mt-1 text-sm leading-relaxed text-zinc-400">
-            {count > 0 && fastestMins != null
-              ? `Sorted by fastest reply — quickest is ~${fastestMins} min. Tap Message and lock your sub in.`
-              : "Widen the distance or clear an instrument — somebody out there owns a van and says yes."}
+          <p className="mt-1 text-sm leading-relaxed text-text-mid">
+            <span className="mono text-text-hi">{tonightCount}</span> players are
+            free tonight and ready to sub in. Radar-search the closest ones.
           </p>
+          <Button variant="sos" size="md" className="mt-3" onClick={onOpen}>
+            <BoltIcon size={16} />
+            Find a sub — SOS
+          </Button>
         </div>
-        <button
-          onClick={onDismiss}
-          aria-label="Turn off SOS mode"
-          className="relative -m-1 rounded-full p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
-        >
-          <CloseIcon size={16} />
-        </button>
       </div>
     </div>
   );

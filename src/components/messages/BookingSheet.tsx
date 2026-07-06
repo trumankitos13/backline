@@ -147,7 +147,7 @@ export function BookingSheet({
           hint={`Their rate: $${musician.rate.min}–$${musician.rate.max}`}
         >
           <div className="relative">
-            <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-zinc-500">
+            <span className="mono absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-text-lo">
               $
             </span>
             <input
@@ -174,7 +174,7 @@ export function BookingSheet({
         <Button type="submit" size="lg" disabled={!valid} className="w-full">
           <DollarIcon size={17} /> Send offer
         </Button>
-        <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-zinc-500">
+        <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-text-lo">
           <LockIcon size={12} className="shrink-0" /> No charge yet — you only pay
           after {first} accepts.
         </p>

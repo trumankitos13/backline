@@ -21,15 +21,6 @@ export function slotNoteText(note: string): string {
   return note.replace(/^urgent:?\s*/i, "");
 }
 
-export function UrgentBadge() {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-[10px] font-bold tracking-wider text-red-300 uppercase">
-      <span className="glow-pulse h-1.5 w-1.5 rounded-full bg-red-400" />
-      Urgent
-    </span>
-  );
-}
-
 // ---------------------------------------------------------- follow button
 
 /** Follow/Following toggle for a band or venue id, wired to the store. */
@@ -66,8 +57,8 @@ export function FollowButton({
 // --------------------------------------------------------------- gig rows
 
 /**
- * One upcoming gig as a row: date block, title, and a cross-link — to the
- * venue (on band pages) or to the band (on venue pages).
+ * One upcoming gig as a row: date block (mono data layer), title, and a
+ * cross-link — to the venue (on band pages) or to the band (on venue pages).
  */
 export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
   const venue = getVenue(gig.venueId);
@@ -80,33 +71,31 @@ export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
       <div
         className={`w-16 shrink-0 rounded-xl border px-1 py-2 text-center ${
           tonight
-            ? "border-amber-400/40 bg-amber-400/10"
-            : "border-zinc-800 bg-zinc-800/40"
+            ? "border-amber-500/40 bg-amber-500/10"
+            : "border-hairline-subtle bg-surface-800"
         }`}
       >
         {tonight ? (
-          <p className="glow-pulse text-xs font-bold text-amber-300">Tonight</p>
+          <p className="mono blink text-[11px] font-bold text-amber-300">Tonight</p>
         ) : (
           <>
-            <p className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
-              {dayOfWeek}
-            </p>
-            <p className="text-xs font-bold text-zinc-200">{restOfDate.join(" ")}</p>
+            <p className="mono text-[10px] font-semibold text-text-lo">{dayOfWeek}</p>
+            <p className="mono text-xs font-bold text-text-hi">{restOfDate.join(" ")}</p>
           </>
         )}
-        <p className={`mt-0.5 text-[10px] ${tonight ? "text-amber-200/80" : "text-zinc-500"}`}>
+        <p className={`mono mt-0.5 text-[10px] ${tonight ? "text-amber-200/80" : "text-text-lo"}`}>
           {gig.time}
         </p>
       </div>
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{gig.title}</p>
-        <p className="mt-0.5 truncate text-xs text-zinc-500">
+        <p className="mt-0.5 truncate text-xs text-text-lo">
           {link === "venue" && venue && (
             <>
               <Link
                 to={`/v/${venue.id}`}
-                className="font-medium text-zinc-400 transition-colors hover:text-amber-300 hover:underline"
+                className="font-medium text-text-mid transition-colors hover:text-amber-300 hover:underline"
               >
                 {venue.name}
               </Link>
@@ -118,7 +107,7 @@ export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
             (band ? (
               <Link
                 to={`/b/${band.id}`}
-                className="font-medium text-zinc-400 transition-colors hover:text-amber-300 hover:underline"
+                className="font-medium text-text-mid transition-colors hover:text-amber-300 hover:underline"
               >
                 {band.name}
               </Link>
@@ -128,7 +117,7 @@ export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
         </p>
       </div>
 
-      <span className="shrink-0 rounded-full border border-zinc-700/80 bg-zinc-900 px-2.5 py-1 text-xs font-medium text-zinc-300">
+      <span className="mono shrink-0 rounded-full border border-hairline-strong bg-surface-900 px-2.5 py-1 text-xs font-medium text-text-hi">
         {gig.ticket ?? "Free"}
       </span>
     </div>
