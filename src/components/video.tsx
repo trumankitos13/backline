@@ -1,7 +1,8 @@
-// Short-form video components. The prototype has no real video assets, so a
-// clip renders as a gradient "frame" with animated equalizer bars; the reel
-// viewer simulates playback with a timed progress bar. Swapping in real
-// <video> elements later only touches this file.
+// Short-form video components — Backline "alive" reel composition. No real
+// video assets: a clip renders as a seed-derived gel gradient layered with film
+// grain, a travelling stage-light sweep, and live equalizer bars. The fullscreen
+// viewer adds a waveform scrubber. Swapping in real <video> later touches only
+// this file. Exports (VideoTile, ReelViewer) keep stable signatures.
 
 import { useEffect, useState } from "react";
 import type { VideoClip } from "../lib/types";
@@ -12,9 +13,10 @@ import {
   PlayIcon,
   ShareIcon,
 } from "./icons";
-import { formatCount, formatDuration } from "./ui";
+import { formatCount, formatDuration, Mono } from "./ui";
+import { GRAIN_DATA_URI, reelGrad, waveform } from "../lib/generative";
 
-/** deterministic pseudo-random bar heights per clip id */
+/** deterministic eq bar heights (0.25..0.95) per clip id. */
 function barHeights(id: string, count: number): number[] {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9973;
@@ -46,7 +48,7 @@ function EqBars({
       {heights.map((h, i) => (
         <span
           key={i}
-          className="eq-bar w-1.5 rounded-full bg-white/70"
+          className="eq-bar w-1.5 rounded-full bg-amber-300/90"
           style={{
             height: `${h * 100}%`,
             animationDelay: `${(i * 97) % 900}ms`,
@@ -58,10 +60,23 @@ function EqBars({
   );
 }
 
-/**
- * A 9:16 video tile for reels rows and feed embeds.
- * onPlay should open the ReelViewer.
- */
+/** film grain + travelling light sweep — the shared "alive" overlay. */
+function AliveOverlay() {
+  return (
+    <>
+      <span
+        className="pointer-events-none absolute inset-0 grain opacity-[0.16] mix-blend-overlay"
+        style={{ backgroundImage: `url("${GRAIN_DATA_URI}")`, backgroundSize: "160px" }}
+        aria-hidden="true"
+      />
+      <span className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <span className="sweep absolute -inset-y-4 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+      </span>
+    </>
+  );
+}
+
+/** a 9:16 reel tile for rails and feed embeds. onPlay opens the ReelViewer. */
 export function VideoTile({
   clip,
   onPlay,
@@ -73,15 +88,15 @@ export function VideoTile({
   className?: string;
   showStats?: boolean;
 }) {
-  const [from, to] = clip.palette;
   return (
     <button
       onClick={onPlay}
-      className={`group relative aspect-[9/16] shrink-0 overflow-hidden rounded-xl text-left ${className}`}
-      style={{ background: `linear-gradient(160deg, ${from}cc, ${to})` }}
+      className={`group relative aspect-[9/16] shrink-0 overflow-hidden rounded-2xl text-left ring-1 ring-white/10 ${className}`}
+      style={{ background: reelGrad(clip.id) }}
       aria-label={`Play video: ${clip.title}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/20" />
+      <AliveOverlay />
+      <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/25" />
       <EqBars clip={clip} count={7} paused className="absolute inset-x-4 top-1/4 bottom-1/2 opacity-80" />
       {/* play button */}
       <span className="absolute inset-0 flex items-center justify-center">
@@ -89,23 +104,26 @@ export function VideoTile({
           <PlayIcon size={18} className="text-white" />
         </span>
       </span>
-      {/* meta */}
+      {/* duration, top-right */}
+      {showStats && (
+        <span className="absolute top-2 right-2">
+          <Mono className="rounded bg-black/45 px-1.5 py-0.5 text-[9px] text-white/85">
+            {formatDuration(clip.durationSec)}
+          </Mono>
+        </span>
+      )}
+      {/* caption */}
       <span className="absolute inset-x-2 bottom-2 flex flex-col gap-0.5">
         <span className="line-clamp-2 text-xs leading-tight font-medium text-white">{clip.title}</span>
         {showStats && (
-          <span className="text-[10px] text-white/70">
-            ▶ {formatCount(clip.plays)} · {formatDuration(clip.durationSec)}
-          </span>
+          <Mono className="text-[9px] text-white/70">▶ {formatCount(clip.plays)}</Mono>
         )}
       </span>
     </button>
   );
 }
 
-/**
- * Full-screen short-form reel viewer with simulated playback.
- * Pass the list of clips and the index to start at.
- */
+/** fullscreen short-form reel viewer with simulated playback + scrubber. */
 export function ReelViewer({
   clips,
   startIndex = 0,
@@ -147,8 +165,9 @@ export function ReelViewer({
   }, [clips.length, onClose]);
 
   if (!clip) return null;
-  const [from, to] = clip.palette;
   const isLiked = liked[clip.id] ?? false;
+  const bars = waveform(clip.id, 44);
+  const playedTo = Math.floor(bars.length * 0.4);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95">
@@ -160,9 +179,10 @@ export function ReelViewer({
       />
 
       <div
-        className="relative aspect-[9/16] h-[92vh] max-w-[94vw] overflow-hidden rounded-2xl"
-        style={{ background: `linear-gradient(165deg, ${from}, ${to})` }}
+        className="relative aspect-[9/16] h-[92vh] max-w-[94vw] overflow-hidden rounded-2xl ring-1 ring-white/10"
+        style={{ background: reelGrad(clip.id) }}
       >
+        <AliveOverlay />
         {/* progress bars */}
         <div className="absolute inset-x-3 top-3 z-10 flex gap-1">
           {clips.map((c, i) => (
@@ -179,35 +199,46 @@ export function ReelViewer({
           ))}
         </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/30" />
-        <EqBars clip={clip} count={12} className="absolute inset-x-8 top-[22%] bottom-[45%]" />
+        <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+        <EqBars clip={clip} count={12} className="absolute inset-x-8 top-[22%] bottom-[46%]" />
 
         {/* caption */}
-        <div className="absolute inset-x-4 bottom-4 z-10 pr-14">
+        <div className="absolute inset-x-4 bottom-16 z-10 pr-14">
           {ownerName && <p className="text-sm font-semibold text-white">{ownerName}</p>}
           <p className="mt-0.5 text-sm text-white/90">{clip.title}</p>
-          <p className="mt-1 text-xs text-white/60">
-            ▶ {formatCount(clip.plays)} plays · {clip.tags.map((t) => `#${t}`).join(" ")}
-          </p>
+          <Mono className="mt-1 block text-[10px] text-white/60">
+            ▶ {formatCount(clip.plays)} · {clip.tags.map((t) => `#${t}`).join(" ")}
+          </Mono>
+        </div>
+
+        {/* waveform scrubber */}
+        <div className="absolute inset-x-4 bottom-5 z-10 flex h-8 items-end gap-[2px]" aria-hidden="true">
+          {bars.map((h, i) => (
+            <span
+              key={i}
+              className={`flex-1 rounded-full ${i <= playedTo ? "bg-amber-500" : "bg-white/25"}`}
+              style={{ height: `${h * 100}%` }}
+            />
+          ))}
         </div>
 
         {/* action rail */}
-        <div className="absolute right-3 bottom-16 z-10 flex flex-col items-center gap-4">
+        <div className="absolute right-3 bottom-24 z-10 flex flex-col items-center gap-4">
           <button
             onClick={() => setLiked((l) => ({ ...l, [clip.id]: !isLiked }))}
             className="flex flex-col items-center gap-1 text-white"
             aria-label="Like"
           >
-            <HeartIcon size={26} filled={isLiked} className={isLiked ? "text-red-500" : ""} />
-            <span className="text-[11px]">{formatCount(clip.likes + (isLiked ? 1 : 0))}</span>
+            <HeartIcon size={26} filled={isLiked} className={isLiked ? "text-[var(--color-danger)]" : ""} />
+            <Mono className="text-[10px]">{formatCount(clip.likes + (isLiked ? 1 : 0))}</Mono>
           </button>
           <button className="flex flex-col items-center gap-1 text-white" aria-label="Comment">
             <CommentIcon size={25} />
-            <span className="text-[11px]">42</span>
+            <Mono className="text-[10px]">42</Mono>
           </button>
           <button className="flex flex-col items-center gap-1 text-white" aria-label="Share">
             <ShareIcon size={25} />
-            <span className="text-[11px]">Share</span>
+            <Mono className="text-[10px]">Share</Mono>
           </button>
         </div>
       </div>
@@ -219,9 +250,9 @@ export function ReelViewer({
       >
         <CloseIcon size={20} />
       </button>
-      <p className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-white/40">
-        {index + 1} / {clips.length} · tap sides or use arrow keys
-      </p>
+      <Mono className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[10px] text-white/40">
+        {index + 1} / {clips.length} · tap sides or arrow keys
+      </Mono>
     </div>
   );
 }

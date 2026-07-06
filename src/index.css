@@ -1,19 +1,84 @@
 @import "tailwindcss";
 
+/* ============================================================= Backline theme
+   Design tokens from the Backline visual identity handoff. Dark-first, never
+   pure black. Amber is the single warm "stage light" (scarce by design); cyan
+   is the cool signal for verified / held / info. Space Grotesk for UI, Space
+   Mono for the "tech-rider" data layer (labels, money, timestamps, distances).
+   Fonts self-hosted via @fontsource, imported in main.tsx.                    */
+
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SF Mono", "Roboto Mono", monospace;
+
+  /* surfaces — cool zinc, dark-first */
+  --color-ink: #0b0c0f;
+  --color-ink-near: #0c0d10;
+  --color-surface-900: #111216;
+  --color-surface-850: #15171c;
+  --color-surface-sheet: #181a20;
+  --color-surface-800: #1c1e23;
+  --color-surface-raised: #26282f;
+  --color-hairline-subtle: #22242b;
+  --color-hairline: #2b2d34;
+  --color-hairline-strong: #333640;
+
+  /* text */
+  --color-text-hi: #f3f4f6;
+  --color-text-mid: #a6abb5;
+  --color-text-lo: #71767f;
+  --color-text-faint: #5a5e66;
+
+  /* amber — the stage light / standby / action / urgent */
+  --color-amber-200: #ffd79a;
+  --color-amber-300: #ffc879;
+  --color-amber-400: #fbb455;
+  --color-amber-500: #f8ab3c;
+  --color-amber-600: #d98a20;
+  --color-amber-onlight: #b26a00;
+
+  /* cyan — the cool signal / verified / held / info */
+  --color-cyan-300: #5fe6df;
+  --color-cyan-400: #4bd6cf;
+  --color-cyan-600: #2a9d97;
+
+  /* destructive (sparse, outline only) */
+  --color-danger: #e5675f;
+}
+
+:root {
+  --accent: #f8ab3c;
+  --accent-bright: #ffc879;
+  --cyan: #4bd6cf;
+  --reel-play: running;
 }
 
 html {
-  background-color: var(--color-zinc-950);
+  background-color: var(--color-ink);
   color-scheme: dark;
 }
 
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+  background-color: var(--color-ink);
+  color: var(--color-text-hi);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* hide scrollbars on horizontal reels while keeping them scrollable */
+::selection {
+  background: rgba(248, 171, 60, 0.3);
+  color: #fff;
+}
+
+/* the mono "tech-rider" texture — labels, data, money, timestamps */
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* hide scrollbars on horizontal rails while keeping them scrollable */
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -22,33 +87,109 @@ body {
   display: none;
 }
 
-/* animated equalizer bars used by video placeholders */
-@keyframes eq-bounce {
-  0%, 100% { transform: scaleY(0.25); }
-  50% { transform: scaleY(1); }
+/* ===================================================================== motion
+   All reel motion is globally pausable via --reel-play and gated on
+   prefers-reduced-motion below.                                               */
+
+/* equalizer bars (reel "alive" composition) */
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.28); }
+  20% { transform: scaleY(1); }
+  40% { transform: scaleY(0.5); }
+  60% { transform: scaleY(0.85); }
+  80% { transform: scaleY(0.4); }
 }
 .eq-bar {
   transform-origin: bottom;
-  animation: eq-bounce 1s ease-in-out infinite;
+  animation: eq 0.9s ease-in-out infinite;
+  animation-play-state: var(--reel-play);
 }
-.eq-paused .eq-bar {
-  animation-play-state: paused;
+.eq-paused .eq-bar { animation-play-state: paused; }
+
+/* stage-light gleam travelling across a reel */
+@keyframes sweep {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  55%, 100% { transform: translateX(240%) skewX(-18deg); }
+}
+.sweep {
+  animation: sweep 4.5s ease-in-out infinite;
+  animation-play-state: var(--reel-play);
 }
 
-/* reel progress bar */
+/* film-grain jitter */
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-4%, 3%); }
+  50% { transform: translate(3%, -2%); }
+  75% { transform: translate(-2%, -3%); }
+  100% { transform: translate(2%, 2%); }
+}
+.grain {
+  animation: grain 0.5s steps(3) infinite;
+  animation-play-state: var(--reel-play);
+}
+
+/* "free tonight" / urgent dot */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.blink { animation: blink 1.6s ease-in-out infinite; }
+
+/* legacy alias used by earlier components */
+.glow-pulse { animation: blink 2s ease-in-out infinite; }
+
+/* expanding ring on SOS / urgent actions */
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 rgba(248, 171, 60, 0.55); }
+  70% { box-shadow: 0 0 0 16px rgba(248, 171, 60, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(248, 171, 60, 0); }
+}
+.pulse-ring { animation: pulseRing 2.2s ease-out infinite; }
+
+/* concentric rings during an SOS search */
+@keyframes radar {
+  0% { transform: scale(0.3); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.radar-ring {
+  animation: radar 2.1s ease-out infinite;
+}
+
+/* loaders / processing */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
+
+/* hero elements bob */
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.floaty { animation: floaty 8s ease-in-out infinite; }
+
+/* entrance */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 0.3s ease both; }
+
+/* chit arrow nudge */
+@keyframes arrowNudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+.arrow-nudge { animation: arrowNudge 1.4s ease-in-out infinite; }
+
+/* reel progress bar (fullscreen viewer) */
 @keyframes reel-progress {
   from { width: 0%; }
   to { width: 100%; }
 }
-.reel-progress {
-  animation: reel-progress linear forwards;
-}
+.reel-progress { animation: reel-progress linear forwards; }
 
-/* soft pulse for "live tonight" markers */
-@keyframes glow-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-.glow-pulse {
-  animation: glow-pulse 2s ease-in-out infinite;
+@media (prefers-reduced-motion: reduce) {
+  .eq-bar, .sweep, .grain, .floaty, .radar-ring, .arrow-nudge {
+    animation: none !important;
+  }
 }

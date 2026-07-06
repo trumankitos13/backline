@@ -1,4 +1,4 @@
-// Domain model for the SitIn prototype. All data is mock/local — see data.ts.
+// Domain model for the Backline prototype. All data is mock/local — see data.ts.
 
 export type InstrumentId =
   | "guitar"

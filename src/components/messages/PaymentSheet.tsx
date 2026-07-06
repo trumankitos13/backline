@@ -1,12 +1,12 @@
 // Mock-Stripe payment sheet: order summary, fake prefilled card, fee
-// breakdown, 1.2s "processing" spin, then an in-sheet receipt. No real money —
-// production would be Stripe Connect destination charges.
+// breakdown, ~1.2s "holding" spin, then an in-sheet receipt. No real money —
+// production would be Stripe Connect destination charges. Backline: cyan = held.
 
 import { useEffect, useRef, useState } from "react";
 import type { Booking, Musician } from "../../lib/types";
 import { useApp } from "../../lib/store";
-import { Avatar, Button, Card, Modal } from "../ui";
-import { CardIcon, CheckIcon, LockIcon } from "../icons";
+import { Avatar, Button, Card, Modal, Mono, SuccessCheck } from "../ui";
+import { CardIcon, LockIcon } from "../icons";
 import { inputCls } from "./form";
 
 type Phase = "form" | "processing" | "success";
@@ -34,7 +34,6 @@ export function PaymentSheet({
   // clean up the fake-processing timer if the sheet unmounts mid-flight
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const first = musician.name.split(" ")[0] ?? musician.name;
   const fee = booking.amount * 0.05;
   const total = booking.amount + fee;
 
@@ -46,7 +45,7 @@ export function PaymentSheet({
     }, 1200);
   };
 
-  const readOnlyCls = `${inputCls} cursor-default text-zinc-300 select-none`;
+  const readOnlyCls = `${inputCls} cursor-default select-none text-text-mid`;
 
   return (
     <Modal
@@ -54,23 +53,23 @@ export function PaymentSheet({
       onClose={() => {
         if (phase !== "processing") onClose();
       }}
-      title={phase === "success" ? "Payment complete" : "Confirm & pay"}
+      title={phase === "success" ? "You're booked" : "Hold payment"}
     >
       {phase === "success" ? (
         // ---------------------------------------------------------- receipt
         <div className="flex flex-col items-center px-2 pb-2 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/15 text-emerald-400">
-            <CheckIcon size={30} />
-          </div>
+          <SuccessCheck size={64} />
           <p className="mt-4 text-2xl font-bold">You're booked!</p>
-          <p className="mt-1.5 text-sm text-zinc-400">
-            {musician.name} · {booking.date} · {booking.time}
+          <p className="mt-1.5 text-sm text-text-mid">
+            {musician.name} · {booking.venueName}
           </p>
-          <p className="text-sm text-zinc-400">{booking.venueName}</p>
-          <p className="mt-3 text-sm text-zinc-500">Receipt sent to your email.</p>
-          <p className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-zinc-500">
-            <LockIcon size={12} className="shrink-0" /> ${money(total)} held in
-            escrow until the gig happens.
+          <Mono className="mt-0.5 text-[11px] text-text-lo">
+            {booking.date} · {booking.time}
+          </Mono>
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-cyan-300">
+            <LockIcon size={13} className="shrink-0" />
+            <span className="mono text-[11px]">${money(total)}</span> held —
+            released after the show.
           </p>
           <Button size="lg" className="mt-6 w-full" onClick={onClose}>
             Done
@@ -80,19 +79,19 @@ export function PaymentSheet({
         // ------------------------------------------------------- card form
         <div className="space-y-4">
           {/* order summary */}
-          <Card className="p-3.5">
+          <Card className="bg-surface-850 p-3.5">
             <div className="flex items-center gap-3">
               <Avatar name={musician.name} seed={musician.seed} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{booking.gigTitle}</p>
-                <p className="truncate text-xs text-zinc-400">
+                <Mono className="block truncate text-[10px] text-text-lo">
                   {booking.date} · {booking.time} · {booking.venueName}
-                </p>
-                <p className="truncate text-xs text-zinc-500">
+                </Mono>
+                <p className="truncate text-xs text-text-mid">
                   Paying {musician.name}
                 </p>
               </div>
-              <p className="shrink-0 text-lg font-bold text-amber-300">
+              <p className="mono shrink-0 text-lg font-bold text-amber-300">
                 ${booking.amount}
               </p>
             </div>
@@ -100,19 +99,19 @@ export function PaymentSheet({
 
           {/* fake card form */}
           <div className="space-y-2.5">
-            <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+            <Mono className="block text-[11px] font-bold text-text-lo">
               Payment method
-            </p>
+            </Mono>
             <div className="relative">
               <CardIcon
                 size={16}
-                className="absolute top-1/2 left-3.5 -translate-y-1/2 text-zinc-500"
+                className="absolute top-1/2 left-3.5 -translate-y-1/2 text-text-lo"
               />
               <input
                 readOnly
                 value="4242 4242 4242 4242"
                 aria-label="Card number"
-                className={`${readOnlyCls} pl-10 font-mono tracking-wider`}
+                className={`${readOnlyCls} mono pl-10`}
               />
             </div>
             <div className="grid grid-cols-2 gap-2.5">
@@ -120,34 +119,34 @@ export function PaymentSheet({
                 readOnly
                 value="12/28"
                 aria-label="Expiry"
-                className={`${readOnlyCls} font-mono`}
+                className={`${readOnlyCls} mono`}
               />
               <input
                 readOnly
                 value="•••"
                 aria-label="CVC"
-                className={`${readOnlyCls} font-mono`}
+                className={`${readOnlyCls} mono`}
               />
             </div>
-            <p className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+            <p className="flex items-center gap-1.5 text-[11px] text-text-lo">
               <LockIcon size={12} className="shrink-0" /> Demo mode — no real
               charge.
             </p>
           </div>
 
           {/* fee breakdown */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3.5 text-sm">
-            <div className="flex items-center justify-between text-zinc-400">
-              <span>{first}'s rate</span>
-              <span className="text-zinc-200">${money(booking.amount)}</span>
+          <div className="rounded-xl border border-hairline-subtle bg-ink-near p-3.5 text-sm">
+            <div className="flex items-center justify-between text-text-mid">
+              <span>Performance fee</span>
+              <Mono className="text-[12px] text-text-hi">${money(booking.amount)}</Mono>
             </div>
-            <div className="mt-1.5 flex items-center justify-between text-zinc-400">
-              <span>SitIn fee (5%)</span>
-              <span className="text-zinc-200">${money(fee)}</span>
+            <div className="mt-1.5 flex items-center justify-between text-text-mid">
+              <span>Backline service (5%)</span>
+              <Mono className="text-[12px] text-text-hi">${money(fee)}</Mono>
             </div>
-            <div className="mt-2.5 flex items-center justify-between border-t border-zinc-800 pt-2.5 font-semibold">
+            <div className="mt-2.5 flex items-center justify-between border-t border-hairline-subtle pt-2.5 font-semibold">
               <span>Total</span>
-              <span className="text-amber-300">${money(total)}</span>
+              <Mono className="text-[13px] text-amber-300">${money(total)}</Mono>
             </div>
           </div>
 
@@ -160,16 +159,16 @@ export function PaymentSheet({
             {phase === "processing" ? (
               <>
                 <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-950/30 border-t-zinc-950"
+                  className="spin h-4 w-4 rounded-full border-2 border-ink-near/30 border-t-ink-near"
                   aria-hidden="true"
                 />
-                Processing…
+                Holding…
               </>
             ) : (
-              `Pay $${money(total)}`
+              `Hold $${money(total)}`
             )}
           </Button>
-          <p className="flex items-center justify-center gap-1.5 text-center text-[11px] leading-relaxed text-zinc-500">
+          <p className="flex items-center justify-center gap-1.5 text-center text-[11px] leading-relaxed text-text-lo">
             <LockIcon size={12} className="shrink-0" /> Held until the gig
             happens. Cancel-friendly up to 24h before.
           </p>

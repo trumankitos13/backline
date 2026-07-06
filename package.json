@@ -1,9 +1,9 @@
 {
-  "name": "sitin",
+  "name": "backline",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "SitIn — find local musicians, book a sub for tonight, follow your scene.",
+  "description": "Backline — find local musicians, book a sub for tonight, follow your scene.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -11,6 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@fontsource/space-mono": "^5.2.9",
+    "@supabase/supabase-js": "2.110.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0"
@@ -20,6 +23,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
+    "supabase": "2.109.0",
     "tailwindcss": "^4.1.7",
     "typescript": "~5.8.3",
     "vite": "^6.3.5"

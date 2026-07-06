@@ -7,8 +7,11 @@ import {
   Avatar,
   Button,
   Card,
+  Chip,
   EmptyState,
+  Mono,
   SectionHeader,
+  UrgentBadge,
   formatCount,
 } from "../components/ui";
 import {
@@ -23,7 +26,6 @@ import {
 import {
   FollowButton,
   GigRow,
-  UrgentBadge,
   isUrgent,
   slotNoteText,
 } from "../components/bands/shared";
@@ -41,7 +43,7 @@ export default function BandDetail() {
       <Page title="Band not found">
         <EmptyState
           icon={<UsersIcon size={32} />}
-          title="This band isn't on SitIn"
+          title="This band isn't on Backline"
           body="Maybe they changed their name, maybe they broke up over a setlist. Either way, plenty of other groups are looking for players."
           action={
             <Link to="/bands">
@@ -71,7 +73,7 @@ export default function BandDetail() {
     <Page>
       <Link
         to="/bands"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 transition-colors hover:text-zinc-200"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-text-mid transition-colors hover:text-text-hi"
       >
         <ArrowLeftIcon size={16} />
         Bands
@@ -82,16 +84,18 @@ export default function BandDetail() {
         <Avatar name={band.name} seed={band.seed} size={84} square />
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{band.name}</h1>
-          <p className="mt-1 text-sm text-zinc-400">{band.genres.join(" · ")}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {band.genres.map((g) => (
+              <Chip key={g}>{g}</Chip>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-lo">
             <span className="flex items-center gap-1">
               <MapPinIcon size={13} />
               {band.neighborhood}
             </span>
-            <span>
-              <span className="font-semibold text-zinc-300">
-                {formatCount(band.followers)}
-              </span>{" "}
+            <span className="flex items-center gap-1">
+              <Mono className="text-[10px] text-text-mid">{formatCount(band.followers)}</Mono>
               followers
             </span>
           </div>
@@ -102,15 +106,15 @@ export default function BandDetail() {
         <FollowButton id={band.id} size="md" className="w-full sm:w-auto sm:min-w-44" />
       </div>
 
-      <p className="mt-4 text-sm leading-relaxed text-zinc-300">{band.bio}</p>
+      <p className="mt-4 text-sm leading-relaxed text-text-mid">{band.bio}</p>
 
       {/* ------------------------------------------------------ members */}
       <SectionHeader
         title="Members"
         className="mt-8 mb-3"
-        action={<span className="text-xs text-zinc-500">{band.members.length} in the lineup</span>}
+        action={<Mono className="text-[10px] text-text-lo">{band.members.length} in the lineup</Mono>}
       />
-      <Card className="divide-y divide-zinc-800/70">
+      <Card className="divide-y divide-hairline-subtle">
         {band.members.map(({ musicianId, role }) => {
           const m = getMusician(musicianId);
           if (!m) return null;
@@ -118,7 +122,7 @@ export default function BandDetail() {
             <Link
               key={musicianId}
               to={`/m/${musicianId}`}
-              className="flex items-center gap-3 p-3.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-zinc-900"
+              className="flex items-center gap-3 p-3.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-surface-850"
             >
               <Avatar name={m.name} seed={m.seed} size={42} />
               <div className="min-w-0 flex-1">
@@ -126,15 +130,15 @@ export default function BandDetail() {
                   <span className="truncate">{m.name}</span>
                   {m.verified && <VerifiedIcon size={14} />}
                 </p>
-                <p className="truncate text-xs text-zinc-500">{role}</p>
+                <p className="truncate text-xs text-text-lo">{role}</p>
               </div>
               {m.availableTonight && (
-                <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-emerald-300">
-                  <span className="glow-pulse h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <span className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-amber-300">
+                  <span className="blink h-1.5 w-1.5 rounded-full bg-amber-500" />
                   Free tonight
                 </span>
               )}
-              <ChevronRightIcon size={16} className="shrink-0 text-zinc-600" />
+              <ChevronRightIcon size={16} className="shrink-0 text-text-faint" />
             </Link>
           );
         })}
@@ -146,9 +150,7 @@ export default function BandDetail() {
         className="mt-8 mb-3"
         action={
           band.openSlots.length > 0 ? (
-            <span className="text-xs text-amber-300/90">
-              {band.openSlots.length} open
-            </span>
+            <Mono className="text-[10px] text-amber-300">{band.openSlots.length} open</Mono>
           ) : undefined
         }
       />
@@ -161,16 +163,16 @@ export default function BandDetail() {
                 key={slot.instrument}
                 className={`rounded-2xl border p-4 ${
                   urgent
-                    ? "border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-red-500/[0.07] to-transparent"
-                    : "border-zinc-800/80 bg-zinc-900/60"
+                    ? "border-amber-500/45 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent"
+                    : "border-hairline-subtle bg-surface-900"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                       urgent
-                        ? "bg-amber-400/15 text-amber-300"
-                        : "bg-zinc-800/80 text-zinc-300"
+                        ? "bg-amber-500/15 text-amber-300"
+                        : "bg-surface-800 text-text-mid"
                     }`}
                   >
                     <InstrumentIcon instrument={slot.instrument} size={20} />
@@ -182,7 +184,7 @@ export default function BandDetail() {
                 </div>
                 <p
                   className={`mt-2.5 text-sm leading-relaxed ${
-                    urgent ? "text-zinc-200" : "text-zinc-400"
+                    urgent ? "text-text-hi" : "text-text-mid"
                   }`}
                 >
                   {slotNoteText(slot.note)}
@@ -205,7 +207,7 @@ export default function BandDetail() {
           })}
         </div>
       ) : (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-text-lo">
           Full lineup right now — follow {band.name} to hear when that changes.
         </p>
       )}

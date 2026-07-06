@@ -1,5 +1,6 @@
-// Musician profile (/m/:id): reels showcase, stats, gear, bands, reviews,
-// and a sticky Message / Book CTA bar that drops into the chat thread.
+// Musician profile (/m/:id): Uber-style headline rating, reels showcase, stats,
+// gear, availability, bands, a ratings breakdown + written reviews, and a sticky
+// Message / Book CTA bar that drops into the chat thread.
 
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -10,8 +11,13 @@ import {
   Card,
   Chip,
   EmptyState,
+  FreeTonightBadge,
+  Mono,
+  RatingBreakdown,
+  RatingNumber,
   SectionHeader,
   Stars,
+  VerifiedBadge,
   formatCount,
 } from "../components/ui";
 import {
@@ -22,34 +28,22 @@ import {
   MapPinIcon,
   MusicNoteIcon,
   PlayIcon,
-  StarIcon,
-  VerifiedIcon,
 } from "../components/icons";
 import { ReelViewer, VideoTile } from "../components/video";
 import { getBand, getMusician } from "../lib/data";
+import { ratingSummary } from "../lib/ratings";
+import { useApp } from "../lib/store";
 import type { Band } from "../lib/types";
 import {
   AvailabilityDays,
-  FreeTonightBadge,
   InstrumentChips,
 } from "../components/profile/shared";
 
-function StatCell({
-  value,
-  label,
-  star = false,
-}: {
-  value: string;
-  label: string;
-  star?: boolean;
-}) {
+function StatCell({ value, label }: { value: string; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-1 py-3.5 text-center">
-      <span className="flex items-center gap-1 text-sm font-bold sm:text-base">
-        {value}
-        {star && <StarIcon size={12} className="text-amber-400" />}
-      </span>
-      <span className="text-[10px] tracking-wide text-zinc-500 uppercase">{label}</span>
+    <div className="flex flex-col items-center gap-1 px-1 py-3.5 text-center">
+      <Mono className="text-sm font-bold text-text-hi sm:text-base">{value}</Mono>
+      <Mono className="text-[9px] text-text-lo">{label}</Mono>
     </div>
   );
 }
@@ -57,6 +51,7 @@ function StatCell({
 export default function MusicianProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { state } = useApp();
   const [reelAt, setReelAt] = useState<number | null>(null);
 
   const m = id ? getMusician(id) : undefined;
@@ -75,9 +70,7 @@ export default function MusicianProfile() {
   }
 
   const firstName = m.name.split(" ")[0];
-  const rating = m.reviews.length
-    ? m.reviews.reduce((sum, r) => sum + r.rating, 0) / m.reviews.length
-    : null;
+  const summary = ratingSummary(m, state.ratingsGiven[m.id]);
   const totalPlays = m.videos.reduce((sum, v) => sum + v.plays, 0);
   const bands = m.bandIds
     .map((bid) => getBand(bid))
@@ -86,10 +79,10 @@ export default function MusicianProfile() {
   return (
     <Page>
       {/* extra bottom padding so the sticky CTA bar never covers content */}
-      <div className="pb-24">
+      <div className="pb-44 md:pb-28">
         <button
           onClick={() => navigate(-1)}
-          className="-ml-1 mb-4 flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-zinc-400 transition-colors hover:text-zinc-200"
+          className="-ml-1 mb-4 flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-text-mid transition-colors hover:text-text-hi"
         >
           <ArrowLeftIcon size={17} />
           Back
@@ -98,18 +91,19 @@ export default function MusicianProfile() {
         {/* ------------------------------------------------------- header */}
         <header>
           <div className="flex items-start gap-4">
-            <Avatar name={m.name} seed={m.seed} size={88} className="ring-2 ring-zinc-800" />
+            <Avatar name={m.name} seed={m.seed} size={88} className="ring-2 ring-hairline-strong" />
             <div className="min-w-0 pt-1">
-              <h1 className="flex items-center gap-1.5 text-2xl font-bold tracking-tight">
+              <h1 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl font-bold tracking-tight">
                 <span className="truncate">{m.name}</span>
-                {m.verified && <VerifiedIcon size={20} className="shrink-0" />}
+                {m.verified && <VerifiedBadge />}
               </h1>
-              <p className="text-sm text-zinc-500">@{m.handle}</p>
-              <p className="mt-1.5 flex items-center gap-1 text-sm text-zinc-400">
-                <MapPinIcon size={15} className="shrink-0 text-zinc-500" />
-                {m.neighborhood} · {m.distanceMiles} mi away
+              <Mono className="mt-0.5 block text-xs text-text-lo">@{m.handle}</Mono>
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-text-mid">
+                <MapPinIcon size={15} className="shrink-0 text-text-lo" />
+                <span>{m.neighborhood}</span>
+                <Mono className="text-[11px] text-text-lo">· {m.distanceMiles} MI AWAY</Mono>
               </p>
-              {m.availableTonight && <FreeTonightBadge className="mt-2" />}
+              {m.availableTonight && <FreeTonightBadge className="mt-2.5" />}
             </div>
           </div>
           <InstrumentChips instruments={m.instruments} className="mt-4" />
@@ -120,20 +114,27 @@ export default function MusicianProfile() {
           </div>
         </header>
 
-        {/* ------------------------------------------------------ stat row */}
-        <Card className="mt-5 grid grid-cols-4 divide-x divide-zinc-800/80">
-          <StatCell value={String(m.gigsPlayed)} label="gigs played" />
-          <StatCell value={`~${m.responseMins}m`} label="reply time" />
-          <StatCell value={`$${m.rate.min}–${m.rate.max}`} label="per gig" />
-          <StatCell
-            value={rating ? rating.toFixed(1) : "New"}
-            label={
-              rating
-                ? `${m.reviews.length} review${m.reviews.length === 1 ? "" : "s"}`
-                : "no reviews"
-            }
-            star={Boolean(rating)}
-          />
+        {/* ---------------------------------- hero rating (Uber-style) + stats */}
+        <Card className="mt-5 overflow-hidden">
+          <div className="flex items-center gap-4 border-b border-hairline-subtle p-4">
+            <div className="min-w-0">
+              <RatingNumber avg={summary.avg} count={summary.count} size="lg" />
+              <Mono className="mt-1.5 block text-[10px] text-text-lo">
+                Rating · {summary.count} gigs rated
+              </Mono>
+            </div>
+            <div className="ml-auto text-right">
+              <Stars rating={summary.avg} size={16} />
+              <Mono className="mt-1.5 block text-[10px] text-text-lo">
+                Trusted sub
+              </Mono>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-hairline-subtle">
+            <StatCell value={String(m.gigsPlayed)} label="gigs" />
+            <StatCell value={`~${m.responseMins}m`} label="reply" />
+            <StatCell value={`$${m.rate.min}–${m.rate.max}`} label="per gig" />
+          </div>
         </Card>
 
         {/* --------------------------------------------------------- reels */}
@@ -143,10 +144,10 @@ export default function MusicianProfile() {
             className="mb-3"
             action={
               m.videos.length > 0 ? (
-                <span className="flex items-center gap-1 text-xs text-zinc-500">
-                  <PlayIcon size={12} />
-                  {formatCount(totalPlays)} total plays
-                </span>
+                <Mono className="flex items-center gap-1 text-[10px] text-text-lo">
+                  <PlayIcon size={11} />
+                  {formatCount(totalPlays)} plays
+                </Mono>
               ) : undefined
             }
           />
@@ -173,27 +174,23 @@ export default function MusicianProfile() {
         {/* --------------------------------------------------------- about */}
         <section className="mt-8">
           <SectionHeader title="About" className="mb-3" />
-          <p className="text-sm leading-relaxed text-zinc-300">{m.bio}</p>
+          <p className="text-sm leading-relaxed text-text-mid">{m.bio}</p>
           <Card className="mt-4 p-4">
-            <p className="mb-2.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Gear
-            </p>
+            <Mono className="mb-2.5 block text-[10px] text-text-lo">Gear</Mono>
             <div className="flex flex-wrap gap-2">
               {m.gear.map((g) => (
                 <span
                   key={g}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-hairline-subtle bg-surface-800 px-2.5 py-1 text-xs text-text-mid"
                 >
-                  <span className="h-1 w-1 shrink-0 rounded-full bg-amber-400/80" />
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-amber-500/80" />
                   {g}
                 </span>
               ))}
             </div>
           </Card>
           <Card className="mt-3 p-4">
-            <p className="mb-2.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Usually free on
-            </p>
+            <Mono className="mb-2.5 block text-[10px] text-text-lo">Usually free on</Mono>
             <AvailabilityDays days={m.availability} />
           </Card>
         </section>
@@ -207,17 +204,17 @@ export default function MusicianProfile() {
                 const role = b.members.find((mem) => mem.musicianId === m.id)?.role;
                 return (
                   <Link key={b.id} to={`/b/${b.id}`}>
-                    <Card className="flex items-center gap-3 p-3.5 transition-colors hover:border-zinc-700 hover:bg-zinc-900">
+                    <Card className="flex items-center gap-3 p-3.5 transition-colors hover:border-hairline-strong hover:bg-surface-850">
                       <Avatar name={b.name} seed={b.seed} size={46} square />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{b.name}</p>
-                        <p className="truncate text-xs text-zinc-500">
-                          {role && <span className="text-amber-300/90">{role}</span>}
+                        <p className="truncate text-sm font-semibold text-text-hi">{b.name}</p>
+                        <p className="truncate text-xs text-text-lo">
+                          {role && <span className="text-amber-300">{role}</span>}
                           {role && " · "}
                           {b.genres.join(" · ")}
                         </p>
                       </div>
-                      <ChevronRightIcon size={17} className="shrink-0 text-zinc-600" />
+                      <ChevronRightIcon size={17} className="shrink-0 text-text-faint" />
                     </Card>
                   </Link>
                 );
@@ -226,48 +223,56 @@ export default function MusicianProfile() {
           </section>
         )}
 
-        {/* ------------------------------------------------------- reviews */}
+        {/* ----------------------------------------- ratings breakdown + reviews */}
         <section className="mt-8">
           <SectionHeader
-            title="Reviews"
+            title={`${summary.count} ratings`}
             className="mb-3"
-            action={
-              rating ? (
-                <span className="flex items-center gap-1.5 text-xs text-zinc-400">
-                  <Stars rating={rating} size={12} />
-                  {rating.toFixed(1)}
-                </span>
-              ) : undefined
-            }
+            action={<RatingNumber avg={summary.avg} count={0} size="sm" />}
           />
+          <Card className="flex items-center gap-5 p-4">
+            <div className="flex shrink-0 flex-col items-center gap-1 pr-5">
+              <span className="text-4xl font-bold tracking-tight text-text-hi">
+                {summary.avg.toFixed(1)}
+              </span>
+              <Stars rating={summary.avg} size={13} />
+              <Mono className="mt-0.5 text-[9px] text-text-lo">{summary.count} total</Mono>
+            </div>
+            <RatingBreakdown breakdown={summary.breakdown} className="flex-1" />
+          </Card>
+        </section>
+
+        {/* ------------------------------------------------------- reviews */}
+        <section className="mt-6">
+          <SectionHeader title="Reviews" className="mb-3" />
           {m.reviews.length > 0 ? (
             <div className="flex flex-col gap-2.5">
               {m.reviews.map((r) => (
                 <Card key={r.id} className="p-4">
                   <div className="flex items-center justify-between gap-3">
                     <Stars rating={r.rating} size={13} />
-                    <span className="text-xs text-zinc-600">{r.date}</span>
+                    <Mono className="text-[10px] text-text-faint">{r.date}</Mono>
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">“{r.text}”</p>
-                  <p className="mt-2.5 text-xs text-zinc-500">
-                    <span className="font-medium text-zinc-400">{r.author}</span> · {r.role}
+                  <p className="mt-2 text-sm leading-relaxed text-text-mid">“{r.text}”</p>
+                  <p className="mt-2.5 text-xs text-text-lo">
+                    <span className="font-medium text-text-mid">{r.author}</span> · {r.role}
                   </p>
                 </Card>
               ))}
             </div>
           ) : (
-            <Card className="p-4 text-sm leading-relaxed text-zinc-500">
-              No reviews yet — book {firstName} and be the first to say how the gig went.
+            <Card className="p-4 text-sm leading-relaxed text-text-lo">
+              No written reviews yet — book {firstName} and be the first to say how the gig went.
             </Card>
           )}
         </section>
       </div>
 
       {/* -------------------------------------------------- sticky CTA bar */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-16 z-30 md:bottom-6">
+      <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 md:bottom-6">
         <div className="mx-auto max-w-6xl md:pl-56">
           <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
-            <div className="pointer-events-auto flex gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/90 p-3 shadow-2xl shadow-black/60 backdrop-blur-md">
+            <div className="pointer-events-auto flex gap-3 rounded-2xl border border-hairline bg-surface-900/90 p-3 shadow-2xl shadow-black/60 backdrop-blur-md">
               <Button
                 variant="secondary"
                 className="flex-1"

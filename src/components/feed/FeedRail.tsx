@@ -1,11 +1,11 @@
 // Side-rail modules for the feed page: follow suggestions + tonight's gigs.
-// Rendered in the right column at lg+, inline below the feed on mobile.
+// Rendered in the right column at lg+; the Tonight module also shows on mobile.
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BANDS, GIGS, VENUES, getVenue } from "../../lib/data";
 import { useApp } from "../../lib/store";
-import { Avatar, Button, Card, SectionHeader, formatCount } from "../ui";
+import { Avatar, Button, Card, Mono, SectionHeader, formatCount } from "../ui";
 import { CheckIcon } from "../icons";
 
 // ---------------------------------------------------------- who to follow
@@ -22,7 +22,7 @@ export function WhoToFollow() {
   const { state, api } = useApp();
 
   // snapshot on mount so rows don't vanish the instant you follow them —
-  // the button flips to "Following" instead (and is still un-toggleable)
+  // the button flips to "Following ✓" instead
   const [suggestions] = useState<Suggestion[]>(() => {
     const venues: Suggestion[] = VENUES.filter((v) => !state.following.includes(v.id)).map(
       (v) => ({
@@ -59,7 +59,7 @@ export function WhoToFollow() {
   return (
     <section>
       <SectionHeader title="Who to follow" className="mb-2.5" />
-      <Card className="divide-y divide-zinc-800/60 px-3">
+      <Card className="divide-y divide-hairline-subtle px-3">
         {suggestions.map((s) => {
           const following = state.following.includes(s.id);
           return (
@@ -74,7 +74,7 @@ export function WhoToFollow() {
                 >
                   {s.name}
                 </Link>
-                <p className="truncate text-[11px] text-zinc-500">{s.meta}</p>
+                <Mono className="block truncate text-[10px] text-text-lo">{s.meta}</Mono>
               </div>
               <Button
                 size="sm"
@@ -82,7 +82,7 @@ export function WhoToFollow() {
                 onClick={() => api.toggleFollow(s.id)}
                 aria-pressed={following}
               >
-                {following && <CheckIcon size={13} className="text-emerald-400" />}
+                {following && <CheckIcon size={13} className="text-cyan-300" />}
                 {following ? "Following" : "Follow"}
               </Button>
             </div>
@@ -102,28 +102,33 @@ export function TonightInTown() {
   return (
     <section>
       <SectionHeader title="Tonight in town" className="mb-2.5" />
-      <Card className="divide-y divide-zinc-800/60 px-3">
+      <Card className="divide-y divide-hairline-subtle px-3">
         {tonight.map((g) => {
           const venue = getVenue(g.venueId);
           return (
             <div key={g.id} className="flex items-start gap-2.5 py-2.5">
-              <span className="glow-pulse mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-400" />
+              <span className="blink mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug font-medium">{g.title}</p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">
-                  {g.time}
+                <p className="text-sm leading-snug font-medium text-text-hi">{g.title}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <Mono className="text-[10px] text-text-lo">{g.time}</Mono>
                   {venue && (
                     <>
-                      {" · "}
+                      <span className="text-text-faint">·</span>
                       <Link
                         to={`/v/${venue.id}`}
-                        className="text-zinc-400 hover:text-amber-300 hover:underline"
+                        className="mono text-[10px] text-text-mid hover:text-amber-300 hover:underline"
                       >
                         {venue.name}
                       </Link>
                     </>
                   )}
-                  {g.ticket && <> · {g.ticket}</>}
+                  {g.ticket && (
+                    <>
+                      <span className="text-text-faint">·</span>
+                      <Mono className="text-[10px] text-text-lo">{g.ticket}</Mono>
+                    </>
+                  )}
                 </p>
               </div>
             </div>

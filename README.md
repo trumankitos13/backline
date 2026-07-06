@@ -1,8 +1,8 @@
-# SitIn 🎸 — your scene, on call
+# Backline 🎸 — your scene, on call
 
 **Prototype** of a local-first social app for musicians, bands, venues, and gig
 techs. The elevator pitch: *your drummer's van died in Waco and you play at 9 —
-open SitIn, find a drummer two neighborhoods over, watch their reel, message
+open Backline, find a drummer two neighborhoods over, watch their reel, message
 them, book them, and pay them, all in one place.*
 
 ## What's in the prototype
@@ -26,9 +26,18 @@ them, book them, and pay them, all in one place.*
 - **Onboarding** — pick your roles, your neighborhood, and flip on
   "available tonight" to appear in SOS searches.
 
-Everything is mock data (a fictional Austin, TX scene) persisted to
-`localStorage` — no backend, no real payments. Use **Reset demo data** on the
-profile page to start over.
+The app runs in one of two modes, chosen automatically at build time:
+
+- **Demo mode** (no env vars): a fictional Austin, TX scene, all state persisted
+  to `localStorage`, no accounts, no real payments. Use **Reset demo data** on
+  the profile page to start over. This is what runs with `npm run dev` out of
+  the box, and what the deployed site falls back to until Supabase is wired.
+- **Cloud mode** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set): real
+  Supabase Auth (email + password) and Postgres persistence, with per-user
+  data protected by row-level security. See [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+The musician/band/venue catalog is demo data in both modes (seeded into Postgres
+via `supabase/seed.sql` in cloud mode).
 
 ## Run it
 
@@ -46,7 +55,10 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the route map, data
 model, and store API. Design decisions that matter for what comes next:
 
 - `src/lib/types.ts` is the API contract; `src/lib/store.tsx`'s `api` object is
-  the seam where a real backend (REST/WebSocket) replaces the simulated one.
+  the seam to the backend. The store updates optimistically and writes through
+  to a pluggable backend (`src/lib/backend/`): `local.ts` (localStorage) or
+  `supabase.ts` (auth + Postgres), selected by whether Supabase env vars exist.
+- Database schema, RLS policies, and catalog seed live in `supabase/`.
 - The UI is mobile-first (bottom tab bar) so screens translate directly to the
   planned native app.
 - Video reels are placeholder tiles behind one component (`components/video.tsx`);
