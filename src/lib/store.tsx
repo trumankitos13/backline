@@ -38,6 +38,8 @@ export interface AppState {
   likedPosts: string[];
   /** feed "need-sub" posts the user raised a hand on */
   respondedSubPosts: string[];
+  /** post-gig star ratings the user has given, keyed by musician id (session-only) */
+  ratingsGiven: Record<string, number[]>;
 }
 
 const EMPTY_STATE: AppState = {
@@ -47,6 +49,7 @@ const EMPTY_STATE: AppState = {
   bookings: [],
   likedPosts: [],
   respondedSubPosts: [],
+  ratingsGiven: {},
 };
 
 type Action =
@@ -60,7 +63,8 @@ type Action =
   | { type: "ADD_BOOKING"; booking: Booking }
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
   | { type: "TOGGLE_LIKE"; postId: string }
-  | { type: "RESPOND_SUB"; postId: string };
+  | { type: "RESPOND_SUB"; postId: string }
+  | { type: "RATE_MUSICIAN"; musicianId: string; stars: number };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -126,6 +130,17 @@ function reducer(state: AppState, action: Action): AppState {
       return state.respondedSubPosts.includes(action.postId)
         ? state
         : { ...state, respondedSubPosts: [...state.respondedSubPosts, action.postId] };
+    case "RATE_MUSICIAN":
+      return {
+        ...state,
+        ratingsGiven: {
+          ...state.ratingsGiven,
+          [action.musicianId]: [
+            ...(state.ratingsGiven[action.musicianId] ?? []),
+            action.stars,
+          ],
+        },
+      };
     default:
       return state;
   }
@@ -150,6 +165,8 @@ export interface AppApi {
   payBooking(bookingId: string, musicianId: string): void;
   toggleFollow(id: string): void;
   toggleLike(postId: string): void;
+  /** record a post-gig star rating (1..5) for a musician (session-only) */
+  rateMusician(musicianId: string, stars: number): void;
   respondToSubPost(postId: string, bandName: string): void;
   markRead(conversationId: string): void;
   setUser(user: CurrentUser): void;
@@ -365,6 +382,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (stateRef.current.respondedSubPosts.includes(postId)) return;
         dispatch({ type: "RESPOND_SUB", postId });
         persist((u) => backend.addRespondedSub(u, postId));
+      },
+      rateMusician(musicianId, stars) {
+        dispatch({ type: "RATE_MUSICIAN", musicianId, stars });
       },
       markRead(conversationId) {
         const conv = stateRef.current.conversations.find((c) => c.id === conversationId);
