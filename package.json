@@ -13,7 +13,9 @@
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@fontsource/space-mono": "^5.2.9",
+    "@sentry/react": "^10.63.0",
     "@supabase/supabase-js": "2.110.0",
+    "posthog-js": "^1.396.9",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0"

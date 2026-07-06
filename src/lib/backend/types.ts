@@ -46,6 +46,8 @@ export interface Backend {
   signUp(email: string, password: string, name: string): Promise<AuthResult>;
   signIn(email: string, password: string): Promise<AuthResult>;
   signOut(): Promise<void>;
+  /** send a password-reset email (no-op in local/demo mode) */
+  resetPassword(email: string): Promise<AuthResult>;
 
   // --- data ---
   /** load everything persisted for `user` (or the demo default when local) */

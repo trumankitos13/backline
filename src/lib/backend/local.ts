@@ -66,6 +66,9 @@ export const localBackend: Backend = {
   async signOut() {
     // no session to end in demo mode
   },
+  async resetPassword(): Promise<AuthResult> {
+    return { error: "Accounts require Supabase — this build is in demo mode." };
+  },
 
   async load() {
     return read();

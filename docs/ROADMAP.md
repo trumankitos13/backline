@@ -14,8 +14,13 @@ mobile.
   `supabase.ts`), selected by env. The store (`src/lib/store.tsx`) updates
   optimistically and writes through this seam. **This is the contract everything
   real plugs into.**
-- Supabase **scaffolding**: schema migrations, RLS policies, seed SQL, auth
-  (`AuthPanel`, `api.signIn/signUp/signOut`, sessions).
+- Supabase backend, **substantially built** (not just scaffolding): schema +
+  RLS (owner-scoped, tested), a `handle_new_user` trigger that auto-creates a
+  profile, catalog seed, and a working `supabase.ts` that persists auth,
+  onboarding, and all user data through the seam.
+- **Phase 0 in progress:** CI (typecheck + build), Sentry/PostHog observability
+  (dormant until keyed), an RLS cross-user isolation test suite, and password
+  reset — all landed. Remaining: point the app's catalog reads at Postgres.
 
 **Mocked / not yet real (the gap):**
 - Catalog (musicians, bands, venues, gigs, feed) is static data in `data.ts`.

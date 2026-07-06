@@ -72,6 +72,13 @@ export const supabaseBackend: Backend = {
     await supabase.auth.signOut();
   },
 
+  async resetPassword(email): Promise<AuthResult> {
+    const redirectTo =
+      typeof window !== "undefined" ? `${window.location.origin}/welcome` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error: error ? error.message : null };
+  },
+
   async load(user): Promise<PersistedData> {
     const empty: PersistedData = {
       user: null,

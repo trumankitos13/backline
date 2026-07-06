@@ -176,6 +176,7 @@ export interface AppApi {
   signIn(email: string, password: string): Promise<AuthResult>;
   signUp(email: string, password: string, name: string): Promise<AuthResult>;
   signOut(): Promise<void>;
+  resetPassword(email: string): Promise<AuthResult>;
 }
 
 export type AuthStatus = "loading" | "signedOut" | "signedIn";
@@ -415,6 +416,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       async signOut() {
         await backend.signOut();
+      },
+      resetPassword(email) {
+        return backend.resetPassword(email);
       },
     };
   }, []);
