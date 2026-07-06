@@ -23,7 +23,7 @@ export function Wordmark({
       style={{ fontSize: size, letterSpacing: "-0.04em" }}
     >
       backl
-      {/* dotless i + amber standby dot as its tittle */}
+      {/* dotless i + orange standby dot as its tittle */}
       <span className="relative inline-block" aria-hidden="true">
         ı
         <span
@@ -31,7 +31,7 @@ export function Wordmark({
           style={{
             width: dot,
             height: dot,
-            top: `-${dot * 0.7}px`,
+            top: `-${dot * 0.35}px`,
             transform: "translateX(-50%)",
             boxShadow: "0 0 0.5em var(--accent)",
           }}
@@ -418,13 +418,14 @@ export function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-amber-500" : "bg-surface-raised"
+      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${
+        checked ? "border-transparent bg-amber-500" : "border-hairline-strong bg-surface-raised"
       }`}
     >
+      {/* always-visible white knob: slides left (off) → right (on) */}
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full transition-transform ${
-          checked ? "translate-x-[22px] bg-ink-near" : "translate-x-0.5 bg-text-mid"
+        className={`absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-transform ${
+          checked ? "translate-x-[22px]" : "translate-x-0.5"
         }`}
       />
     </button>

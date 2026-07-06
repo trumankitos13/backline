@@ -23,7 +23,7 @@ export function StageBackdrop() {
         className="floaty absolute -top-48 left-1/2 h-[560px] w-[860px] -translate-x-1/2 rounded-full blur-[130px]"
         style={{
           background:
-            "radial-gradient(closest-side, rgba(248,171,60,0.22), transparent)",
+            "radial-gradient(closest-side, rgba(255,138,61,0.22), transparent)",
         }}
       />
       <div
@@ -38,7 +38,7 @@ export function StageBackdrop() {
         className="floaty absolute top-4 -right-24 h-[360px] w-[360px] rounded-full blur-[120px]"
         style={{
           background:
-            "radial-gradient(closest-side, rgba(248,171,60,0.10), transparent)",
+            "radial-gradient(closest-side, rgba(255,138,61,0.10), transparent)",
           animationDelay: "-5.5s",
         }}
       />

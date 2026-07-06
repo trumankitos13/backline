@@ -130,7 +130,7 @@ function SubEmbed({
   const navigate = useNavigate();
   const responded = state.respondedSubPosts.includes(post.id);
   return (
-    <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-3.5 shadow-[0_0_28px_-10px_rgba(248,171,60,0.5)]">
+    <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-3.5 shadow-[0_0_28px_-10px_rgba(255,138,61,0.5)]">
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-300">
           <InstrumentIcon instrument={sub.instrument} size={20} />

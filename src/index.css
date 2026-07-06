@@ -29,13 +29,15 @@
   --color-text-lo: #71767f;
   --color-text-faint: #5a5e66;
 
-  /* amber — the stage light / standby / action / urgent */
-  --color-amber-200: #ffd79a;
-  --color-amber-300: #ffc879;
-  --color-amber-400: #fbb455;
-  --color-amber-500: #f8ab3c;
-  --color-amber-600: #d98a20;
-  --color-amber-onlight: #b26a00;
+  /* orange — the stage light / standby / action / urgent. Base #ff8a3d is the
+     handoff's "orange" accent swatch. (token family kept named `amber-*` so the
+     utility classes across the app stay stable) */
+  --color-amber-200: #ffd2ab;
+  --color-amber-300: #ffb27a;
+  --color-amber-400: #ff9d54;
+  --color-amber-500: #ff8a3d;
+  --color-amber-600: #f06f1f;
+  --color-amber-onlight: #c25a12;
 
   /* cyan — the cool signal / verified / held / info */
   --color-cyan-300: #5fe6df;
@@ -47,8 +49,8 @@
 }
 
 :root {
-  --accent: #f8ab3c;
-  --accent-bright: #ffc879;
+  --accent: #ff8a3d;
+  --accent-bright: #ffb27a;
   --cyan: #4bd6cf;
   --reel-play: running;
 }
@@ -67,7 +69,7 @@ body {
 }
 
 ::selection {
-  background: rgba(248, 171, 60, 0.3);
+  background: rgba(255, 138, 61, 0.3);
   color: #fff;
 }
 
@@ -141,9 +143,9 @@ body {
 
 /* expanding ring on SOS / urgent actions */
 @keyframes pulseRing {
-  0% { box-shadow: 0 0 0 0 rgba(248, 171, 60, 0.55); }
-  70% { box-shadow: 0 0 0 16px rgba(248, 171, 60, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(248, 171, 60, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(255, 138, 61, 0.55); }
+  70% { box-shadow: 0 0 0 16px rgba(255, 138, 61, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 138, 61, 0); }
 }
 .pulse-ring { animation: pulseRing 2.2s ease-out infinite; }
 
