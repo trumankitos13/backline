@@ -1,6 +1,6 @@
-# SitIn — prototype architecture
+# Backline — prototype architecture
 
-SitIn is a local-first social app for musicians, bands, venues, and gig techs.
+Backline is a local-first social app for musicians, bands, venues, and gig techs.
 Headline flow: **your drummer bails → find a sub nearby → message them → send a
 booking offer → pay in-app**. Secondary pillars: profiles with short-form video
 reels, bands/groups with open-slot recruiting, and a feed from venues and bands

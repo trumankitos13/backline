@@ -4,10 +4,12 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../lib/store";
+import { isCloudBackend } from "../lib/backend";
 import { MUSICIANS } from "../lib/data";
 import { Avatar, Button, Card } from "../components/ui";
 import { BoltIcon, DollarIcon, PlayIcon, type IconProps } from "../components/icons";
 import { SignupSteps } from "../components/welcome/SignupSteps";
+import { AuthPanel } from "../components/welcome/AuthPanel";
 
 const FEATURES: {
   icon: (p: IconProps) => React.ReactNode;
@@ -39,19 +41,21 @@ function Wordmark() {
   return (
     <div className="flex items-center gap-2">
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400 text-lg font-black text-zinc-950">
-        S
+        B
       </span>
       <span className="text-xl font-bold tracking-tight">
-        Sit<span className="text-amber-400">In</span>
+        Back<span className="text-amber-400">line</span>
       </span>
     </div>
   );
 }
 
 export default function Welcome() {
-  const { state, api } = useApp();
+  const { state, api, auth } = useApp();
   const navigate = useNavigate();
-  const [signupOpen, setSignupOpen] = useState(false);
+  // cloud mode with no session → collect credentials before onboarding
+  const needsAuth = isCloudBackend && auth.status === "signedOut";
+  const [signupOpen, setSignupOpen] = useState(needsAuth);
   const signupRef = useRef<HTMLDivElement>(null);
 
   const tonight = MUSICIANS.filter((m) => m.availableTonight);
@@ -126,7 +130,7 @@ export default function Welcome() {
             className="wlc-rise mt-5 max-w-xl text-base leading-relaxed text-zinc-400 sm:text-lg"
             style={{ animationDelay: "160ms" }}
           >
-            SitIn finds the local players who can cover your set, gets the booking done
+            Backline finds the local players who can cover your set, gets the booking done
             in chat, and pays them before the encore. Tonight — not next week.
           </p>
           <div
@@ -135,16 +139,18 @@ export default function Welcome() {
           >
             <Button size="lg" onClick={openSignup} className="w-full sm:w-auto">
               <BoltIcon size={18} />
-              Get started
+              {needsAuth ? "Create your account" : "Get started"}
             </Button>
-            <Button
-              size="lg"
-              variant="secondary"
-              onClick={enterAsGuest}
-              className="w-full sm:w-auto"
-            >
-              I'm just looking
-            </Button>
+            {!isCloudBackend && (
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={enterAsGuest}
+                className="w-full sm:w-auto"
+              >
+                I'm just looking
+              </Button>
+            )}
           </div>
           {tonight.length >= 2 && (
             <div
@@ -198,10 +204,12 @@ export default function Welcome() {
             <div className="mb-5 text-center">
               <h2 className="text-2xl font-bold tracking-tight">Claim your spot in the scene</h2>
               <p className="mt-1.5 text-sm text-zinc-400">
-                Three quick steps — under a minute if you don't overthink the handle.
+                {needsAuth
+                  ? "Create an account, then set up your profile in three quick steps."
+                  : "Three quick steps — under a minute if you don't overthink the handle."}
               </p>
             </div>
-            <SignupSteps />
+            {needsAuth ? <AuthPanel /> : <SignupSteps />}
           </section>
         )}
 
@@ -223,7 +231,11 @@ export default function Welcome() {
               <span className="font-medium text-zinc-400">Web now</span> · iOS &amp; Android
               next
             </p>
-            <p>Prototype — all data is local &amp; mock</p>
+            <p>
+              {isCloudBackend
+                ? "Prototype — musician catalog is demo data"
+                : "Prototype — all data is local & mock"}
+            </p>
           </div>
         </footer>
       </div>

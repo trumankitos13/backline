@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Shell } from "./components/shell";
 import { useApp } from "./lib/store";
+import { isCloudBackend } from "./lib/backend";
 
 import Welcome from "./pages/Welcome";
 import Discover from "./pages/Discover";
@@ -13,12 +14,37 @@ import Messages from "./pages/Messages";
 import Thread from "./pages/Thread";
 import VenueDetail from "./pages/VenueDetail";
 
+function Splash() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-zinc-950 text-sm text-zinc-500">
+      <span className="flex items-center gap-2.5">
+        <span className="glow-pulse h-2 w-2 rounded-full bg-amber-400" />
+        Loading Backline…
+      </span>
+    </div>
+  );
+}
+
 export default function App() {
-  const { state } = useApp();
+  const { state, auth } = useApp();
   const location = useLocation();
 
-  // first run: everything routes to the welcome/onboarding flow
-  if (!state.user && location.pathname !== "/welcome") {
+  // resolving the session / initial data
+  if (auth.status === "loading") {
+    return <Splash />;
+  }
+
+  // cloud mode: no session yet → route everything to the sign-in screen
+  if (isCloudBackend && auth.status === "signedOut" && location.pathname !== "/welcome") {
+    return <Navigate to="/welcome" replace />;
+  }
+
+  // onboarding gate: signed in (or demo mode) but no profile yet
+  if (
+    auth.status === "signedIn" &&
+    !state.user &&
+    location.pathname !== "/welcome"
+  ) {
     return <Navigate to="/welcome" replace />;
   }
 

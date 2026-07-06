@@ -1,4 +1,4 @@
-// Mock dataset for the SitIn prototype — a fictional Austin, TX scene.
+// Mock dataset for the Backline prototype — a fictional Austin, TX scene.
 // In production this comes from the API; the shapes in types.ts are the contract.
 
 import type {
@@ -589,7 +589,7 @@ export const FEED_POSTS: FeedPost[] = [
     id: "p-6",
     kind: "news",
     author: { type: "venue", id: "v-rattlesnake" },
-    text: "We're opening the back room for rehearsal rentals — $15/hr for SitIn members, backline included. Weekday afternoons only for now.",
+    text: "We're opening the back room for rehearsal rentals — $15/hr for Backline members, backline included. Weekday afternoons only for now.",
     ago: "1d",
     likes: 89,
     comments: 17,
@@ -630,7 +630,7 @@ export const FEED_POSTS: FeedPost[] = [
     id: "p-10",
     kind: "news",
     author: { type: "venue", id: "v-prickly" },
-    text: "Reminder: we pay every artist a guarantee, every night, no 'exposure' math. Booking November now — send your reel through your SitIn profile.",
+    text: "Reminder: we pay every artist a guarantee, every night, no 'exposure' math. Booking November now — send your reel through your Backline profile.",
     ago: "2d",
     likes: 342,
     comments: 44,

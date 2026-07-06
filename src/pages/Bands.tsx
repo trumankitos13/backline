@@ -173,7 +173,7 @@ export default function Bands() {
         title="Venues"
         className="mt-8 mb-3"
         action={
-          <span className="text-xs text-zinc-500">rooms that book through SitIn</span>
+          <span className="text-xs text-zinc-500">rooms that book through Backline</span>
         }
       />
       <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6">

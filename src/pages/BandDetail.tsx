@@ -41,7 +41,7 @@ export default function BandDetail() {
       <Page title="Band not found">
         <EmptyState
           icon={<UsersIcon size={32} />}
-          title="This band isn't on SitIn"
+          title="This band isn't on Backline"
           body="Maybe they changed their name, maybe they broke up over a setlist. Either way, plenty of other groups are looking for players."
           action={
             <Link to="/bands">

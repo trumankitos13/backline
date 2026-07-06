@@ -1,7 +1,12 @@
 // App-wide state: current user, follows, conversations, bookings, likes.
-// Persisted to localStorage so the prototype feels stateful across reloads.
-// The `api` helpers simulate the other side of the network (e.g. a musician
-// accepting your booking offer a few seconds after you send it).
+//
+// The reducer holds the authoritative in-memory state and updates
+// OPTIMISTICALLY (synchronously) so the UI stays instant and reactive. Every
+// mutation is then written through to the active backend (see src/lib/backend):
+// localStorage in demo mode, or Supabase (auth + Postgres) when configured.
+//
+// The simulated musician replies / booking acceptances are kept so the
+// prototype still feels alive; in cloud mode they persist as real message rows.
 
 import {
   createContext,
@@ -9,6 +14,8 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
+  useState,
   type ReactNode,
 } from "react";
 import type {
@@ -17,7 +24,10 @@ import type {
   CurrentUser,
   Message,
 } from "./types";
-import { SEED_CONVERSATIONS, getMusician } from "./data";
+import { getMusician } from "./data";
+import { upsertMessage } from "./conversations";
+import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
+import type { AuthResult } from "./backend/types";
 
 export interface AppState {
   user: CurrentUser | null;
@@ -30,18 +40,17 @@ export interface AppState {
   respondedSubPosts: string[];
 }
 
-const STORAGE_KEY = "sitin-state-v1";
-
-const initialState: AppState = {
+const EMPTY_STATE: AppState = {
   user: null,
-  following: ["v-armadillo", "v-rattlesnake", "b-moontower", "b-brasshouse"],
-  conversations: SEED_CONVERSATIONS,
+  following: [],
+  conversations: [],
   bookings: [],
   likedPosts: [],
   respondedSubPosts: [],
 };
 
 type Action =
+  | { type: "HYDRATE"; data: PersistedData }
   | { type: "SET_USER"; user: CurrentUser }
   | { type: "UPDATE_USER"; patch: Partial<CurrentUser> }
   | { type: "TOGGLE_FOLLOW"; id: string }
@@ -51,40 +60,12 @@ type Action =
   | { type: "ADD_BOOKING"; booking: Booking }
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
   | { type: "TOGGLE_LIKE"; postId: string }
-  | { type: "RESPOND_SUB"; postId: string }
-  | { type: "RESET" };
-
-function upsertMessage(
-  conversations: Conversation[],
-  musicianId: string,
-  message: Message,
-  fromThem: boolean,
-): Conversation[] {
-  const existing = conversations.find((c) => c.musicianId === musicianId);
-  if (!existing) {
-    return [
-      {
-        id: `c-${musicianId}`,
-        musicianId,
-        messages: [message],
-        unread: fromThem ? 1 : 0,
-      },
-      ...conversations,
-    ];
-  }
-  return conversations.map((c) =>
-    c.musicianId === musicianId
-      ? {
-          ...c,
-          messages: [...c.messages, message],
-          unread: fromThem ? c.unread + 1 : c.unread,
-        }
-      : c,
-  );
-}
+  | { type: "RESPOND_SUB"; postId: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case "HYDRATE":
+      return { ...EMPTY_STATE, ...action.data };
     case "SET_USER":
       return { ...state, user: action.user };
     case "UPDATE_USER":
@@ -145,21 +126,8 @@ function reducer(state: AppState, action: Action): AppState {
       return state.respondedSubPosts.includes(action.postId)
         ? state
         : { ...state, respondedSubPosts: [...state.respondedSubPosts, action.postId] };
-    case "RESET":
-      return initialState;
     default:
       return state;
-  }
-}
-
-function loadState(): AppState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialState;
-    const parsed = JSON.parse(raw) as Partial<AppState>;
-    return { ...initialState, ...parsed };
-  } catch {
-    return initialState;
   }
 }
 
@@ -187,9 +155,23 @@ export interface AppApi {
   setUser(user: CurrentUser): void;
   updateUser(patch: Partial<CurrentUser>): void;
   reset(): void;
+  // auth (cloud mode)
+  signIn(email: string, password: string): Promise<AuthResult>;
+  signUp(email: string, password: string, name: string): Promise<AuthResult>;
+  signOut(): Promise<void>;
 }
 
-const AppContext = createContext<{ state: AppState; api: AppApi } | null>(null);
+export type AuthStatus = "loading" | "signedOut" | "signedIn";
+export interface AuthState {
+  status: AuthStatus;
+  user: AuthUser | null;
+}
+
+const AppContext = createContext<{
+  state: AppState;
+  api: AppApi;
+  auth: AuthState;
+} | null>(null);
 
 let idCounter = 0;
 function uid(prefix: string): string {
@@ -209,33 +191,96 @@ const CANNED_REPLIES = [
 ];
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const [state, dispatch] = useReducer(reducer, EMPTY_STATE);
+  const [auth, setAuth] = useState<AuthState>({ status: "loading", user: null });
 
+  // latest state + auth user, readable from stable api callbacks
+  const stateRef = useRef(state);
+  const authUserRef = useRef<AuthUser | null>(null);
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // storage full or unavailable — prototype keeps working in memory
-    }
+    stateRef.current = state;
   }, [state]);
 
+  // boot: resolve session, load data, and subscribe to auth changes
+  useEffect(() => {
+    let cancelled = false;
+    let sawInitial = false;
+
+    async function hydrateFor(user: AuthUser | null) {
+      const data = await backend.load(user);
+      if (cancelled) return;
+      dispatch({ type: "HYDRATE", data });
+    }
+
+    (async () => {
+      const sessionUser = await backend.getSession();
+      if (cancelled) return;
+      authUserRef.current = sessionUser;
+      if (isCloudBackend && !sessionUser) {
+        setAuth({ status: "signedOut", user: null });
+        return;
+      }
+      await hydrateFor(sessionUser);
+      if (cancelled) return;
+      setAuth({ status: "signedIn", user: sessionUser });
+    })();
+
+    const unsubscribe = backend.onAuthChange((user) => {
+      // supabase fires an INITIAL_SESSION event on subscribe; boot() above
+      // already handled first load, so skip it.
+      if (!sawInitial) {
+        sawInitial = true;
+        return;
+      }
+      authUserRef.current = user;
+      if (!user) {
+        dispatch({ type: "HYDRATE", data: EMPTY_STATE });
+        setAuth({ status: "signedOut", user: null });
+        return;
+      }
+      hydrateFor(user).then(() => setAuth({ status: "signedIn", user }));
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
   const api = useMemo<AppApi>(() => {
+    // fire-and-forget write-through; errors are logged, UI already updated
+    function persist(run: (user: AuthUser) => Promise<void>) {
+      const user = authUserRef.current;
+      if (!user) return;
+      run(user).catch((e) => console.error("[backline] persist failed", e));
+    }
+
+    function reload() {
+      const user = authUserRef.current;
+      backend
+        .load(user)
+        .then((data) => dispatch({ type: "HYDRATE", data }))
+        .catch((e) => console.error("[backline] reload failed", e));
+    }
+
     return {
       sendMessage(musicianId, text, opts) {
-        dispatch({
-          type: "SEND_MESSAGE",
-          musicianId,
-          message: { id: uid("m"), from: "me", text, at: nowLabel() },
-        });
+        const message: Message = { id: uid("m"), from: "me", text, at: nowLabel() };
+        dispatch({ type: "SEND_MESSAGE", musicianId, message });
+        persist((u) => backend.addMessage(u, musicianId, message));
+
         if (opts?.simulateReply !== false) {
           const reply =
             CANNED_REPLIES[Math.floor(Math.random() * CANNED_REPLIES.length)];
           window.setTimeout(() => {
-            dispatch({
-              type: "RECEIVE_MESSAGE",
-              musicianId,
-              message: { id: uid("m"), from: "them", text: reply, at: nowLabel() },
-            });
+            const replyMsg: Message = {
+              id: uid("m"),
+              from: "them",
+              text: reply,
+              at: nowLabel(),
+            };
+            dispatch({ type: "RECEIVE_MESSAGE", musicianId, message: replyMsg });
+            persist((u) => backend.addMessage(u, musicianId, replyMsg));
           }, 1800 + Math.random() * 1500);
         }
       },
@@ -252,79 +297,111 @@ export function AppProvider({ children }: { children: ReactNode }) {
           amount: input.amount,
           status: "offer",
         };
+        const noteMsg: Message | null = input.note
+          ? { id: uid("m"), from: "me", text: input.note, at: nowLabel() }
+          : null;
+        const offerMsg: Message = { id: uid("m"), from: "me", bookingId, at: nowLabel() };
+
         dispatch({ type: "ADD_BOOKING", booking });
-        if (input.note) {
-          dispatch({
-            type: "SEND_MESSAGE",
-            musicianId: input.musicianId,
-            message: { id: uid("m"), from: "me", text: input.note, at: nowLabel() },
-          });
+        if (noteMsg) {
+          dispatch({ type: "SEND_MESSAGE", musicianId: input.musicianId, message: noteMsg });
         }
-        dispatch({
-          type: "SEND_MESSAGE",
-          musicianId: input.musicianId,
-          message: { id: uid("m"), from: "me", bookingId, at: nowLabel() },
-        });
+        dispatch({ type: "SEND_MESSAGE", musicianId: input.musicianId, message: offerMsg });
+
+        // persist in FK-safe order: booking before the message that references it
+        const user = authUserRef.current;
+        if (user) {
+          (async () => {
+            await backend.addBooking(user, booking);
+            if (noteMsg) await backend.addMessage(user, input.musicianId, noteMsg);
+            await backend.addMessage(user, input.musicianId, offerMsg);
+          })().catch((e) => console.error("[backline] persist offer failed", e));
+        }
+
         // simulate the musician accepting after a short delay
         const name = getMusician(input.musicianId)?.name.split(" ")[0] ?? "They";
         window.setTimeout(() => {
+          const acceptMsg: Message = {
+            id: uid("m"),
+            from: "them",
+            text: `${name} here — I'm in! Accepted the offer. Send payment through the app to lock it and I'll see you at soundcheck. 🤘`,
+            at: nowLabel(),
+          };
           dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
-          dispatch({
-            type: "RECEIVE_MESSAGE",
-            musicianId: input.musicianId,
-            message: {
-              id: uid("m"),
-              from: "them",
-              text: `${name} here — I'm in! Accepted the offer. Send payment through the app to lock it and I'll see you at soundcheck. 🤘`,
-              at: nowLabel(),
-            },
-          });
+          dispatch({ type: "RECEIVE_MESSAGE", musicianId: input.musicianId, message: acceptMsg });
+          persist((u) => backend.setBookingStatus(u, bookingId, "accepted"));
+          persist((u) => backend.addMessage(u, input.musicianId, acceptMsg));
         }, 3500);
+
         return bookingId;
       },
 
       payBooking(bookingId, musicianId) {
         dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "paid" });
+        persist((u) => backend.setBookingStatus(u, bookingId, "paid"));
         window.setTimeout(() => {
-          dispatch({
-            type: "RECEIVE_MESSAGE",
-            musicianId,
-            message: {
-              id: uid("m"),
-              from: "them",
-              text: "Payment received — you're officially booked. Sending you my stage plot now.",
-              at: nowLabel(),
-            },
-          });
+          const msg: Message = {
+            id: uid("m"),
+            from: "them",
+            text: "Payment received — you're officially booked. Sending you my stage plot now.",
+            at: nowLabel(),
+          };
+          dispatch({ type: "RECEIVE_MESSAGE", musicianId, message: msg });
+          persist((u) => backend.addMessage(u, musicianId, msg));
         }, 1500);
       },
 
       toggleFollow(id) {
+        const willFollow = !stateRef.current.following.includes(id);
         dispatch({ type: "TOGGLE_FOLLOW", id });
+        persist((u) => backend.setFollow(u, id, willFollow));
       },
       toggleLike(postId) {
+        const willLike = !stateRef.current.likedPosts.includes(postId);
         dispatch({ type: "TOGGLE_LIKE", postId });
+        persist((u) => backend.setLike(u, postId, willLike));
       },
-      respondToSubPost(postId, bandName) {
+      respondToSubPost(postId) {
+        if (stateRef.current.respondedSubPosts.includes(postId)) return;
         dispatch({ type: "RESPOND_SUB", postId });
+        persist((u) => backend.addRespondedSub(u, postId));
       },
       markRead(conversationId) {
+        const conv = stateRef.current.conversations.find((c) => c.id === conversationId);
         dispatch({ type: "MARK_READ", conversationId });
+        if (conv) persist((u) => backend.markRead(u, conv.musicianId));
       },
       setUser(user) {
         dispatch({ type: "SET_USER", user });
+        persist((u) => backend.saveUser(u, user));
       },
       updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });
+        persist((u) => backend.updateUser(u, patch));
       },
       reset() {
-        localStorage.removeItem(STORAGE_KEY);
-        dispatch({ type: "RESET" });
+        const user = authUserRef.current;
+        (async () => {
+          if (user) await backend.reset(user);
+          reload();
+        })().catch((e) => console.error("[backline] reset failed", e));
+      },
+
+      signIn(email, password) {
+        return backend.signIn(email, password);
+      },
+      signUp(email, password, name) {
+        return backend.signUp(email, password, name);
+      },
+      async signOut() {
+        await backend.signOut();
       },
     };
   }, []);
 
-  return <AppContext.Provider value={{ state, api }}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={{ state, api, auth }}>{children}</AppContext.Provider>
+  );
 }
 
 export function useApp() {

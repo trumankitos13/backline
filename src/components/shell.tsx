@@ -24,10 +24,10 @@ function Wordmark() {
   return (
     <NavLink to="/" className="flex items-center gap-2 px-2">
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400 text-lg font-black text-zinc-950">
-        S
+        B
       </span>
       <span className="text-xl font-bold tracking-tight">
-        Sit<span className="text-amber-400">In</span>
+        Back<span className="text-amber-400">line</span>
       </span>
     </NavLink>
   );

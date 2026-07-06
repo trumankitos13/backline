@@ -142,7 +142,7 @@ export function PaymentSheet({
               <span className="text-zinc-200">${money(booking.amount)}</span>
             </div>
             <div className="mt-1.5 flex items-center justify-between text-zinc-400">
-              <span>SitIn fee (5%)</span>
+              <span>Backline fee (5%)</span>
               <span className="text-zinc-200">${money(fee)}</span>
             </div>
             <div className="mt-2.5 flex items-center justify-between border-t border-zinc-800 pt-2.5 font-semibold">

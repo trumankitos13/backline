@@ -19,6 +19,7 @@ import {
   UsersIcon,
 } from "../components/icons";
 import { useApp } from "../lib/store";
+import { isCloudBackend } from "../lib/backend";
 import { getBand, getMusician, getVenue } from "../lib/data";
 import {
   BookingStatusBadge,
@@ -77,7 +78,10 @@ export default function MyProfile() {
 
   const handleReset = () => {
     api.reset();
-    navigate("/welcome");
+    // demo mode clears the profile too → back to onboarding; cloud keeps the
+    // account, so just close the confirm and stay put.
+    if (isCloudBackend) setConfirmReset(false);
+    else navigate("/welcome");
   };
 
   return (
@@ -247,12 +251,14 @@ export default function MyProfile() {
         )}
       </section>
 
-      {/* ---------------------------------------------------- reset (demo) */}
-      <div className="mt-10 border-t border-zinc-800/70 pt-6 pb-2 text-center">
+      {/* ---------------------------------------------- reset + sign out */}
+      <div className="mt-10 flex flex-col items-center gap-3 border-t border-zinc-800/70 pt-6 pb-2 text-center">
         {confirmReset ? (
           <div className="flex flex-col items-center gap-2.5">
             <p className="text-sm text-zinc-400">
-              This wipes your profile, chats, and bookings. Fresh stage, empty setlist.
+              {isCloudBackend
+                ? "This clears your chats, bookings, and follows. Your account stays."
+                : "This wipes your profile, chats, and bookings. Fresh stage, empty setlist."}
             </p>
             <div className="flex gap-2">
               <Button variant="danger" size="sm" onClick={handleReset}>
@@ -268,7 +274,17 @@ export default function MyProfile() {
             onClick={() => setConfirmReset(true)}
             className="text-xs text-zinc-600 underline-offset-4 transition-colors hover:text-zinc-400 hover:underline"
           >
-            Reset demo data
+            {isCloudBackend ? "Reset my activity" : "Reset demo data"}
+          </button>
+        )}
+        {isCloudBackend && (
+          <button
+            onClick={() => {
+              void api.signOut();
+            }}
+            className="text-xs text-zinc-600 underline-offset-4 transition-colors hover:text-zinc-400 hover:underline"
+          >
+            Sign out
           </button>
         )}
       </div>

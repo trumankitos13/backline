@@ -51,7 +51,7 @@ const STEP_META = [
   },
   {
     title: "Where's home base?",
-    sub: "SitIn is neighborhood-first: the closer you are, the sooner you get the call.",
+    sub: "Backline is neighborhood-first: the closer you are, the sooner you get the call.",
   },
 ] as const;
 

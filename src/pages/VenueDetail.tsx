@@ -29,7 +29,7 @@ export default function VenueDetail() {
       <Page title="Venue not found">
         <EmptyState
           icon={<MapPinIcon size={32} />}
-          title="This room isn't on SitIn"
+          title="This room isn't on Backline"
           body="The link may be stale — venues turn into coffee shops fast around here. The ones still pouring drinks are on the bands page."
           action={
             <Link to="/bands">
@@ -122,7 +122,7 @@ export default function VenueDetail() {
           <div className="min-w-0">
             <p className="text-sm font-semibold">Want this stage?</p>
             <p className="mt-1 text-sm leading-relaxed text-zinc-400">
-              Send your reel through SitIn — the {venue.name} booking team checks
+              Send your reel through Backline — the {venue.name} booking team checks
               profiles weekly and replies to everyone with open dates. A tight
               30-second clip beats a press kit every time.
             </p>

@@ -79,7 +79,7 @@ function ThreadView({ id }: { id: string }) {
         <EmptyState
           icon={<ChatIcon size={34} />}
           title="We couldn't find that player"
-          body="This thread points at a musician who isn't on SitIn — the link may be old. Head back and pick up another conversation."
+          body="This thread points at a musician who isn't on Backline — the link may be old. Head back and pick up another conversation."
           action={
             <Link to="/messages">
               <Button variant="secondary" size="sm">
