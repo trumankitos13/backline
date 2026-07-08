@@ -3,11 +3,11 @@
 
 import type { MouseEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { Event } from "../../lib/types";
+import type { Event, InstrumentId } from "../../lib/types";
 import { getBand, getVenue } from "../../lib/data";
 import { useApp } from "../../lib/store";
 import { Button } from "../ui";
-import { CheckIcon, ChevronRightIcon, PlusIcon } from "../icons";
+import { BoltIcon, CheckIcon, ChevronRightIcon, PlusIcon } from "../icons";
 
 // ----------------------------------------------------------- slot urgency
 
@@ -19,6 +19,50 @@ export function isUrgent(note: string): boolean {
 /** strip the leading "URGENT:" so the badge doesn't repeat the word */
 export function slotNoteText(note: string): string {
   return note.replace(/^urgent:?\s*/i, "");
+}
+
+// -------------------------------------------------------------- SOS deep-link
+
+/**
+ * Deep-link into the SOS overlay (owned by Discover) with the bailed
+ * instrument preselected. Contract: `/?sos=open&role=<instrumentId>`.
+ */
+export function sosHref(instrument: InstrumentId): string {
+  return `/?sos=open&role=${instrument}`;
+}
+
+/**
+ * The app's signature CTA: fire an SOS for a specific open role. Navigates to
+ * the SOS overlay with the role preselected. `full` stretches to the row width
+ * (mobile-first); pass a label override for context-specific copy.
+ */
+export function FindSubButton({
+  instrument,
+  size = "md",
+  full = false,
+  label = "Find a sub — open SOS",
+  className = "",
+}: {
+  instrument: InstrumentId;
+  size?: "sm" | "md" | "lg";
+  full?: boolean;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <Link
+      to={sosHref(instrument)}
+      className={`${full ? "block" : "inline-block"} ${className}`}
+    >
+      <Button size={size} className={full ? "w-full" : ""}>
+        <BoltIcon size={size === "sm" ? 14 : 16} />
+        {label}
+        <span className="arrow-nudge" aria-hidden="true">
+          →
+        </span>
+      </Button>
+    </Link>
+  );
 }
 
 // ---------------------------------------------------------- follow button
