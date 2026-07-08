@@ -68,13 +68,15 @@ export function initials(name: string): string {
 
 /**
  * Fingerprint avatar — a deterministic generative identity mark (see
- * generative.ts). Round for people, rounded-square for bands/venues.
+ * generative.ts). Per the Backline identity, every avatar is a ROUNDED SQUARE
+ * (radius scales with size, ~11–22px); the `square` prop is retained for
+ * call-site compatibility but no longer toggles a circle.
  */
 export function Avatar({
   name,
   seed,
   size = 44,
-  square = false,
+  square: _square = false,
   className = "",
 }: {
   name: string;
@@ -85,12 +87,11 @@ export function Avatar({
 }) {
   const fp = fingerprint(`${name}-${seed}`);
   const showInitials = size >= 30;
+  const radius = Math.round(Math.min(22, Math.max(9, size * 0.28)));
   return (
     <div
-      className={`relative shrink-0 overflow-hidden ring-1 ring-white/10 ${
-        square ? "rounded-xl" : "rounded-full"
-      } ${className}`}
-      style={{ width: size, height: size, background: fp.background }}
+      className={`relative shrink-0 overflow-hidden ring-1 ring-white/10 ${className}`}
+      style={{ width: size, height: size, borderRadius: radius, background: fp.background }}
       aria-hidden="true"
     >
       <span className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />

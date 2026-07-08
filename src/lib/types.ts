@@ -122,6 +122,10 @@ export interface Venue {
   capacity: number;
   followers: number;
   vibe: string;
+  /** gear the house provides — "the backline" (the app's namesake) */
+  backline?: string[];
+  /** a house-player role the venue is hiring for → routes into SOS */
+  hiring?: { role: InstrumentId; note: string };
   links?: ExternalLink[];
   seed: number;
 }
@@ -145,6 +149,8 @@ export interface Event {
   payout?: number;
   ticket?: string;
   ticketUrl?: string;
+  /** an open sub slot on this event's lineup → routes into SOS */
+  subNeeded?: { instrument: InstrumentId; payout: number; note?: string };
   links?: ExternalLink[];
   /** where this event came from; imported events deep-link out */
   source?: EventSource;

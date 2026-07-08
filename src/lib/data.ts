@@ -547,11 +547,11 @@ export const BANDS: Band[] = [
 // ------------------------------------------------------------------- venues
 
 export const VENUES: Venue[] = [
-  { id: "v-armadillo", name: "The Blue Armadillo", neighborhood: "East Austin", capacity: 250, followers: 5200, vibe: "Sticky floors, perfect sound, the best Tuesday crowd in town.", links: [{ kind: "website", url: "https://bluearmadillo.com" }, { kind: "instagram", url: "https://instagram.com/bluearmadilloatx", label: "@bluearmadilloatx" }], seed: 31 },
-  { id: "v-rattlesnake", name: "Rattlesnake Room", neighborhood: "Downtown", capacity: 180, followers: 3900, vibe: "Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.", links: [{ kind: "website", url: "https://rattlesnakeroom.com" }, { kind: "bandsintown", url: "https://bandsintown.com/v/rattlesnake-room" }], seed: 32 },
-  { id: "v-sunset", name: "Sunset Ballroom", neighborhood: "South Congress", capacity: 900, followers: 12400, vibe: "The mid-size room every touring band remembers.", links: [{ kind: "website", url: "https://sunsetballroom.com" }, { kind: "instagram", url: "https://instagram.com/sunsetballroom", label: "@sunsetballroom" }], seed: 33 },
-  { id: "v-prickly", name: "Prickly Pear Listening Room", neighborhood: "Clarksville", capacity: 120, followers: 2100, vibe: "Pin-drop quiet listening room. Phones away, hearts open.", links: [{ kind: "website", url: "https://pricklypearroom.com" }], seed: 34 },
-  { id: "v-warehouse", name: "Warehouse 512", neighborhood: "Riverside", capacity: 1200, followers: 8800, vibe: "Big room, big system, late nights.", links: [{ kind: "instagram", url: "https://instagram.com/warehouse512", label: "@warehouse512" }], seed: 35 },
+  { id: "v-armadillo", name: "The Blue Armadillo", neighborhood: "East Austin", capacity: 250, followers: 5200, vibe: "Sticky floors, perfect sound, the best Tuesday crowd in town.", backline: ["House drum kit (Gretsch 4-pc)", "Full PA + monitors", "Two guitar amps + bass rig", "Backline mics + DIs"], hiring: { role: "sound-tech", note: "Tuesday house FOH — weekly, reliable pay." }, links: [{ kind: "website", url: "https://bluearmadillo.com" }, { kind: "instagram", url: "https://instagram.com/bluearmadilloatx", label: "@bluearmadilloatx" }], seed: 31 },
+  { id: "v-rattlesnake", name: "Rattlesnake Room", neighborhood: "Downtown", capacity: 180, followers: 3900, vibe: "Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.", backline: ["House upright piano", "PA + 4 monitor mixes", "Guitar + bass amps on request"], links: [{ kind: "website", url: "https://rattlesnakeroom.com" }, { kind: "bandsintown", url: "https://bandsintown.com/v/rattlesnake-room" }], seed: 32 },
+  { id: "v-sunset", name: "Sunset Ballroom", neighborhood: "South Congress", capacity: 900, followers: 12400, vibe: "The mid-size room every touring band remembers.", backline: ["Line-array PA + in-ear support", "Full backline (drums, amps, keys stand)", "House lighting rig + LD available"], hiring: { role: "lighting-tech", note: "Sub lighting techs for touring dates — union-friendly." }, links: [{ kind: "website", url: "https://sunsetballroom.com" }, { kind: "instagram", url: "https://instagram.com/sunsetballroom", label: "@sunsetballroom" }], seed: 33 },
+  { id: "v-prickly", name: "Prickly Pear Listening Room", neighborhood: "Clarksville", capacity: 120, followers: 2100, vibe: "Pin-drop quiet listening room. Phones away, hearts open.", backline: ["Grand piano (tuned weekly)", "Boutique PA, no monitors (it's that quiet)"], links: [{ kind: "website", url: "https://pricklypearroom.com" }], seed: 34 },
+  { id: "v-warehouse", name: "Warehouse 512", neighborhood: "Riverside", capacity: 1200, followers: 8800, vibe: "Big room, big system, late nights.", backline: ["Massive PA + subs", "DJ booth (Pioneer CDJs + mixer)", "Full backline + risers"], hiring: { role: "sound-tech", note: "Weekend club-night monitor engineers." }, links: [{ kind: "instagram", url: "https://instagram.com/warehouse512", label: "@warehouse512" }], seed: 35 },
 ];
 
 // --------------------------------------------------------------------- gigs
@@ -569,6 +569,7 @@ export const EVENTS: Event[] = [
     payout: 150,
     ticket: "$10",
     ticketUrl: "https://example.com/tix/cedar-rye",
+    subNeeded: { instrument: "drums", payout: 150, note: "Drummer's van died in Waco. Brushes-friendly, charts ready, soundcheck 7:30." },
     source: "backline",
     links: [{ kind: "bandsintown", url: "https://bandsintown.com/e/cedar-rye" }],
   },
@@ -612,6 +613,7 @@ export const EVENTS: Event[] = [
     time: "7:30 PM",
     ticket: "$15",
     ticketUrl: "https://example.com/tix/velvet-hour",
+    subNeeded: { instrument: "bass", payout: 175, note: "Upright bassist for the standards set — 'Autumn Leaves' in two keys and you're in." },
     source: "backline",
   },
   {
