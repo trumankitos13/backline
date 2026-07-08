@@ -143,11 +143,7 @@ export default function VenueDetail() {
             <FindSubButton
               instrument={venue.hiring.role}
               full
-              className="mt-3.5 sm:hidden"
-            />
-            <FindSubButton
-              instrument={venue.hiring.role}
-              className="mt-3.5 hidden sm:inline-block"
+              className="mt-3.5"
             />
           </div>
         </>

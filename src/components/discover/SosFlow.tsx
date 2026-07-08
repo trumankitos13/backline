@@ -80,22 +80,32 @@ function Ticker() {
   return <Mono className="text-[11px] text-cyan-300">{TICKS[i]}…</Mono>;
 }
 
-export function SosFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SosFlow({
+  open,
+  onClose,
+  initialRole = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** who bailed, from the ?role= deep link — preselected in the config step. */
+  initialRole?: InstrumentId | null;
+}) {
   const navigate = useNavigate();
   const { state } = useApp();
 
   const [phase, setPhase] = useState<Phase>("config");
-  const [bailed, setBailed] = useState<InstrumentId | null>("drums");
+  const [bailed, setBailed] = useState<InstrumentId | null>(initialRole ?? "drums");
   const [when, setWhen] = useState<WhenKey>("tonight");
   const [reel, setReel] = useState<{ musician: Player; index: number } | null>(null);
 
-  // fresh config each time the overlay is opened
+  // fresh config each time the overlay is opened; honour the deep-linked role.
   useEffect(() => {
     if (open) {
       setPhase("config");
       setReel(null);
+      setBailed(initialRole ?? "drums");
     }
-  }, [open]);
+  }, [open, initialRole]);
 
   // radar dwell, then reveal the ranked subs
   useEffect(() => {

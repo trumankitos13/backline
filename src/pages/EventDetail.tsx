@@ -185,11 +185,7 @@ export default function EventDetail() {
               <FindSubButton
                 instrument={event.subNeeded.instrument}
                 full
-                className="mt-3.5 sm:hidden"
-              />
-              <FindSubButton
-                instrument={event.subNeeded.instrument}
-                className="mt-3.5 hidden sm:inline-block"
+                className="mt-3.5"
               />
             </div>
           </div>

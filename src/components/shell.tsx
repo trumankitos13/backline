@@ -6,8 +6,8 @@ import { useEffect, type ReactNode } from "react";
 import {
   BoltIcon,
   ChatIcon,
+  PlayIcon,
   PulseIcon,
-  SearchIcon,
   UserIcon,
   UsersIcon,
 } from "./icons";
@@ -15,17 +15,17 @@ import { useApp, useUnreadCount } from "../lib/store";
 import { Avatar, Wordmark } from "./ui";
 
 const NAV = [
-  { to: "/", label: "Find", icon: SearchIcon, end: true },
+  { to: "/", label: "Reels", icon: PlayIcon, end: true },
   { to: "/feed", label: "Feed", icon: PulseIcon },
   { to: "/bands", label: "Bands", icon: UsersIcon },
   { to: "/messages", label: "Chats", icon: ChatIcon },
   { to: "/profile", label: "You", icon: UserIcon },
 ];
 
-// mobile bottom bar: Find · Feed · [SOS] · Chats · You (SOS raised, center)
+// mobile bottom bar: Feed · Reels · [SOS] · Chats · You (SOS raised, center)
 const MOBILE_LEFT = [
-  { to: "/", label: "Find", icon: SearchIcon, end: true },
   { to: "/feed", label: "Feed", icon: PulseIcon },
+  { to: "/", label: "Reels", icon: PlayIcon, end: true },
 ];
 const MOBILE_RIGHT = [
   { to: "/messages", label: "Chats", icon: ChatIcon },
