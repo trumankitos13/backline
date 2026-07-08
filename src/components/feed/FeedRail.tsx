@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { BANDS, GIGS, VENUES, getVenue } from "../../lib/data";
+import { BANDS, EVENTS, VENUES, getVenue } from "../../lib/data";
 import { useApp } from "../../lib/store";
 import { Avatar, Button, Card, Mono, SectionHeader, formatCount } from "../ui";
 import { CheckIcon } from "../icons";
@@ -96,7 +96,7 @@ export function WhoToFollow() {
 // -------------------------------------------------------- tonight in town
 
 export function TonightInTown() {
-  const tonight = GIGS.filter((g) => g.date === "Tonight");
+  const tonight = EVENTS.filter((g) => g.date === "Tonight");
   if (tonight.length === 0) return null;
 
   return (

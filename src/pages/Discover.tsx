@@ -7,9 +7,9 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Page } from "../components/shell";
 import { useApp } from "../lib/store";
-import { BANDS, MUSICIANS, bandsNeeding } from "../lib/data";
+import { BANDS, PLAYERS, bandsNeeding } from "../lib/data";
 import { INSTRUMENTS, instrumentLabel } from "../lib/instruments";
-import type { Band, InstrumentId, Musician } from "../lib/types";
+import type { Band, InstrumentId, Player } from "../lib/types";
 import { Button, Chip, EmptyState, Mono, Toggle } from "../components/ui";
 import {
   CloseIcon,
@@ -39,7 +39,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "rate", label: "Lowest rate" },
 ];
 
-const SORTERS: Record<SortKey, (a: Musician, b: Musician) => number> = {
+const SORTERS: Record<SortKey, (a: Player, b: Player) => number> = {
   nearest: (a, b) => a.distanceMiles - b.distanceMiles,
   fastest: (a, b) => a.responseMins - b.responseMins,
   gigs: (a, b) => b.gigsPlayed - a.gigsPlayed,
@@ -59,7 +59,7 @@ export default function Discover() {
   const [tonightOnly, setTonightOnly] = useState(false);
   const [distance, setDistance] = useState<DistanceKey>("any");
   const [sort, setSort] = useState<SortKey>("nearest");
-  const [reel, setReel] = useState<{ musician: Musician; index: number } | null>(null);
+  const [reel, setReel] = useState<{ musician: Player; index: number } | null>(null);
 
   function openSos() {
     const next = new URLSearchParams(searchParams);
@@ -74,7 +74,7 @@ export default function Discover() {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = MUSICIANS.filter((m) => {
+    const list = PLAYERS.filter((m) => {
       if (tonightOnly && !m.availableTonight) return false;
       if (distance !== "any" && m.distanceMiles >= Number(distance)) return false;
       if (selected.length > 0 && !m.instruments.some((i) => selected.includes(i.id)))
@@ -97,7 +97,7 @@ export default function Discover() {
   }, [query, selected, tonightOnly, distance, sort]);
 
   const tonightTotal = useMemo(
-    () => MUSICIANS.filter((m) => m.availableTonight).length,
+    () => PLAYERS.filter((m) => m.availableTonight).length,
     [],
   );
 

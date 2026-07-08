@@ -3,7 +3,7 @@
 // production would be Stripe Connect destination charges. Backline: cyan = held.
 
 import { useEffect, useRef, useState } from "react";
-import type { Booking, Musician } from "../../lib/types";
+import type { Booking, Player } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { Avatar, Button, Card, Modal, Mono, SuccessCheck } from "../ui";
 import { CardIcon, LockIcon } from "../icons";
@@ -24,7 +24,7 @@ export function PaymentSheet({
   onClose,
 }: {
   booking: Booking;
-  musician: Musician;
+  musician: Player;
   onClose: () => void;
 }) {
   const { api } = useApp();

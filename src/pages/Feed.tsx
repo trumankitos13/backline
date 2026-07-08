@@ -20,12 +20,12 @@ export default function Feed() {
   const { state } = useApp();
   const [tab, setTab] = useState<Tab>("following");
 
-  // musicians are treated as always-followed; bands/venues gate on follows
+  // players are treated as always-followed; bands/venues gate on follows
   const posts =
     tab === "everyone"
       ? FEED_POSTS
       : FEED_POSTS.filter(
-          (p) => p.author.type === "musician" || state.following.includes(p.author.id),
+          (p) => p.author.type === "player" || state.following.includes(p.author.id),
         );
 
   return (

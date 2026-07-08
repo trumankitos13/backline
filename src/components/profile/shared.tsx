@@ -15,7 +15,7 @@ const LEVEL_LABELS: Record<SkillLevel, string> = {
 
 /**
  * Instrument chips with icon + optional level/years.
- * Works for full Musician entries and for the CurrentUser (ids only).
+ * Works for full Player entries and for the CurrentUser (ids only).
  */
 export function InstrumentChips({
   instruments,

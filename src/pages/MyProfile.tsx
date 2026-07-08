@@ -23,7 +23,7 @@ import {
 } from "../components/icons";
 import { useApp } from "../lib/store";
 import { isCloudBackend } from "../lib/backend";
-import { getBand, getMusician, getVenue } from "../lib/data";
+import { getBand, getPlayer, getVenue } from "../lib/data";
 import {
   BookingStatusBadge,
   InstrumentChips,
@@ -169,18 +169,18 @@ export default function MyProfile() {
         {bookings.length > 0 ? (
           <div className="flex flex-col gap-2.5">
             {bookings.map((b) => {
-              const mus = getMusician(b.musicianId);
+              const mus = getPlayer(b.playerId);
               return (
                 <Card
                   key={b.id}
-                  onClick={() => navigate(`/messages/c-${b.musicianId}`)}
+                  onClick={() => navigate(`/messages/c-${b.playerId}`)}
                   className="flex items-center gap-3 p-3.5"
                 >
                   {mus && <Avatar name={mus.name} seed={mus.seed} size={42} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium text-text-hi">
-                        {mus?.name ?? "Musician"}
+                        {mus?.name ?? "Player"}
                       </p>
                       <BookingStatusBadge status={b.status} />
                     </div>

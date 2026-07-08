@@ -29,9 +29,10 @@ import {
   isUrgent,
   slotNoteText,
 } from "../components/bands/shared";
-import { getBand, getGig, getMusician } from "../lib/data";
+import { LinksSection } from "../components/links";
+import { getBand, getEvent, getPlayer } from "../lib/data";
 import { instrumentLabel } from "../lib/instruments";
-import type { Gig, InstrumentId } from "../lib/types";
+import type { Event, InstrumentId } from "../lib/types";
 
 export default function BandDetail() {
   const { id } = useParams<{ id: string }>();
@@ -55,10 +56,10 @@ export default function BandDetail() {
     );
   }
 
-  const firstMemberId = band.members[0]?.musicianId;
-  const gigs = band.gigIds
-    .map((gid) => getGig(gid))
-    .filter((g): g is Gig => Boolean(g));
+  const firstMemberId = band.members[0]?.playerId;
+  const gigs = band.eventIds
+    .map((gid) => getEvent(gid))
+    .filter((g): g is Event => Boolean(g));
 
   const coverSlot = (instrumentId: InstrumentId) => {
     if (!firstMemberId) return;
@@ -115,13 +116,13 @@ export default function BandDetail() {
         action={<Mono className="text-[10px] text-text-lo">{band.members.length} in the lineup</Mono>}
       />
       <Card className="divide-y divide-hairline-subtle">
-        {band.members.map(({ musicianId, role }) => {
-          const m = getMusician(musicianId);
+        {band.members.map(({ playerId, role }) => {
+          const m = getPlayer(playerId);
           if (!m) return null;
           return (
             <Link
-              key={musicianId}
-              to={`/m/${musicianId}`}
+              key={playerId}
+              to={`/m/${playerId}`}
               className="flex items-center gap-3 p-3.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-surface-850"
             >
               <Avatar name={m.name} seed={m.seed} size={42} />
@@ -228,6 +229,8 @@ export default function BandDetail() {
           body={`When ${band.name} announces a show, it lands here and in your feed.`}
         />
       )}
+
+      <LinksSection links={band.links} title="Band links" className="mt-8" />
     </Page>
   );
 }

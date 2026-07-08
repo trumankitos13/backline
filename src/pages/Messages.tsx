@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Page } from "../components/shell";
 import { Avatar, Button, Card, EmptyState, Mono } from "../components/ui";
 import { ChatIcon, VerifiedIcon } from "../components/icons";
-import { getMusician } from "../lib/data";
+import { getPlayer } from "../lib/data";
 import { instrument } from "../lib/instruments";
 import { useApp } from "../lib/store";
 import type { Message } from "../lib/types";
@@ -22,7 +22,7 @@ export default function Messages() {
   const rows = [...state.conversations]
     .sort((a, b) => Number(b.unread > 0) - Number(a.unread > 0))
     .flatMap((c) => {
-      const m = getMusician(c.musicianId);
+      const m = getPlayer(c.playerId);
       return m ? [{ c, m }] : [];
     });
 

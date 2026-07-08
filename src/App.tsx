@@ -13,6 +13,7 @@ import MyProfile from "./pages/MyProfile";
 import Messages from "./pages/Messages";
 import Thread from "./pages/Thread";
 import VenueDetail from "./pages/VenueDetail";
+import EventDetail from "./pages/EventDetail";
 
 function Splash() {
   return (
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/b/:id" element={<BandDetail />} />
         <Route path="/m/:id" element={<MusicianProfile />} />
         <Route path="/v/:id" element={<VenueDetail />} />
+        <Route path="/e/:id" element={<EventDetail />} />
         <Route path="/profile" element={<MyProfile />} />
         <Route path="/messages" element={<Messages />} />
         <Route path="/messages/:id" element={<Thread />} />

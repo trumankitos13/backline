@@ -6,7 +6,7 @@
 // Verified, amber "free tonight", one amber Book CTA per card.
 
 import { useNavigate } from "react-router-dom";
-import type { Musician, SkillLevel } from "../../lib/types";
+import type { Player, SkillLevel } from "../../lib/types";
 import { instrument } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
 import { ratingSummary } from "../../lib/ratings";
@@ -41,10 +41,10 @@ export function MusicianCard({
   highlight = false,
   onOpenReel,
 }: {
-  musician: Musician;
+  musician: Player;
   /** amber ring while SOS mode is on */
   highlight?: boolean;
-  onOpenReel: (musician: Musician, clipIndex: number) => void;
+  onOpenReel: (musician: Player, clipIndex: number) => void;
 }) {
   const navigate = useNavigate();
   const { state } = useApp();
@@ -132,7 +132,7 @@ export function MusicianCard({
           <span className="mono inline-flex items-center gap-1 text-[11px]">
             <ClockIcon size={12} className="text-text-lo" />~{m.responseMins} MIN REPLY
           </span>
-          <Mono className="text-[11px]">{m.gigsPlayed} GIGS</Mono>
+          <Mono className="text-[11px]">{m.gigsPlayed} EVENTS</Mono>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button

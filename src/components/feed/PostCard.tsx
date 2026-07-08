@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { FeedPost, Gig, PostKind, VideoClip } from "../../lib/types";
-import { getGig, getBand, getMusician, getVenue } from "../../lib/data";
+import type { FeedPost, Event, PostKind, VideoClip } from "../../lib/types";
+import { getEvent, getBand, getPlayer, getVenue } from "../../lib/data";
 import { instrumentLabel } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
 import { Avatar, Badge, Button, Card, Mono, UrgentBadge, formatCount } from "../ui";
@@ -44,13 +44,13 @@ function resolveAuthor(post: FeedPost): AuthorInfo | null {
       ? { name: v.name, seed: v.seed, href: `/v/${v.id}`, typeLabel: "Venue", square: true }
       : null;
   }
-  const m = getMusician(id);
+  const m = getPlayer(id);
   return m
     ? {
         name: m.name,
         seed: m.seed,
         href: `/m/${m.id}`,
-        typeLabel: "Musician",
+        typeLabel: "Player",
         square: false,
         verified: m.verified,
       }
@@ -62,7 +62,7 @@ function resolveAuthor(post: FeedPost): AuthorInfo | null {
 type PillTone = "neutral" | "amber" | "cyan";
 
 const KIND_PILL: Record<PostKind, { label: string; tone: PillTone }> = {
-  gig: { label: "Gig", tone: "neutral" },
+  gig: { label: "Event", tone: "neutral" },
   "open-mic": { label: "Open mic", tone: "neutral" },
   "need-sub": { label: "Sub needed", tone: "amber" },
   video: { label: "Reel", tone: "neutral" },
@@ -71,7 +71,7 @@ const KIND_PILL: Record<PostKind, { label: string; tone: PillTone }> = {
 
 // ------------------------------------------------------------- gig embed
 
-function GigEmbed({ gig }: { gig: Gig }) {
+function GigEmbed({ gig }: { gig: Event }) {
   const venue = getVenue(gig.venueId);
   const [interested, setInterested] = useState(false);
   return (
@@ -81,7 +81,12 @@ function GigEmbed({ gig }: { gig: Gig }) {
           <CalendarIcon size={18} />
         </span>
         <div className="min-w-0 flex-1 basis-40">
-          <p className="truncate text-sm font-medium text-text-hi">{gig.title}</p>
+          <Link
+            to={`/e/${gig.id}`}
+            className="block truncate text-sm font-medium text-text-hi transition-colors hover:text-amber-300"
+          >
+            {gig.title}
+          </Link>
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-mid">
             <Mono className="text-[11px] text-text-mid">
               {gig.date} · {gig.time}
@@ -181,7 +186,7 @@ function SubEmbed({
 
 function VideoEmbed({ clip, ownerId }: { clip: VideoClip; ownerId?: string }) {
   const [open, setOpen] = useState(false);
-  const owner = ownerId ? getMusician(ownerId) : undefined;
+  const owner = ownerId ? getPlayer(ownerId) : undefined;
   // open the owner's full reel starting at this clip when we can
   const clips =
     owner && owner.videos.some((v) => v.id === clip.id) ? owner.videos : [clip];
@@ -243,7 +248,7 @@ function PostFooter({ post }: { post: FeedPost }) {
 export function PostCard({ post }: { post: FeedPost }) {
   const author = resolveAuthor(post);
   if (!author) return null;
-  const gig = post.gigId ? getGig(post.gigId) : undefined;
+  const gig = post.eventId ? getEvent(post.eventId) : undefined;
   const pill = KIND_PILL[post.kind];
 
   return (

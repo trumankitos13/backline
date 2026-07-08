@@ -1,4 +1,4 @@
-// Musician profile (/m/:id): Uber-style headline rating, reels showcase, stats,
+// Player profile (/m/:id): Uber-style headline rating, reels showcase, stats,
 // gear, availability, bands, a ratings breakdown + written reviews, and a sticky
 // Message / Book CTA bar that drops into the chat thread.
 
@@ -30,7 +30,8 @@ import {
   PlayIcon,
 } from "../components/icons";
 import { ReelViewer, VideoTile } from "../components/video";
-import { getBand, getMusician } from "../lib/data";
+import { LinksSection } from "../components/links";
+import { getBand, getPlayer } from "../lib/data";
 import { ratingSummary } from "../lib/ratings";
 import { useApp } from "../lib/store";
 import type { Band } from "../lib/types";
@@ -54,7 +55,7 @@ export default function MusicianProfile() {
   const { state } = useApp();
   const [reelAt, setReelAt] = useState<number | null>(null);
 
-  const m = id ? getMusician(id) : undefined;
+  const m = id ? getPlayer(id) : undefined;
 
   if (!m) {
     return (
@@ -201,7 +202,7 @@ export default function MusicianProfile() {
             <SectionHeader title="Bands" className="mb-3" />
             <div className="flex flex-col gap-2.5">
               {bands.map((b) => {
-                const role = b.members.find((mem) => mem.musicianId === m.id)?.role;
+                const role = b.members.find((mem) => mem.playerId === m.id)?.role;
                 return (
                   <Link key={b.id} to={`/b/${b.id}`}>
                     <Card className="flex items-center gap-3 p-3.5 transition-colors hover:border-hairline-strong hover:bg-surface-850">
@@ -266,6 +267,8 @@ export default function MusicianProfile() {
             </Card>
           )}
         </section>
+
+        <LinksSection links={m.links} title={`Find ${firstName} online`} className="mt-6" />
       </div>
 
       {/* -------------------------------------------------- sticky CTA bar */}

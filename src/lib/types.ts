@@ -16,6 +16,43 @@ export type InstrumentId =
 
 export type SkillLevel = "pro" | "semi-pro" | "hobbyist";
 
+// ---------------------------------------------------------- external links
+// Every object can link out to where it already lives on the internet.
+
+export type LinkKind =
+  | "website"
+  | "spotify"
+  | "apple-music"
+  | "soundcloud"
+  | "bandcamp"
+  | "instagram"
+  | "tiktok"
+  | "youtube"
+  | "bandsintown"
+  | "x";
+
+export interface ExternalLink {
+  kind: LinkKind;
+  url: string;
+  /** optional display override, e.g. a handle */
+  label?: string;
+}
+
+// ------------------------------------------------------------------ reels
+// A reel is an EMBED of an existing short-form post, not a hosted file — see
+// docs/V1_SPEC.md. The generative VideoClip below is the fallback shown when a
+// player has no reels yet.
+
+export type ReelPlatform = "tiktok" | "youtube" | "instagram";
+
+export interface Reel {
+  id: string;
+  platform: ReelPlatform;
+  /** canonical post URL; the embed is derived from it at render time */
+  url: string;
+  caption?: string;
+}
+
 export interface VideoClip {
   id: string;
   title: string;
@@ -36,7 +73,7 @@ export interface Review {
   date: string;
 }
 
-export interface Musician {
+export interface Player {
   id: string;
   name: string;
   handle: string;
@@ -53,9 +90,13 @@ export interface Musician {
   responseMins: number;
   gigsPlayed: number;
   verified: boolean;
+  /** embedded short-form reels (TikTok/YouTube/Instagram) — v1 */
+  reels?: Reel[];
+  /** generative placeholder clips, shown when reels is empty */
   videos: VideoClip[];
   reviews: Review[];
   bandIds: string[];
+  links?: ExternalLink[];
   /** avatar gradient seed */
   seed: number;
 }
@@ -66,10 +107,11 @@ export interface Band {
   genres: string[];
   bio: string;
   neighborhood: string;
-  members: { musicianId: string; role: string }[];
+  members: { playerId: string; role: string }[];
   openSlots: { instrument: InstrumentId; note: string }[];
   followers: number;
-  gigIds: string[];
+  eventIds: string[];
+  links?: ExternalLink[];
   seed: number;
 }
 
@@ -80,19 +122,33 @@ export interface Venue {
   capacity: number;
   followers: number;
   vibe: string;
+  links?: ExternalLink[];
   seed: number;
 }
 
-export interface Gig {
+export type EventSource = "backline" | "bandsintown" | "ticketmaster" | "seatgeek";
+
+/** A show — a first-class object with its own page (/e/:id). */
+export interface Event {
   id: string;
   title: string;
   venueId: string;
+  /** headliner / primary act */
   bandId?: string;
+  /** full lineup beyond the headliner */
+  bandIds?: string[];
+  playerIds?: string[];
+  description?: string;
   /** display date, e.g. "Tonight" or "Fri Jul 10" */
   date: string;
   time: string;
   payout?: number;
   ticket?: string;
+  ticketUrl?: string;
+  links?: ExternalLink[];
+  /** where this event came from; imported events deep-link out */
+  source?: EventSource;
+  externalUrl?: string;
 }
 
 export type PostKind = "gig" | "need-sub" | "video" | "open-mic" | "news";
@@ -100,12 +156,12 @@ export type PostKind = "gig" | "need-sub" | "video" | "open-mic" | "news";
 export interface FeedPost {
   id: string;
   kind: PostKind;
-  author: { type: "band" | "venue" | "musician"; id: string };
+  author: { type: "band" | "venue" | "player"; id: string };
   text: string;
   ago: string;
   likes: number;
   comments: number;
-  gigId?: string;
+  eventId?: string;
   /** for kind === "video": the clip, plus whose reel it belongs to */
   video?: VideoClip;
   videoOwnerId?: string;
@@ -117,7 +173,7 @@ export type BookingStatus = "offer" | "accepted" | "paid" | "declined";
 
 export interface Booking {
   id: string;
-  musicianId: string;
+  playerId: string;
   gigTitle: string;
   venueName: string;
   date: string;
@@ -137,7 +193,7 @@ export interface Message {
 
 export interface Conversation {
   id: string;
-  musicianId: string;
+  playerId: string;
   messages: Message[];
   unread: number;
 }

@@ -26,7 +26,7 @@ export function SosBanner({
         </span>
         <div className="min-w-0 flex-1">
           <Mono className="text-[10px] font-bold text-amber-300">
-            Gig at risk
+            Event at risk
           </Mono>
           <h2 className="mt-0.5 text-base font-bold text-text-hi">
             Someone bailed tonight?

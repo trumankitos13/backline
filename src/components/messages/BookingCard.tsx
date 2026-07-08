@@ -2,7 +2,7 @@
 // Status renders live from the store: offer → accepted → paid (or declined).
 // Once paid, it hosts the post-gig rating entry (Uber-style).
 
-import type { Booking, Musician } from "../../lib/types";
+import type { Booking, Player } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { Button, Card, Mono, StarInput, Stars } from "../ui";
 import { CalendarIcon, CheckIcon, LockIcon } from "../icons";
@@ -13,14 +13,14 @@ export function BookingCard({
   onPay,
 }: {
   booking: Booking;
-  musician: Musician;
+  musician: Player;
   /** open the payment sheet for this booking */
   onPay: (booking: Booking) => void;
 }) {
   const { state, api } = useApp();
   const first = musician.name.split(" ")[0] ?? musician.name;
 
-  const given = state.ratingsGiven[booking.musicianId] ?? [];
+  const given = state.ratingsGiven[booking.playerId] ?? [];
   const rated = given.length > 0;
   const myStars = rated ? given[given.length - 1]! : 0;
 
@@ -96,7 +96,7 @@ export function BookingCard({
                 </Mono>
                 <StarInput
                   value={0}
-                  onChange={(s) => api.rateMusician(booking.musicianId, s)}
+                  onChange={(s) => api.rateMusician(booking.playerId, s)}
                   size={30}
                 />
               </>

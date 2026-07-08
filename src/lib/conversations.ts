@@ -5,27 +5,27 @@
 import type { Conversation, Message } from "./types";
 
 /** stable client id for a conversation with a given musician */
-export function conversationClientId(musicianId: string): string {
-  return `c-${musicianId}`;
+export function conversationClientId(playerId: string): string {
+  return `c-${playerId}`;
 }
 
 /**
- * Append `message` to the conversation with `musicianId`, creating the
+ * Append `message` to the conversation with `playerId`, creating the
  * conversation if it doesn't exist yet. `fromThem` bumps the unread counter and
  * decides the initial unread value for a brand-new conversation.
  */
 export function upsertMessage(
   conversations: Conversation[],
-  musicianId: string,
+  playerId: string,
   message: Message,
   fromThem: boolean,
 ): Conversation[] {
-  const existing = conversations.find((c) => c.musicianId === musicianId);
+  const existing = conversations.find((c) => c.playerId === playerId);
   if (!existing) {
     return [
       {
-        id: conversationClientId(musicianId),
-        musicianId,
+        id: conversationClientId(playerId),
+        playerId,
         messages: [message],
         unread: fromThem ? 1 : 0,
       },
@@ -33,7 +33,7 @@ export function upsertMessage(
     ];
   }
   return conversations.map((c) =>
-    c.musicianId === musicianId
+    c.playerId === playerId
       ? {
           ...c,
           messages: [...c.messages, message],

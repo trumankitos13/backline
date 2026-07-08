@@ -56,8 +56,8 @@ export interface Backend {
   saveUser(user: AuthUser, profile: CurrentUser): Promise<void>;
   updateUser(user: AuthUser, patch: Partial<CurrentUser>): Promise<void>;
   setFollow(user: AuthUser, targetId: string, following: boolean): Promise<void>;
-  addMessage(user: AuthUser, musicianId: string, message: Message): Promise<void>;
-  markRead(user: AuthUser, musicianId: string): Promise<void>;
+  addMessage(user: AuthUser, playerId: string, message: Message): Promise<void>;
+  markRead(user: AuthUser, playerId: string): Promise<void>;
   addBooking(user: AuthUser, booking: Booking): Promise<void>;
   setBookingStatus(user: AuthUser, bookingId: string, status: BookingStatus): Promise<void>;
   setLike(user: AuthUser, postId: string, liked: boolean): Promise<void>;

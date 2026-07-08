@@ -2,7 +2,7 @@
 // thread; the store simulates the musician accepting ~3.5s later.
 
 import { useState, type FormEvent } from "react";
-import type { InstrumentId, Musician } from "../../lib/types";
+import type { InstrumentId, Player } from "../../lib/types";
 import { VENUES } from "../../lib/data";
 import { useApp } from "../../lib/store";
 import { Button, Modal } from "../ui";
@@ -35,7 +35,7 @@ export function BookingSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  musician: Musician;
+  musician: Player;
 }) {
   const { api } = useApp();
   const first = musician.name.split(" ")[0] ?? musician.name;
@@ -60,7 +60,7 @@ export function BookingSheet({
     e.preventDefault();
     if (!valid) return;
     api.sendBookingOffer({
-      musicianId: musician.id,
+      playerId: musician.id,
       gigTitle: gigTitle.trim(),
       venueName: venue === "Other" ? customVenue.trim() || "Venue TBD" : venue,
       date: dateOpt === CUSTOM_DATE ? customDate.trim() || "Date TBD" : dateOpt,
@@ -74,7 +74,7 @@ export function BookingSheet({
   return (
     <Modal open={open} onClose={onClose} title={`Book ${first}`}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Gig title">
+        <Field label="Event title">
           <input
             className={inputCls}
             value={gigTitle}

@@ -24,7 +24,7 @@ import type {
   CurrentUser,
   Message,
 } from "./types";
-import { getMusician } from "./data";
+import { getPlayer } from "./data";
 import { upsertMessage } from "./conversations";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
 import type { AuthResult } from "./backend/types";
@@ -57,14 +57,14 @@ type Action =
   | { type: "SET_USER"; user: CurrentUser }
   | { type: "UPDATE_USER"; patch: Partial<CurrentUser> }
   | { type: "TOGGLE_FOLLOW"; id: string }
-  | { type: "SEND_MESSAGE"; musicianId: string; message: Message }
-  | { type: "RECEIVE_MESSAGE"; musicianId: string; message: Message }
+  | { type: "SEND_MESSAGE"; playerId: string; message: Message }
+  | { type: "RECEIVE_MESSAGE"; playerId: string; message: Message }
   | { type: "MARK_READ"; conversationId: string }
   | { type: "ADD_BOOKING"; booking: Booking }
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
   | { type: "TOGGLE_LIKE"; postId: string }
   | { type: "RESPOND_SUB"; postId: string }
-  | { type: "RATE_MUSICIAN"; musicianId: string; stars: number };
+  | { type: "RATE_MUSICIAN"; playerId: string; stars: number };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -88,7 +88,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         conversations: upsertMessage(
           state.conversations,
-          action.musicianId,
+          action.playerId,
           action.message,
           false,
         ),
@@ -98,7 +98,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         conversations: upsertMessage(
           state.conversations,
-          action.musicianId,
+          action.playerId,
           action.message,
           true,
         ),
@@ -135,8 +135,8 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         ratingsGiven: {
           ...state.ratingsGiven,
-          [action.musicianId]: [
-            ...(state.ratingsGiven[action.musicianId] ?? []),
+          [action.playerId]: [
+            ...(state.ratingsGiven[action.playerId] ?? []),
             action.stars,
           ],
         },
@@ -147,7 +147,7 @@ function reducer(state: AppState, action: Action): AppState {
 }
 
 interface BookingOfferInput {
-  musicianId: string;
+  playerId: string;
   gigTitle: string;
   venueName: string;
   date: string;
@@ -158,15 +158,15 @@ interface BookingOfferInput {
 
 export interface AppApi {
   /** send a chat message; the musician sends a canned reply shortly after */
-  sendMessage(musicianId: string, text: string, opts?: { simulateReply?: boolean }): void;
+  sendMessage(playerId: string, text: string, opts?: { simulateReply?: boolean }): void;
   /** send a booking offer into the thread; simulated acceptance follows */
   sendBookingOffer(input: BookingOfferInput): string;
   /** mark a booking paid (called by the mock payment sheet) */
-  payBooking(bookingId: string, musicianId: string): void;
+  payBooking(bookingId: string, playerId: string): void;
   toggleFollow(id: string): void;
   toggleLike(postId: string): void;
   /** record a post-gig star rating (1..5) for a musician (session-only) */
-  rateMusician(musicianId: string, stars: number): void;
+  rateMusician(playerId: string, stars: number): void;
   respondToSubPost(postId: string, bandName: string): void;
   markRead(conversationId: string): void;
   setUser(user: CurrentUser): void;
@@ -282,10 +282,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     return {
-      sendMessage(musicianId, text, opts) {
+      sendMessage(playerId, text, opts) {
         const message: Message = { id: uid("m"), from: "me", text, at: nowLabel() };
-        dispatch({ type: "SEND_MESSAGE", musicianId, message });
-        persist((u) => backend.addMessage(u, musicianId, message));
+        dispatch({ type: "SEND_MESSAGE", playerId, message });
+        persist((u) => backend.addMessage(u, playerId, message));
 
         if (opts?.simulateReply !== false) {
           const reply =
@@ -297,8 +297,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               text: reply,
               at: nowLabel(),
             };
-            dispatch({ type: "RECEIVE_MESSAGE", musicianId, message: replyMsg });
-            persist((u) => backend.addMessage(u, musicianId, replyMsg));
+            dispatch({ type: "RECEIVE_MESSAGE", playerId, message: replyMsg });
+            persist((u) => backend.addMessage(u, playerId, replyMsg));
           }, 1800 + Math.random() * 1500);
         }
       },
@@ -307,7 +307,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const bookingId = uid("bk");
         const booking: Booking = {
           id: bookingId,
-          musicianId: input.musicianId,
+          playerId: input.playerId,
           gigTitle: input.gigTitle,
           venueName: input.venueName,
           date: input.date,
@@ -322,22 +322,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         dispatch({ type: "ADD_BOOKING", booking });
         if (noteMsg) {
-          dispatch({ type: "SEND_MESSAGE", musicianId: input.musicianId, message: noteMsg });
+          dispatch({ type: "SEND_MESSAGE", playerId: input.playerId, message: noteMsg });
         }
-        dispatch({ type: "SEND_MESSAGE", musicianId: input.musicianId, message: offerMsg });
+        dispatch({ type: "SEND_MESSAGE", playerId: input.playerId, message: offerMsg });
 
         // persist in FK-safe order: booking before the message that references it
         const user = authUserRef.current;
         if (user) {
           (async () => {
             await backend.addBooking(user, booking);
-            if (noteMsg) await backend.addMessage(user, input.musicianId, noteMsg);
-            await backend.addMessage(user, input.musicianId, offerMsg);
+            if (noteMsg) await backend.addMessage(user, input.playerId, noteMsg);
+            await backend.addMessage(user, input.playerId, offerMsg);
           })().catch((e) => console.error("[backline] persist offer failed", e));
         }
 
         // simulate the musician accepting after a short delay
-        const name = getMusician(input.musicianId)?.name.split(" ")[0] ?? "They";
+        const name = getPlayer(input.playerId)?.name.split(" ")[0] ?? "They";
         window.setTimeout(() => {
           const acceptMsg: Message = {
             id: uid("m"),
@@ -346,15 +346,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             at: nowLabel(),
           };
           dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
-          dispatch({ type: "RECEIVE_MESSAGE", musicianId: input.musicianId, message: acceptMsg });
+          dispatch({ type: "RECEIVE_MESSAGE", playerId: input.playerId, message: acceptMsg });
           persist((u) => backend.setBookingStatus(u, bookingId, "accepted"));
-          persist((u) => backend.addMessage(u, input.musicianId, acceptMsg));
+          persist((u) => backend.addMessage(u, input.playerId, acceptMsg));
         }, 3500);
 
         return bookingId;
       },
 
-      payBooking(bookingId, musicianId) {
+      payBooking(bookingId, playerId) {
         dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "paid" });
         persist((u) => backend.setBookingStatus(u, bookingId, "paid"));
         window.setTimeout(() => {
@@ -364,8 +364,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             text: "Payment received — you're officially booked. Sending you my stage plot now.",
             at: nowLabel(),
           };
-          dispatch({ type: "RECEIVE_MESSAGE", musicianId, message: msg });
-          persist((u) => backend.addMessage(u, musicianId, msg));
+          dispatch({ type: "RECEIVE_MESSAGE", playerId, message: msg });
+          persist((u) => backend.addMessage(u, playerId, msg));
         }, 1500);
       },
 
@@ -384,13 +384,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "RESPOND_SUB", postId });
         persist((u) => backend.addRespondedSub(u, postId));
       },
-      rateMusician(musicianId, stars) {
-        dispatch({ type: "RATE_MUSICIAN", musicianId, stars });
+      rateMusician(playerId, stars) {
+        dispatch({ type: "RATE_MUSICIAN", playerId, stars });
       },
       markRead(conversationId) {
         const conv = stateRef.current.conversations.find((c) => c.id === conversationId);
         dispatch({ type: "MARK_READ", conversationId });
-        if (conv) persist((u) => backend.markRead(u, conv.musicianId));
+        if (conv) persist((u) => backend.markRead(u, conv.playerId));
       },
       setUser(user) {
         dispatch({ type: "SET_USER", user });
@@ -435,9 +435,9 @@ export function useApp() {
 }
 
 /** conversation for a musician, if any */
-export function useConversationWith(musicianId: string): Conversation | undefined {
+export function useConversationWith(playerId: string): Conversation | undefined {
   const { state } = useApp();
-  return state.conversations.find((c) => c.musicianId === musicianId);
+  return state.conversations.find((c) => c.playerId === playerId);
 }
 
 export function useUnreadCount(): number {

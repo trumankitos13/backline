@@ -5,14 +5,14 @@ import type {
   Band,
   Conversation,
   FeedPost,
-  Gig,
-  Musician,
+  Event,
+  Player,
   Venue,
 } from "./types";
 
 // ---------------------------------------------------------------- musicians
 
-export const MUSICIANS: Musician[] = [
+export const PLAYERS: Player[] = [
   {
     id: "m-dre",
     name: "Dre Okafor",
@@ -39,6 +39,11 @@ export const MUSICIANS: Musician[] = [
       { id: "r-dre-2", author: "Prickly Pear Listening Room", role: "Venue", rating: 5, text: "Professional, on time, great with our sound tech. Booked him three more times.", date: "May 2026" },
     ],
     bandIds: ["b-brasshouse"],
+    links: [
+      { kind: "instagram", url: "https://instagram.com/dreonthedrums", label: "@dreonthedrums" },
+      { kind: "spotify", url: "https://open.spotify.com/artist/dreokafor" },
+      { kind: "youtube", url: "https://youtube.com/@dreonthedrums" },
+    ],
     seed: 1,
   },
   {
@@ -253,6 +258,10 @@ export const MUSICIANS: Musician[] = [
       { id: "r-ada-1", author: "J-Bird Tolliver", role: "Bassist", rating: 5, text: "Best MD I've worked with. Rehearsals run on time and the charts are immaculate.", date: "May 2026" },
     ],
     bandIds: ["b-brasshouse"],
+    links: [
+      { kind: "instagram", url: "https://instagram.com/adaosei", label: "@adaosei" },
+      { kind: "website", url: "https://adaosei.com" },
+    ],
     seed: 9,
   },
   {
@@ -370,6 +379,11 @@ export const MUSICIANS: Musician[] = [
     ],
     reviews: [],
     bandIds: ["b-nightmarket"],
+    links: [
+      { kind: "soundcloud", url: "https://soundcloud.com/djkilowatt" },
+      { kind: "instagram", url: "https://instagram.com/djkilowatt", label: "@djkilowatt" },
+      { kind: "spotify", url: "https://open.spotify.com/artist/kilowatt" },
+    ],
     seed: 14,
   },
   {
@@ -432,13 +446,18 @@ export const BANDS: Band[] = [
     bio: "Four-piece indie rock. Loud guitars, louder feelings. Debut EP 'Porch Light' out now — recorded live in a garage in Hyde Park, and it sounds like it (on purpose).",
     neighborhood: "Hyde Park",
     members: [
-      { musicianId: "m-katie", role: "Drums" },
-      { musicianId: "m-nina", role: "Bass / Vocals" },
-      { musicianId: "m-marcus", role: "Guitar" },
+      { playerId: "m-katie", role: "Drums" },
+      { playerId: "m-nina", role: "Bass / Vocals" },
+      { playerId: "m-marcus", role: "Guitar" },
     ],
     openSlots: [{ instrument: "keys", note: "Synth/organ for fall tour. Must tolerate van smell." }],
     followers: 1840,
-    gigIds: ["g-moontower-armadillo"],
+    eventIds: ["e-moontower-armadillo"],
+    links: [
+      { kind: "spotify", url: "https://open.spotify.com/artist/moontower" },
+      { kind: "instagram", url: "https://instagram.com/moontowerrevival", label: "@moontowerrevival" },
+      { kind: "bandcamp", url: "https://moontowerrevival.bandcamp.com" },
+    ],
     seed: 21,
   },
   {
@@ -448,15 +467,19 @@ export const BANDS: Band[] = [
     bio: "Nine-piece horn-driven funk machine, MD'd by Ada Osei. We play weddings that want to feel like block parties and block parties that want to feel like weddings.",
     neighborhood: "East Austin",
     members: [
-      { musicianId: "m-ada", role: "MD / Keys / Vocals" },
-      { musicianId: "m-dre", role: "Drums" },
-      { musicianId: "m-jbird", role: "Bass" },
-      { musicianId: "m-ray", role: "Tenor Sax" },
-      { musicianId: "m-belle", role: "Trumpet" },
+      { playerId: "m-ada", role: "MD / Keys / Vocals" },
+      { playerId: "m-dre", role: "Drums" },
+      { playerId: "m-jbird", role: "Bass" },
+      { playerId: "m-ray", role: "Tenor Sax" },
+      { playerId: "m-belle", role: "Trumpet" },
     ],
     openSlots: [{ instrument: "sound-tech", note: "Regular FOH for 2-3 gigs/month. We travel with charts and stems." }],
     followers: 4620,
-    gigIds: ["g-brasshouse-sunset"],
+    eventIds: ["e-brasshouse-sunset"],
+    links: [
+      { kind: "instagram", url: "https://instagram.com/brasshouseatx", label: "@brasshouseatx" },
+      { kind: "website", url: "https://brasshouseatx.com" },
+    ],
     seed: 22,
   },
   {
@@ -466,15 +489,19 @@ export const BANDS: Band[] = [
     bio: "Honky-tonk with a songwriter's heart. Wednesday residency at the Rattlesnake Room. Bring your boots, or don't, we're not the dress code police.",
     neighborhood: "Bouldin Creek",
     members: [
-      { musicianId: "m-luz", role: "Guitar / Pedal Steel" },
-      { musicianId: "m-ivy", role: "Fiddle" },
+      { playerId: "m-luz", role: "Guitar / Pedal Steel" },
+      { playerId: "m-ivy", role: "Fiddle" },
     ],
     openSlots: [
       { instrument: "drums", note: "URGENT: our drummer's van died in Waco. Need a sub for TONIGHT, 9pm, Rattlesnake Room. Brushes-friendly." },
       { instrument: "bass", note: "Permanent slot. Upright a plus, harmony vocals a bigger plus." },
     ],
     followers: 2310,
-    gigIds: ["g-cedarrye-rattlesnake"],
+    eventIds: ["e-cedarrye-rattlesnake"],
+    links: [
+      { kind: "spotify", url: "https://open.spotify.com/artist/cedarrye" },
+      { kind: "bandsintown", url: "https://bandsintown.com/a/cedar-rye" },
+    ],
     seed: 23,
   },
   {
@@ -484,12 +511,16 @@ export const BANDS: Band[] = [
     bio: "Late-night jazz for people who talk quietly in bars. Cass Monroe on vocals, Theo Park on keys. Thursdays at the Rattlesnake Room, occasionally somewhere fancier.",
     neighborhood: "Clarksville",
     members: [
-      { musicianId: "m-cass", role: "Vocals" },
-      { musicianId: "m-theo", role: "Keys" },
+      { playerId: "m-cass", role: "Vocals" },
+      { playerId: "m-theo", role: "Keys" },
     ],
     openSlots: [{ instrument: "bass", note: "Upright preferred for the trio dates. Standards repertoire required." }],
     followers: 1290,
-    gigIds: ["g-velvet-prickly"],
+    eventIds: ["e-velvet-prickly"],
+    links: [
+      { kind: "instagram", url: "https://instagram.com/velvethouratx", label: "@velvethouratx" },
+      { kind: "youtube", url: "https://youtube.com/@velvethour" },
+    ],
     seed: 24,
   },
   {
@@ -499,12 +530,16 @@ export const BANDS: Band[] = [
     bio: "DJ Kilowatt + live drums + lights by Priya. Half DJ set, half live band, all sweat. If the floor isn't shaking we issue refunds (we have never issued a refund).",
     neighborhood: "Downtown",
     members: [
-      { musicianId: "m-kilo", role: "DJ / Production" },
-      { musicianId: "m-pri", role: "Lighting / Visuals" },
+      { playerId: "m-kilo", role: "DJ / Production" },
+      { playerId: "m-pri", role: "Lighting / Visuals" },
     ],
     openSlots: [{ instrument: "vocals", note: "Guest vocalists for club nights. House/disco vibes, tops-lines welcome." }],
     followers: 3480,
-    gigIds: ["g-nightmarket-warehouse"],
+    eventIds: ["e-nightmarket-warehouse"],
+    links: [
+      { kind: "soundcloud", url: "https://soundcloud.com/nightmarketatx" },
+      { kind: "instagram", url: "https://instagram.com/nightmarketatx", label: "@nightmarketatx" },
+    ],
     seed: 25,
   },
 ];
@@ -512,22 +547,97 @@ export const BANDS: Band[] = [
 // ------------------------------------------------------------------- venues
 
 export const VENUES: Venue[] = [
-  { id: "v-armadillo", name: "The Blue Armadillo", neighborhood: "East Austin", capacity: 250, followers: 5200, vibe: "Sticky floors, perfect sound, the best Tuesday crowd in town.", seed: 31 },
-  { id: "v-rattlesnake", name: "Rattlesnake Room", neighborhood: "Downtown", capacity: 180, followers: 3900, vibe: "Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.", seed: 32 },
-  { id: "v-sunset", name: "Sunset Ballroom", neighborhood: "South Congress", capacity: 900, followers: 12400, vibe: "The mid-size room every touring band remembers.", seed: 33 },
-  { id: "v-prickly", name: "Prickly Pear Listening Room", neighborhood: "Clarksville", capacity: 120, followers: 2100, vibe: "Pin-drop quiet listening room. Phones away, hearts open.", seed: 34 },
-  { id: "v-warehouse", name: "Warehouse 512", neighborhood: "Riverside", capacity: 1200, followers: 8800, vibe: "Big room, big system, late nights.", seed: 35 },
+  { id: "v-armadillo", name: "The Blue Armadillo", neighborhood: "East Austin", capacity: 250, followers: 5200, vibe: "Sticky floors, perfect sound, the best Tuesday crowd in town.", links: [{ kind: "website", url: "https://bluearmadillo.com" }, { kind: "instagram", url: "https://instagram.com/bluearmadilloatx", label: "@bluearmadilloatx" }], seed: 31 },
+  { id: "v-rattlesnake", name: "Rattlesnake Room", neighborhood: "Downtown", capacity: 180, followers: 3900, vibe: "Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.", links: [{ kind: "website", url: "https://rattlesnakeroom.com" }, { kind: "bandsintown", url: "https://bandsintown.com/v/rattlesnake-room" }], seed: 32 },
+  { id: "v-sunset", name: "Sunset Ballroom", neighborhood: "South Congress", capacity: 900, followers: 12400, vibe: "The mid-size room every touring band remembers.", links: [{ kind: "website", url: "https://sunsetballroom.com" }, { kind: "instagram", url: "https://instagram.com/sunsetballroom", label: "@sunsetballroom" }], seed: 33 },
+  { id: "v-prickly", name: "Prickly Pear Listening Room", neighborhood: "Clarksville", capacity: 120, followers: 2100, vibe: "Pin-drop quiet listening room. Phones away, hearts open.", links: [{ kind: "website", url: "https://pricklypearroom.com" }], seed: 34 },
+  { id: "v-warehouse", name: "Warehouse 512", neighborhood: "Riverside", capacity: 1200, followers: 8800, vibe: "Big room, big system, late nights.", links: [{ kind: "instagram", url: "https://instagram.com/warehouse512", label: "@warehouse512" }], seed: 35 },
 ];
 
 // --------------------------------------------------------------------- gigs
 
-export const GIGS: Gig[] = [
-  { id: "g-cedarrye-rattlesnake", title: "Cedar & Rye — Honky-Tonk Night", venueId: "v-rattlesnake", bandId: "b-cedarrye", date: "Tonight", time: "9:00 PM", payout: 150, ticket: "$10" },
-  { id: "g-moontower-armadillo", title: "Moontower Revival EP Release", venueId: "v-armadillo", bandId: "b-moontower", date: "Fri Jul 10", time: "10:00 PM", ticket: "$12" },
-  { id: "g-brasshouse-sunset", title: "Brass House ATX + guests", venueId: "v-sunset", bandId: "b-brasshouse", date: "Sat Jul 11", time: "8:30 PM", ticket: "$18" },
-  { id: "g-velvet-prickly", title: "Velvet Hour: Standards & Stories", venueId: "v-prickly", bandId: "b-velvet", date: "Thu Jul 9", time: "7:30 PM", ticket: "$15" },
-  { id: "g-nightmarket-warehouse", title: "Night Market — All Night Long", venueId: "v-warehouse", bandId: "b-nightmarket", date: "Sat Jul 11", time: "11:00 PM", ticket: "$20" },
-  { id: "g-openmic-armadillo", title: "Tuesday Open Mic", venueId: "v-armadillo", date: "Tue Jul 7", time: "7:00 PM" },
+export const EVENTS: Event[] = [
+  {
+    id: "e-cedarrye-rattlesnake",
+    title: "Cedar & Rye — Honky-Tonk Night",
+    venueId: "v-rattlesnake",
+    bandId: "b-cedarrye",
+    description:
+      "The Wednesday residency rolls on. Two-steppers welcome, brushes-and-upright energy, and a guest fiddle spot if Ivy's feeling it. Doors 8:30, downbeat 9.",
+    date: "Tonight",
+    time: "9:00 PM",
+    payout: 150,
+    ticket: "$10",
+    ticketUrl: "https://example.com/tix/cedar-rye",
+    source: "backline",
+    links: [{ kind: "bandsintown", url: "https://bandsintown.com/e/cedar-rye" }],
+  },
+  {
+    id: "e-moontower-armadillo",
+    title: "Moontower Revival — 'Porch Light' EP Release",
+    venueId: "v-armadillo",
+    bandId: "b-moontower",
+    description:
+      "Loud guitars, louder feelings. First 50 through the door get a kitchen-screen-printed poster. Local openers TBA.",
+    date: "Fri Jul 10",
+    time: "10:00 PM",
+    ticket: "$12",
+    ticketUrl: "https://example.com/tix/moontower-ep",
+    source: "backline",
+    links: [{ kind: "instagram", url: "https://instagram.com/moontowerrevival" }],
+  },
+  {
+    id: "e-brasshouse-sunset",
+    title: "Brass House ATX + guests",
+    venueId: "v-sunset",
+    bandId: "b-brasshouse",
+    playerIds: ["m-cass"],
+    description:
+      "Nine-piece horn-driven funk turns the ballroom into a block party. Special guest vocal spot from Cass Monroe.",
+    date: "Sat Jul 11",
+    time: "8:30 PM",
+    ticket: "$18",
+    ticketUrl: "https://example.com/tix/brasshouse",
+    source: "ticketmaster",
+    externalUrl: "https://ticketmaster.com/event/brasshouse",
+  },
+  {
+    id: "e-velvet-prickly",
+    title: "Velvet Hour: Standards & Stories",
+    venueId: "v-prickly",
+    bandId: "b-velvet",
+    description:
+      "Late-night jazz for people who talk quietly in bars. Torch songs, a Bowie cover if the room earns it.",
+    date: "Thu Jul 9",
+    time: "7:30 PM",
+    ticket: "$15",
+    ticketUrl: "https://example.com/tix/velvet-hour",
+    source: "backline",
+  },
+  {
+    id: "e-nightmarket-warehouse",
+    title: "Night Market — All Night Long",
+    venueId: "v-warehouse",
+    bandId: "b-nightmarket",
+    description:
+      "Half DJ set, half live band, all sweat. New live rig with real drums and a lighting system that has its own weather.",
+    date: "Sat Jul 11",
+    time: "11:00 PM",
+    ticket: "$20",
+    ticketUrl: "https://example.com/tix/night-market",
+    source: "seatgeek",
+    externalUrl: "https://seatgeek.com/night-market-tickets",
+  },
+  {
+    id: "e-openmic-armadillo",
+    title: "Tuesday Open Mic",
+    venueId: "v-armadillo",
+    description:
+      "Sign-ups at 6, music at 7. Backline provided (real amps, we fixed the broken one). Three songs a slot.",
+    date: "Tue Jul 7",
+    time: "7:00 PM",
+    source: "backline",
+  },
 ];
 
 // --------------------------------------------------------------------- feed
@@ -541,7 +651,7 @@ export const FEED_POSTS: FeedPost[] = [
     ago: "2h",
     likes: 34,
     comments: 11,
-    gigId: "g-cedarrye-rattlesnake",
+    eventId: "e-cedarrye-rattlesnake",
     subFor: { instrument: "drums", date: "Tonight · 9:00 PM", payout: 150 },
   },
   {
@@ -552,12 +662,12 @@ export const FEED_POSTS: FeedPost[] = [
     ago: "4h",
     likes: 128,
     comments: 23,
-    gigId: "g-moontower-armadillo",
+    eventId: "e-moontower-armadillo",
   },
   {
     id: "p-3",
     kind: "video",
-    author: { type: "musician", id: "m-dre" },
+    author: { type: "player", id: "m-dre" },
     text: "New reel: half-time shuffle breakdown. This one took 30 takes and one noise complaint.",
     ago: "5h",
     likes: 412,
@@ -573,7 +683,7 @@ export const FEED_POSTS: FeedPost[] = [
     ago: "8h",
     likes: 56,
     comments: 9,
-    gigId: "g-openmic-armadillo",
+    eventId: "e-openmic-armadillo",
   },
   {
     id: "p-5",
@@ -583,7 +693,7 @@ export const FEED_POSTS: FeedPost[] = [
     ago: "12h",
     likes: 203,
     comments: 31,
-    gigId: "g-brasshouse-sunset",
+    eventId: "e-brasshouse-sunset",
   },
   {
     id: "p-6",
@@ -597,7 +707,7 @@ export const FEED_POSTS: FeedPost[] = [
   {
     id: "p-7",
     kind: "video",
-    author: { type: "musician", id: "m-ada" },
+    author: { type: "player", id: "m-ada" },
     text: "Someone asked how the run in the bridge works. Slowed it down. You're welcome and I'm sorry.",
     ago: "1d",
     likes: 634,
@@ -613,7 +723,7 @@ export const FEED_POSTS: FeedPost[] = [
     ago: "1d",
     likes: 21,
     comments: 6,
-    gigId: "g-velvet-prickly",
+    eventId: "e-velvet-prickly",
     subFor: { instrument: "bass", date: "Thu Jul 9 · 7:30 PM", payout: 175 },
   },
   {
@@ -624,7 +734,7 @@ export const FEED_POSTS: FeedPost[] = [
     ago: "2d",
     likes: 176,
     comments: 28,
-    gigId: "g-nightmarket-warehouse",
+    eventId: "e-nightmarket-warehouse",
   },
   {
     id: "p-10",
@@ -638,7 +748,7 @@ export const FEED_POSTS: FeedPost[] = [
   {
     id: "p-11",
     kind: "video",
-    author: { type: "musician", id: "m-pri" },
+    author: { type: "player", id: "m-pri" },
     text: "Before/after from Friday's bar gig. Same stage, same band, $90 of haze and intention.",
     ago: "3d",
     likes: 289,
@@ -662,7 +772,7 @@ export const FEED_POSTS: FeedPost[] = [
 export const SEED_CONVERSATIONS: Conversation[] = [
   {
     id: "c-m-theo",
-    musicianId: "m-theo",
+    playerId: "m-theo",
     unread: 1,
     messages: [
       { id: "cm-1", from: "me", text: "Theo! Great hang at the jam last week. You still doing fill-in dates?", at: "Tue 4:12 PM" },
@@ -672,7 +782,7 @@ export const SEED_CONVERSATIONS: Conversation[] = [
   },
   {
     id: "c-m-gus",
-    musicianId: "m-gus",
+    playerId: "m-gus",
     unread: 0,
     messages: [
       { id: "cm-4", from: "me", text: "Hey Gus — do you travel with your own console for rooms that only have a powered mixer?", at: "Mon 11:02 AM" },
@@ -683,12 +793,12 @@ export const SEED_CONVERSATIONS: Conversation[] = [
 
 // ------------------------------------------------------------------ lookups
 
-const musicianById = new Map(MUSICIANS.map((m) => [m.id, m]));
+const musicianById = new Map(PLAYERS.map((m) => [m.id, m]));
 const bandById = new Map(BANDS.map((b) => [b.id, b]));
 const venueById = new Map(VENUES.map((v) => [v.id, v]));
-const gigById = new Map(GIGS.map((g) => [g.id, g]));
+const eventById = new Map(EVENTS.map((g) => [g.id, g]));
 
-export function getMusician(id: string): Musician | undefined {
+export function getPlayer(id: string): Player | undefined {
   return musicianById.get(id);
 }
 export function getBand(id: string): Band | undefined {
@@ -697,11 +807,28 @@ export function getBand(id: string): Band | undefined {
 export function getVenue(id: string): Venue | undefined {
   return venueById.get(id);
 }
-export function getGig(id: string): Gig | undefined {
-  return gigById.get(id);
+export function getEvent(id: string): Event | undefined {
+  return eventById.get(id);
 }
 
 /** bands with an open slot for a given instrument */
 export function bandsNeeding(instrumentId: string): Band[] {
   return BANDS.filter((b) => b.openSlots.some((s) => s.instrument === instrumentId));
+}
+
+/** all events at a venue */
+export function eventsAtVenue(venueId: string): Event[] {
+  return EVENTS.filter((e) => e.venueId === venueId);
+}
+
+/** the full lineup of an event (headliner first), resolved to Bands + Players */
+export function eventLineup(event: Event): { bands: Band[]; players: Player[] } {
+  const bandIds = [event.bandId, ...(event.bandIds ?? [])].filter(
+    (id): id is string => Boolean(id),
+  );
+  const bands = bandIds.map((id) => bandById.get(id)).filter((b): b is Band => Boolean(b));
+  const players = (event.playerIds ?? [])
+    .map((id) => musicianById.get(id))
+    .filter((p): p is Player => Boolean(p));
+  return { bands, players };
 }

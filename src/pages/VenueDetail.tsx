@@ -19,7 +19,8 @@ import {
   UsersIcon,
 } from "../components/icons";
 import { FollowButton, GigRow } from "../components/bands/shared";
-import { GIGS, getVenue } from "../lib/data";
+import { LinksSection } from "../components/links";
+import { EVENTS, getVenue } from "../lib/data";
 
 export default function VenueDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +43,7 @@ export default function VenueDetail() {
     );
   }
 
-  const gigs = GIGS.filter((g) => g.venueId === venue.id);
+  const gigs = EVENTS.filter((g) => g.venueId === venue.id);
 
   return (
     <Page>
@@ -133,6 +134,8 @@ export default function VenueDetail() {
           </div>
         </div>
       </Card>
+
+      <LinksSection links={venue.links} title="Venue links" className="mt-8" />
     </Page>
   );
 }
