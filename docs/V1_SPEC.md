@@ -222,7 +222,9 @@ Events can be *created in-app* or *pulled from an API*.
 Marketplace model: Players onboard as **connected accounts**; bookers pay
 in-app; platform takes an application fee. The "held until the gig" escrow feel =
 **manual capture / delayed transfer**. Already mocked in the payment sheet;
-swap the mock for Stripe at the `api.payBooking` seam.
+swap the mock for Stripe at the `api.payBooking` seam. **The full flow — hold
+mechanics, release timing, cancellation, disputes, fees — is specced in
+[Payments & escrow](#payments--escrow) below.**
 
 ## Ratings
 Keep the **Uber-style rating** as-is: prominent average + count + distribution
@@ -231,6 +233,182 @@ only** for the talent-side star rating. The **hiring-side** signal ("paid on
 time") from the roles model attaches to the paying party (person/band/venue) and
 can surface as a badge before the full rating system extends to it. Schema stays
 open to rate Venues/Events later.
+
+## Payments & escrow
+
+The whole promise — **"held until the gig"** — is a payments feature. It's what
+makes an offer *credible to a stranger*: a player agrees to cover tonight because
+the money is already committed, not a promise over DM. Stripe Connect does the
+heavy lifting; our job is the **states, the timing, and the policy.**
+
+### Roles, in Stripe terms
+- **Player = connected account (Stripe Express).** Stripe-hosted onboarding
+  handles KYC, bank details, payouts, and tax forms. Store `stripeAccountId` +
+  `payoutReady` on the Player.
+- **Booker = the payer** — a Player *acting as* self / band / venue. They attach a
+  card. The card belongs to the person; when acting as a band/venue the receipt is
+  **attributed** to that context (so reputation lands right) even if the person's
+  card funds it.
+- **Backline = the platform.** Takes an application fee; funds route through the
+  platform balance during the hold.
+
+### Onboarding is lazy — gated at the moment of money
+Nobody sets up payouts to browse. Gate each side at first use:
+- **Get-paid gate:** a player completes Express onboarding **the first time they
+  accept a paid offer** ("Add payout details to get paid — 2 min"). They can apply
+  and chat before this; they just can't be *released* funds until `payoutReady`.
+- **Pay gate:** a booker adds a card **the first time they hire.**
+
+### The hold — two mechanisms, one meaning
+"Held" must mean the same thing to the player no matter how far out the gig is,
+but Stripe gives two primitives with different constraints:
+
+| Gig horizon | Mechanism | What actually happens |
+| --- | --- | --- |
+| **Near-term (≤ ~6 days)** — the SOS / this-week core | **Auth hold** — PaymentIntent, `capture_method: manual` | Booker's card is **authorized, not charged.** Capture at release. Cancel ⇒ we simply never capture — **no money ever moved.** Cleanest escrow, but **card auths expire in ~7 days.** |
+| **Further out** | **Charge-to-escrow** — separate charge + transfer | Capture the amount to the **platform balance** now (the real escrow), then **Transfer** to the player's connected account at release. Works at any horizon; downside: the booker's money leaves immediately. |
+
+One `api.holdBooking(id)` / `api.releaseBooking(id)` seam hides the choice; the UI
+only ever says **"held."** (Today's mock `payBooking` becomes `holdBooking`.)
+
+### Booking lifecycle (payments view)
+Extends today's `BookingStatus = "offer" | "accepted" | "paid" | "declined"`:
+
+```
+offer ──accept──▶ accepted/HELD ──gig happens──▶ released(=paid) ──payout──▶ player's bank
+  │                    │
+  │ decline            ├─ cancel  ─▶ refunded
+  ▼                    └─ no-show / dispute ─▶ disputed ─▶ resolve
+declined
+```
+
+Proposed set: `offer → held → released → {refunded | disputed}` (+ terminal
+`declined`). The old single **`paid`** splits into **`held`** (money committed) vs
+**`released`** (money delivered) — that split *is* the escrow.
+- **accept ⇒ hold.** Acceptance and the hold are one event: the public **"lock"**
+  (group chat "🥁 Nia locked in") and the private money move (amount/card only in
+  the 1:1 thread) happen together.
+- **release.** Auto-releases **24h after the gig's end time** unless a dispute is
+  filed in that window. "Held until the gig" → in the player's account the day
+  after; payout on Stripe's schedule.
+
+### Cancellation — cancel-friendly up to 24h
+Deliberately generous; friction here kills the "just grab a sub" reflex. Cutoff =
+**24h before showtime.**
+
+| Who cancels | ≥24h before | <24h before ("late") |
+| --- | --- | --- |
+| **Booker** | Full void/refund, no fee, no ding. | **Late-cancel fee** — a portion (propose **50%**) releases to the player who cleared their night; the rest refunds. |
+| **Player (bails)** | Hold **voided, booker fully refunded**, and we **re-open the opening / relaunch SOS** — the show still goes on. **Reliability signal** dinged (the anti-flake mechanic). | Same, heavier reliability ding — bailing day-of is the worst outcome for the scene. |
+
+Platform fee is **refunded on ≥24h cancels and all player-bails** (we don't profit
+from a gig that didn't happen); on a late booker-cancel we keep the fee only on the
+portion that pays out. (Tunable.)
+
+### No-show & disputes — kept human for v1
+Volume will be tiny; automated arbitration is over-engineering.
+- Either party can **file within the release window** (before the 24h auto-release,
+  or shortly after). Filing **freezes** the transfer.
+- **No-show** (player accepted, never played): booker reports → refund, player
+  reliability hit. Corroboration is cheap — the group chat is an implicit record
+  (the no-show never "arrived") and lineup-mates can confirm.
+- **Quality dispute:** conversation first, then a lightweight structured claim →
+  ops review. v1 leans refund-the-booker on genuine no-show, split/escalate on
+  subjective quality. Not a court.
+- **Card chargebacks** ride Stripe's own dispute flow. The hold model is the
+  defense: **funds aren't released until after the gig**, so a chargeback rarely
+  races an already-paid-out transfer. Residual risk (chargeback after release) →
+  platform eats or claws back; low volume.
+
+### Platform fee — and who pays it
+Propose: **the posted fee is the player's real take-home** — a "$200 opening" = $200
+in the drummer's pocket. Backline's cut (propose **~10%** + Stripe processing) is
+**added on top for the booker**, itemized on the offer:
+`Fee $200 · Backline service $20 · Total $220`. Why:
+- Kills fee haggling ("before or after the app's cut?") — the opening's number is
+  unambiguous.
+- Honors **fees-private**: the player only needs their guaranteed take-home; the
+  service charge is the booker's line item.
+- Musician-friendly — the talent is never surprised by a deduction.
+
+(Alternative — deduct from payout, DoorDash-style — works mechanically; the
+recommendation is booker-pays-on-top for the trust story. **Needs your call.**)
+
+### Fees private ↔ locks public (the payments side of the locked rule)
+- **Amount + card + receipt** live ONLY in the **1:1 offer/booking thread** and the
+  payer's own history. Never in a group chat, never on a public profile.
+- What surfaces publicly is **states, not numbers**: "locked in," "paid on time,"
+  "released." The **"100% paid on time"** booker badge and the **player ★ rating**
+  both derive from these states — never from amounts.
+- One booking = **one active hold.** Renegotiating replaces the offer (void + new
+  hold), so there's never an ambiguous double-charge.
+
+### Seam & mock → real
+- **Types:** extend `BookingStatus` (`held`, `released`); add
+  `Booking.stripePaymentIntentId?`, `Player.stripeAccountId?`, `Player.payoutReady?`.
+- **API:** `api.holdBooking` (was `payBooking`) + `api.releaseBooking` +
+  `api.cancelBooking` + `api.fileDispute`, all behind the existing backend seam.
+  `PaymentSheet` is already titled **"Hold payment"** — aimed straight at this.
+- **Local mode** keeps simulating; **Supabase/live mode** calls Stripe
+  (PaymentIntents + Transfers + Connect onboarding links) from a server function.
+
+## Notifications
+
+Backline is **time-critical** — "your drummer bailed, tonight" only works if the
+right person's phone buzzes in minutes. Notifications aren't a settings-screen
+afterthought; they're the **delivery mechanism for the core loop.**
+
+### Channels
+- **Push** — Web Push (VAPID / service worker) + iOS APNs via Expo. The urgent
+  channel; this is what makes SOS work.
+- **In-app** — a notification center + unread badges (the Chats badge already
+  exists). The **durable source of truth**; every push has an in-app twin.
+- **Email / SMS** — deferred. Email for receipts + account only in v1. SMS is the
+  obvious v2 for SOS reach (costs money, needs consent).
+
+### Trigger set (person-addressed, context-named)
+Notifications address the **person** but name the **acting-as context**, so the copy
+is right — "*Cedar & Rye* needs a drummer," not "you need a drummer."
+
+| Trigger | Recipient | Urgency | Copy names… |
+| --- | --- | --- | --- |
+| **SOS near you** (opening matches your instrument + area) | eligible players | **High · push** | the *from* ("Cedar & Rye needs a drummer, tonight") |
+| **Offer received** | the player offered | High · push | who's hiring |
+| **Offer accepted / held** | the booker | High · push | the player who locked in |
+| **You're locked in** (accept + hold confirmed) | the player | Normal | the gig / context |
+| **Opening filled / seat taken** | booker + watchers | Normal | which seat |
+| **Lineup complete** | the whole project group | Normal | the band |
+| **"Stay as a group?" ready-check** | every project member, post-gig | Normal | the project |
+| **Someone grabbed your SOS** | the SOS poster | **High · push** | who grabbed it |
+| **Payment released / paid out** | the player | Normal | amount — *to them only* |
+| **Cancellation / bail** | the counterparty | **High · push** | who canceled + "re-opened / find another" |
+| **New message** (DM or group) | participants | Normal · respects mute | sender |
+| **Rating request** (post-gig) | booker (rate player) | Low | the player |
+| **New follower / feed** | player | Low · digest | — |
+
+### Rules that keep it from becoming noise
+- **Urgency tiers gate push.** Only **High** fires a push by default (SOS, offers,
+  holds, bails, "someone grabbed it"). Everything else is in-app + optional push.
+- **Fees-private holds here too.** A release notification shows the amount **only to
+  the person being paid**; the booker's copy says "paid out," no number. Group
+  notifications never carry an amount.
+- **Acting-as routing.** "As the band" events notify the **band admins** (the people
+  who can act), not every member. Group-chat messages notify participants; a
+  band-*management* event notifies admins.
+- **Dedupe + mute.** Per-conversation mute (esp. group chats); collapse rapid-fire
+  ("3 new messages"); a daily **digest** for Low-tier (follows, feed).
+- **Quiet by default for the non-urgent.** Low-tier is in-app-only unless opted into
+  push. High-tier defaults on because that *is* the product.
+
+### Delivery mechanics
+- **v1 web:** in-app center + badges already model this; real push via Web Push.
+- **v1 iOS (Expo):** `expo-notifications` + APNs; push token stored per account,
+  per device.
+- **Backend:** a `notifications` table (recipient, type, payload, read, created) +
+  fan-out on the trigger events above. In-app reads the table; push fires from the
+  same server hook that writes the row. Behind the backend seam like everything else.
+- **Preferences:** per-type, per-channel toggles (push / in-app / off) with the
+  defaults above — one "Notifications" settings screen.
 
 ## Platform architecture (web + iOS + Android)
 
