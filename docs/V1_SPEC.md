@@ -84,23 +84,46 @@ to **whoever paid** (the person, or the band/venue they acted as), *not* a
 separate Booker account. A profile can show both "★4.9 as a player" and "100%
 paid on time as a booker."
 
+### "Acting as" — the posting & SOS UX
+Context, not configuration — it should feel like picking up a different phone.
+- A persistent **"acting as" chip** (avatar + name, e.g. `◐ Cedar & Rye ▾`) sits
+  at the top of the Post and SOS sheets. Same affordance in both, learned once.
+- **Never show a picker with one option.** Solo players only ever act as
+  themselves → the chip is inert. The picker (You · bands you admin · venues you
+  manage · + New project) only becomes interactive for people who actually have
+  more than one context.
+- **Context is inherited from where you tapped** and sticky: post an open seat
+  from a band page → as the band; SOS from the tab bar → as you.
+- **The context does real work in exactly one place: the fee source** — "held
+  from [context]'s card" — so the money is never ambiguous.
+- **Attribution is always visible on the artifact** (feed post, offer card, chat
+  header show the avatar you posted *as*), so reputation lands on the right party.
+- In **SOS**, the context only recolors the copy and the *from*: "*Your* drummer
+  bailed?" vs "*Cedar & Rye* needs a drummer" — same radar, same results.
+
 ## Projects, pickup bands & group chats
 
 The solo-artist-assembling-a-backing-band case is a **first-class flow**, not a
 special case — and the thing they assemble **persists** (posterity). A "project"
-is just a **Band** (no new object) with a lifecycle:
+is just a **Band** (no new object) with a lifecycle. Decisions below are locked.
 
 ```ts
 interface Band {
   // …existing…
   kind?: "standing" | "project"; // "project" = pickup/one-off; can be promoted
-  ownerId?: string;              // creator = admin
-  members: { playerId: string; role: string; admin?: boolean }[];
+  ownerId?: string;              // creator = admin (may or may not perform)
+  members: {
+    playerId: string;
+    role: string;                // "Drums", "Songwriter", "Bandleader"…
+    admin?: boolean;             // can post/hire as the band
+    performing?: boolean;        // false = organizer/writer/producer, not a seat
+    stay?: "in" | "out";         // "Stay as a group?" ready-check (post-gig)
+  }[];
 }
 ```
 
-**Group chat = a group Conversation tied to a Band.** This is the one net-new
-model piece (today's `Conversation` is 1:1):
+**Group chat = a group Conversation tied to a Band.** The one net-new model
+piece (today's `Conversation` is 1:1):
 ```ts
 interface Conversation {
   id: string;
@@ -114,22 +137,62 @@ interface Conversation {
 interface Message { /* …existing… */ senderId?: string; } // who spoke (groups)
 ```
 
-**Lifecycle**
-1. **Assemble** — from an Event, a profile, or Post/SOS, the artist taps
-   "Assemble a band." We create a `project` Band (auto-named, editable; owner =
-   them, admin) and, usually, the Event it's for.
-2. **Post the lineup** — openings (drums/bass/keys…) `postedBy` the project,
-   tied to the event. Candidates reply in normal **1:1 DM** offer threads.
-3. **Hold → join** — when a player is **held** (paid/accepted), they **join the
-   project's roster** and are **added to the group chat**. The group chat
-   **spins up on the first hold** (owner + first held player) and grows with each
-   subsequent hold — no empty room before anyone's committed.
-4. **Persist** — after the gig the project stays a real Band (page + roster +
-   group chat). Prompt: *"Make [name] a standing band?"* → `kind: "standing"`.
-   Reusable for the next gig.
+### Locked decisions
+- **Fees are private; locks are public.** All money (offer amount, payment card,
+  hold) lives ONLY in the 1:1 offer/booking thread. The group chat never shows
+  an amount — only the *fact* of a lock ("🥁 Nia locked in on drums"). Players
+  must never see what bandmates were paid.
+- **Auto-named, editable.** Project is auto-named (event name, or
+  "Alex Rivera's Pickup · Fri Jul 10") with inline rename. No naming gate.
+- **The creator chooses whether they play.** At assemble they pick: *"Playing
+  this one?"* → a **performing** member (pick instrument, counts as a filled
+  seat) **or** just organizing (writer/producer/bandleader) → a non-performing
+  admin. Seat progress reflects the choice.
+- **"Stay as a group?" is an opt-in ready-check** (game-lobby style), not one
+  person's call. See lifecycle step 5.
 
-**Ties back to "acting as":** owning a project/band puts it in your *acting-as*
-picker, so re-hiring next time is just "post as [your pickup band]."
+### Lifecycle
+1. **Assemble** — from an Event, a profile, or Post/SOS, the creator taps
+   "Assemble a band," answers *"Playing this one?"*, and we create a `project`
+   Band (auto-named; creator = owner/admin) and usually the Event it's for.
+2. **Post the lineup** — openings (drums/bass/keys…) `postedBy` the project,
+   tied to the event. Candidates reply in normal **1:1 DM** offer threads
+   (fees private here).
+3. **Hold → join** — when a player is **held** (paid/accepted), they **join the
+   roster** and are **added to the group chat**. The group chat **spins up on
+   the first hold** (owner + first held player) and grows with each subsequent
+   hold; each drops a public system line ("🎹 Theo locked in"), never a fee.
+   "Lineup complete" when the last seat fills.
+4. **Play the gig.**
+5. **Stay as a group? (ready-check)** — after the gig, every member gets a
+   "Stay as a group?" prompt shown inline in the group chat (each member's
+   in/out state visible, like a lobby). The project becomes a **standing** band
+   **only if the owner opts in AND ≥1 other member opts in**; the standing
+   lineup = the members who voted **in** (those who voted **out** drop off — they
+   were on the one gig). No consensus → it **archives** as a past project
+   (still viewable, not "standing"). Threshold is tunable.
+
+**Ties back to "acting as":** owning a standing project/band puts it in your
+*acting-as* picker, so re-hiring next time is just "post as [your band]."
+
+### UX sketch — assemble entry points & the group-chat screen
+**Entry points to "Assemble a band"** (all lead to the same project flow):
+- **You / profile:** a "Start a project" action.
+- **Event page:** "Need a lineup? Assemble a band" (for the presenter).
+- **Post/SOS "Acting as" picker:** a "+ New project" option at the bottom.
+- **Upgrade an SOS:** on an SOS results screen, "add another seat" turns a
+  1-seat SOS into a multi-seat project (SOS = 1 seat, Assemble = N).
+
+**Group-chat screen** (a group Conversation, `kind:"group"`):
+- **Header:** project avatar + name + a row of roster avatars + seat progress
+  ("3/4 locked" / "4-piece"). Tap → the band/project page.
+- **Body:** member messages with sender attribution (avatar + name); **system
+  lines** for locks / "lineup complete" / the ready-check. Booking & payment
+  cards do **not** appear here (they stay in each 1:1 thread).
+- **Post-gig ready-check card:** an inline "Stay as a group?" card listing each
+  member with an in/out toggle (game-lobby feel); the band promotes to standing
+  when the threshold is met.
+- **Composer:** normal.
 
 ## Integrate, don't build
 
