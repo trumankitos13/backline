@@ -84,6 +84,53 @@ to **whoever paid** (the person, or the band/venue they acted as), *not* a
 separate Booker account. A profile can show both "★4.9 as a player" and "100%
 paid on time as a booker."
 
+## Projects, pickup bands & group chats
+
+The solo-artist-assembling-a-backing-band case is a **first-class flow**, not a
+special case — and the thing they assemble **persists** (posterity). A "project"
+is just a **Band** (no new object) with a lifecycle:
+
+```ts
+interface Band {
+  // …existing…
+  kind?: "standing" | "project"; // "project" = pickup/one-off; can be promoted
+  ownerId?: string;              // creator = admin
+  members: { playerId: string; role: string; admin?: boolean }[];
+}
+```
+
+**Group chat = a group Conversation tied to a Band.** This is the one net-new
+model piece (today's `Conversation` is 1:1):
+```ts
+interface Conversation {
+  id: string;
+  kind: "dm" | "group";
+  participantIds: string[]; // group: the roster; dm: the two people
+  bandId?: string;          // group chats belong to a project/band
+  title?: string;           // usually the band's name
+  messages: Message[];
+  unread: number;
+}
+interface Message { /* …existing… */ senderId?: string; } // who spoke (groups)
+```
+
+**Lifecycle**
+1. **Assemble** — from an Event, a profile, or Post/SOS, the artist taps
+   "Assemble a band." We create a `project` Band (auto-named, editable; owner =
+   them, admin) and, usually, the Event it's for.
+2. **Post the lineup** — openings (drums/bass/keys…) `postedBy` the project,
+   tied to the event. Candidates reply in normal **1:1 DM** offer threads.
+3. **Hold → join** — when a player is **held** (paid/accepted), they **join the
+   project's roster** and are **added to the group chat**. The group chat
+   **spins up on the first hold** (owner + first held player) and grows with each
+   subsequent hold — no empty room before anyone's committed.
+4. **Persist** — after the gig the project stays a real Band (page + roster +
+   group chat). Prompt: *"Make [name] a standing band?"* → `kind: "standing"`.
+   Reusable for the next gig.
+
+**Ties back to "acting as":** owning a project/band puts it in your *acting-as*
+picker, so re-hiring next time is just "post as [your pickup band]."
+
 ## Integrate, don't build
 
 ### Short-form video = **embeds** (no media hosting)
