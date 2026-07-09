@@ -34,6 +34,56 @@ Relationships & records (not objects): **Booking** (a Player hired for a gig),
   (`musician_id`) but is `playerId` at the app/type layer; `supabase.ts` maps
   between them so no migration is needed now.
 
+## Roles & capabilities — no Booker/Player split
+
+> **Decision:** we do **not** adopt the design handoff's hard Player ⇄ Booker
+> role toggle. "Booker" is a **hat, not an identity.** In the real scene the
+> person hiring is almost always also a player (the bandleader whose drummer
+> bailed); a binary role imposes a "which am I today?" question nobody thinks in.
+
+**Identity = Player (a person/account).** Hiring and posting openings are
+**capabilities** exercised in a **context** — *"acting as"*: yourself, a band you
+run, or a venue you manage. This reuses the four objects (openings already live
+on Band/Venue/Event) instead of adding a parallel account type.
+
+**Relationships that grant the capability**
+- `Band.members[]` gains `admin?: boolean` — band admins can post/hire **as the band**.
+- `Venue` gains `managers: playerId[]` — managers can post/hire **as the venue**.
+- A Player can always post/hire **as themselves** (self fill-in / solo artist
+  assembling a backing band).
+
+**Unified `Opening`** — one concept behind today's `Band.openSlots`,
+`Venue.hiring`, and `Event.subNeeded`:
+```ts
+interface Opening {
+  id: string;
+  instrument: InstrumentId;
+  postedBy: { kind: "player" | "band" | "venue"; id: string }; // the "acting as" context
+  eventId?: string;      // optional: tie the opening to a specific show
+  when: string;          // "Tonight", "Fri Jul 10", …
+  fee: number;           // held on accept
+  note?: string;
+  urgent?: boolean;      // SOS-grade
+}
+```
+Posting an opening (and the SOS flow) gets an **"Acting as"** selector: *Me ·
+[bands you admin] · [venues you manage]*. That selector replaces the role toggle.
+
+**Persona coverage** (all one account type):
+- Bandleader, drummer bailed → post *as the band* (or SOS).
+- Solo artist wanting a backing band → post fill-in openings *as themselves*.
+- Band recruiting a permanent member → band admin posts an open seat.
+- Venue talent buyer → manages a venue, posts *as the venue*.
+- Wedding/corporate client or promoter who doesn't play → a Player account with
+  no instruments, opted out of talent search: they *hire* but never appear as
+  talent. ("Do you also play?" in onboarding is a **preference**, not a role.)
+
+**Reputation is two-sided but on one person.** Keep the player rating (below) and
+add a **hiring-side signal** — "paid on time," "pays through Backline" — attached
+to **whoever paid** (the person, or the band/venue they acted as), *not* a
+separate Booker account. A profile can show both "★4.9 as a player" and "100%
+paid on time as a booker."
+
 ## Integrate, don't build
 
 ### Short-form video = **embeds** (no media hosting)
@@ -67,7 +117,10 @@ swap the mock for Stripe at the `api.payBooking` seam.
 ## Ratings
 Keep the **Uber-style rating** as-is: prominent average + count + distribution
 on Player profiles, post-gig `StarInput` after a paid booking. **v1: Players
-only.** Schema stays open to rate Venues/Events later.
+only** for the talent-side star rating. The **hiring-side** signal ("paid on
+time") from the roles model attaches to the paying party (person/band/venue) and
+can surface as a badge before the full rating system extends to it. Schema stays
+open to rate Venues/Events later.
 
 ## Platform architecture (web + iOS + Android)
 
