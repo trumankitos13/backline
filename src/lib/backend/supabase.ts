@@ -14,6 +14,7 @@ import type {
   CurrentUser,
   InstrumentId,
   Message,
+  Opening,
 } from "../types";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
 
@@ -24,6 +25,15 @@ interface SessionUser {
 
 function toAuthUser(u: SessionUser | null | undefined): AuthUser | null {
   return u ? { id: u.id, email: u.email ?? null } : null;
+}
+
+/** rough relative-time label for openings ("just now", "3h", "2d"). */
+function agoLabel(createdAt: string | null | undefined): string {
+  if (!createdAt) return "just now";
+  const mins = Math.max(0, (Date.now() - new Date(createdAt).getTime()) / 60_000);
+  if (mins < 60) return mins < 2 ? "just now" : `${Math.round(mins)}m`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)}h`;
+  return `${Math.round(mins / (60 * 24))}d`;
 }
 
 function timeLabel(iso: string): string {
@@ -91,7 +101,7 @@ export const supabaseBackend: Backend = {
     };
     if (!user) return empty;
 
-    const [profileRes, followsRes, bookingsRes, convosRes, messagesRes, likesRes, subsRes] =
+    const [profileRes, followsRes, bookingsRes, convosRes, messagesRes, likesRes, subsRes, openingsRes] =
       await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase.from("follows").select("target_id").eq("user_id", user.id),
@@ -104,6 +114,7 @@ export const supabaseBackend: Backend = {
           .order("created_at"),
         supabase.from("liked_posts").select("post_id").eq("user_id", user.id),
         supabase.from("responded_sub_posts").select("post_id").eq("user_id", user.id),
+        supabase.from("openings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
 
     fail("load profile", profileRes.error);
@@ -113,6 +124,7 @@ export const supabaseBackend: Backend = {
     fail("load messages", messagesRes.error);
     fail("load likes", likesRes.error);
     fail("load sub-responses", subsRes.error);
+    fail("load openings", openingsRes.error);
 
     const p = profileRes.data as Record<string, unknown> | null;
     // A profile row is created by a DB trigger at sign-up with no handle yet;
@@ -171,8 +183,21 @@ export const supabaseBackend: Backend = {
       bookings,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
-      // no openings table yet — cloud mode keeps openings session-only for now
-      openings: [],
+      openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => ({
+        id: o.id as string,
+        instrument: o.instrument as Opening["instrument"],
+        postedBy: {
+          kind: o.posted_by_kind as Opening["postedBy"]["kind"],
+          id: o.posted_by_id as string,
+        },
+        eventId: (o.event_id as string) ?? undefined,
+        when: o.when_label as string,
+        fee: (o.fee as number) ?? 0,
+        note: (o.note as string) ?? undefined,
+        urgent: Boolean(o.urgent),
+        status: (o.status as Opening["status"]) ?? "open",
+        ago: agoLabel(o.created_at as string),
+      })),
     };
   },
 
@@ -281,9 +306,21 @@ export const supabaseBackend: Backend = {
     fail("set booking status", error);
   },
 
-  async addOpening() {
-    // TODO: persist once an `openings` table exists (Phase 0 catalog work).
-    // The optimistic store keeps the opening live for the session meanwhile.
+  async addOpening(user, opening) {
+    const { error } = await supabase.from("openings").insert({
+      id: opening.id,
+      user_id: user.id,
+      instrument: opening.instrument,
+      posted_by_kind: opening.postedBy.kind,
+      posted_by_id: opening.postedBy.id,
+      event_id: opening.eventId ?? null,
+      when_label: opening.when,
+      fee: opening.fee,
+      note: opening.note ?? null,
+      urgent: opening.urgent ?? false,
+      status: opening.status,
+    });
+    fail("add opening", error);
   },
 
   async setLike(user, postId, liked) {

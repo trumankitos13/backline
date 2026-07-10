@@ -77,14 +77,17 @@ async function main() {
 
   // A writes a full set of owned rows
   const bookingId = `bk-rls-${Date.now()}`;
+  const openingId = `op-rls-${Date.now()}`;
   const seedA = await Promise.all([
     A.client.from("follows").insert({ user_id: A.id, target_id: "b-moontower" }),
     A.client.from("bookings").insert({ id: bookingId, user_id: A.id, musician_id: musicianId, gig_title: "Secret gig", amount: 150, status: "offer" }),
     A.client.from("liked_posts").insert({ user_id: A.id, post_id: "p-1" }),
     A.client.from("responded_sub_posts").insert({ user_id: A.id, post_id: "p-1" }),
     A.client.from("profiles").update({ handle: `a-${Date.now()}` }).eq("id", A.id),
+    // fee lives on this row — its privacy is exactly what these tests protect
+    A.client.from("openings").insert({ id: openingId, user_id: A.id, instrument: "drums", posted_by_kind: "player", posted_by_id: "me", when_label: "Tonight", fee: 150 }),
   ]);
-  check("A can write its own follows/bookings/likes/subs/profile", seedA.every((r) => !r.error));
+  check("A can write its own follows/bookings/likes/subs/profile/openings", seedA.every((r) => !r.error));
 
   const convIns = await A.client.from("conversations").insert({ user_id: A.id, musician_id: musicianId }).select("id").single();
   check("A can create its own conversation", !convIns.error);
@@ -102,6 +105,7 @@ async function main() {
     messages: await B.client.from("messages").select("*").eq("conversation_id", convId),
     liked_posts: await B.client.from("liked_posts").select("*").eq("user_id", A.id),
     responded_sub_posts: await B.client.from("responded_sub_posts").select("*").eq("user_id", A.id),
+    openings: await B.client.from("openings").select("*").eq("user_id", A.id),
   };
   for (const [table, res] of Object.entries(reads)) {
     check(`B sees 0 of A's ${table}`, !res.error && (res.data?.length ?? 0) === 0);
@@ -109,7 +113,8 @@ async function main() {
 
   // ---- isolation: B must not MUTATE A's rows ----
   console.log("\nuser B mutating user A's data (must not take effect):");
-  await B.client.from("bookings").update({ status: "paid" }).eq("id", bookingId);
+  // 'held' also proves the escrow-states enum migration is applied
+  await B.client.from("bookings").update({ status: "held" }).eq("id", bookingId);
   const afterUpd = await admin.from("bookings").select("status").eq("id", bookingId).single();
   check("B cannot change A's booking status", afterUpd.data?.status === "offer");
 
@@ -119,6 +124,13 @@ async function main() {
 
   const forge = await B.client.from("follows").insert({ user_id: A.id, target_id: "v-armadillo" });
   check("B cannot forge a row owned by A (WITH CHECK)", forge.error !== null);
+
+  const forgeOpening = await B.client.from("openings").insert({ id: `op-forge-${Date.now()}`, user_id: A.id, instrument: "bass", posted_by_kind: "player", posted_by_id: "me", when_label: "Tonight", fee: 999 });
+  check("B cannot forge an opening owned by A (fee privacy)", forgeOpening.error !== null);
+
+  // A's held→released transition still works from A's own client
+  const aHold = await A.client.from("bookings").update({ status: "held" }).eq("id", bookingId).select("status").single();
+  check("A can move its own booking to 'held' (new enum value live)", aHold.data?.status === "held");
 
   // ---- positive control: B sees its own data ----
   console.log("\npositive control:");
