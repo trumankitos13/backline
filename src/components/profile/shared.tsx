@@ -4,7 +4,7 @@
 
 import type { BookingStatus, InstrumentId, SkillLevel } from "../../lib/types";
 import { instrument } from "../../lib/instruments";
-import { CheckIcon, ClockIcon, CloseIcon, InstrumentIcon } from "../icons";
+import { CheckIcon, ClockIcon, CloseIcon, InstrumentIcon, LockIcon } from "../icons";
 import { Badge, Chip } from "../ui";
 
 const LEVEL_LABELS: Record<SkillLevel, string> = {
@@ -69,8 +69,8 @@ export function AvailabilityDays({ days }: { days: string[] }) {
 
 /**
  * Booking lifecycle pill — color is never the only signal, so each state pairs
- * a hue with an icon + word: offer (neutral), accepted (amber), paid (cyan),
- * declined (danger, outline).
+ * a hue with an icon + word: offer (neutral), accepted (amber), held (cyan
+ * lock), released (cyan check), declined (danger, outline).
  */
 export function BookingStatusBadge({ status }: { status: BookingStatus }) {
   switch (status) {
@@ -86,10 +86,16 @@ export function BookingStatusBadge({ status }: { status: BookingStatus }) {
           Accepted
         </Badge>
       );
-    case "paid":
+    case "held":
+      return (
+        <Badge tone="cyan" icon={<LockIcon size={11} />}>
+          Held
+        </Badge>
+      );
+    case "released":
       return (
         <Badge tone="cyan" icon={<CheckIcon size={11} />}>
-          Paid
+          Released
         </Badge>
       );
     case "declined":

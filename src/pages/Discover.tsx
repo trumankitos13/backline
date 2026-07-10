@@ -25,6 +25,7 @@ import { ReelViewer } from "../components/video";
 import { SosBanner } from "../components/discover/SosBanner";
 import { SosFlow } from "../components/discover/SosFlow";
 import { PostFlow } from "../components/post/PostFlow";
+import { AssembleFlow } from "../components/post/AssembleFlow";
 import { ReelGridTile } from "../components/discover/ReelGridTile";
 import { BandRecruitStrip } from "../components/discover/BandRecruitStrip";
 
@@ -47,8 +48,10 @@ export default function Discover() {
   const [searchParams, setSearchParams] = useSearchParams();
   const sosOpen = searchParams.get("sos") === "open";
   const postOpen = searchParams.get("post") === "open";
+  const assembleOpen = searchParams.get("assemble") === "open";
   const asParam = searchParams.get("as");
   const roleParam = searchParams.get("role");
+  const openingParam = searchParams.get("opening");
   const sosRole: InstrumentId | null = isInstrumentId(roleParam) ? roleParam : null;
 
   const [query, setQuery] = useState("");
@@ -79,6 +82,15 @@ export default function Discover() {
     next.delete("post");
     next.delete("as");
     next.delete("role");
+    setSearchParams(next, { replace: true });
+  }
+  function openAssemble() {
+    // swaps whatever sheet is up for the assemble flow
+    setSearchParams(new URLSearchParams({ assemble: "open" }), { replace: true });
+  }
+  function closeAssemble() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("assemble");
     setSearchParams(next, { replace: true });
   }
 
@@ -278,13 +290,20 @@ export default function Discover() {
         />
       )}
 
-      <SosFlow open={sosOpen} initialRole={sosRole} onClose={closeSos} />
+      <SosFlow
+        open={sosOpen}
+        initialRole={sosRole}
+        initialOpeningId={openingParam}
+        onClose={closeSos}
+      />
       <PostFlow
         open={postOpen}
         initialContextId={asParam}
         initialRole={sosRole}
         onClose={closePost}
+        onNewProject={openAssemble}
       />
+      <AssembleFlow open={assembleOpen} onClose={closeAssemble} />
     </Page>
   );
 }

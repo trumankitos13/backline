@@ -21,11 +21,14 @@ const WHEN_QUICK = ["Tonight", "Tomorrow", "This weekend"];
 export function PostFlow({
   open,
   onClose,
+  onNewProject,
   initialContextId = null,
   initialRole = null,
 }: {
   open: boolean;
   onClose: () => void;
+  /** "+ New project" in the picker → the Assemble flow */
+  onNewProject?: () => void;
   /** context to post as, inherited from where the user tapped (?as=). */
   initialContextId?: string | null;
   /** instrument to pre-select (?role=). */
@@ -33,7 +36,7 @@ export function PostFlow({
 }) {
   const navigate = useNavigate();
   const { state, api } = useApp();
-  const contexts = myActingContexts(state.user);
+  const contexts = myActingContexts(state.user, state.projects);
 
   const [phase, setPhase] = useState<Phase>("form");
   const [ctx, setCtx] = useState<ActingContext>(contexts[0]);
@@ -47,7 +50,7 @@ export function PostFlow({
   // fresh form each open; honour the inherited context + role deep links.
   useEffect(() => {
     if (!open) return;
-    const all = myActingContexts(state.user);
+    const all = myActingContexts(state.user, state.projects);
     setPhase("form");
     setPickerOpen(false);
     setCtx(all.find((c) => c.id === initialContextId) ?? all[0]);
@@ -56,7 +59,7 @@ export function PostFlow({
     setFee("");
     setNote("");
     setUrgent(false);
-  }, [open, initialContextId, initialRole, state.user]);
+  }, [open, initialContextId, initialRole, state.user, state.projects]);
 
   // esc + body scroll lock while the sheet is up
   useEffect(() => {
@@ -92,6 +95,11 @@ export function PostFlow({
   function findSubs() {
     onClose();
     if (role) navigate(`/?sos=open&role=${role}`);
+  }
+
+  function viewInFeed() {
+    onClose();
+    navigate("/feed");
   }
 
   return (
@@ -189,6 +197,24 @@ export function PostFlow({
                       </button>
                     );
                   })}
+                  {/* assemble a pickup band — needs more than one seat */}
+                  {onNewProject && (
+                    <button
+                      type="button"
+                      onClick={onNewProject}
+                      className="flex items-center gap-3 rounded-lg border-t border-hairline-subtle px-2.5 py-2 text-left transition-colors hover:bg-surface-800"
+                    >
+                      <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg border border-dashed border-hairline-strong text-amber-300">
+                        <PlusIcon size={15} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-text-hi">New project</p>
+                        <Mono className="truncate text-[10px] text-text-lo">
+                          Assemble a pickup band — N seats
+                        </Mono>
+                      </div>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -360,8 +386,8 @@ export function PostFlow({
             </div>
 
             <div className="mt-2 grid w-full grid-cols-2 gap-2">
-              <Button variant="secondary" size="md" className="w-full" onClick={onClose}>
-                Done
+              <Button variant="secondary" size="md" className="w-full" onClick={viewInFeed}>
+                See it in the feed
               </Button>
               <Button variant="primary" size="md" className="w-full" onClick={findSubs}>
                 <BoltIcon size={16} />

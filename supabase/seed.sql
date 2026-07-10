@@ -86,37 +86,37 @@ insert into public.reviews (id, musician_id, author, role, rating, body, review_
   ('r-gus-1', 'm-gus', 'Warehouse 512', 'Venue', 5, 'Gus is our first-call FOH sub. Bands ask for him by name afterward.', 'Apr 2026')
 on conflict (id) do nothing;
 
-insert into public.venues (id, name, neighborhood, capacity, followers, vibe, seed) values
-  ('v-armadillo', 'The Blue Armadillo', 'East Austin', 250, 5200, 'Sticky floors, perfect sound, the best Tuesday crowd in town.', 31),
-  ('v-rattlesnake', 'Rattlesnake Room', 'Downtown', 180, 3900, 'Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.', 32),
-  ('v-sunset', 'Sunset Ballroom', 'South Congress', 900, 12400, 'The mid-size room every touring band remembers.', 33),
-  ('v-prickly', 'Prickly Pear Listening Room', 'Clarksville', 120, 2100, 'Pin-drop quiet listening room. Phones away, hearts open.', 34),
-  ('v-warehouse', 'Warehouse 512', 'Riverside', 1200, 8800, 'Big room, big system, late nights.', 35)
+insert into public.venues (id, name, neighborhood, capacity, followers, vibe, managers, seed) values
+  ('v-armadillo', 'The Blue Armadillo', 'East Austin', 250, 5200, 'Sticky floors, perfect sound, the best Tuesday crowd in town.', '{}', 31),
+  ('v-rattlesnake', 'Rattlesnake Room', 'Downtown', 180, 3900, 'Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.', '{}', 32),
+  ('v-sunset', 'Sunset Ballroom', 'South Congress', 900, 12400, 'The mid-size room every touring band remembers.', '{}', 33),
+  ('v-prickly', 'Prickly Pear Listening Room', 'Clarksville', 120, 2100, 'Pin-drop quiet listening room. Phones away, hearts open.', '{}', 34),
+  ('v-warehouse', 'Warehouse 512', 'Riverside', 1200, 8800, 'Big room, big system, late nights.', '{}', 35)
 on conflict (id) do nothing;
 
-insert into public.bands (id, name, genres, bio, neighborhood, followers, seed) values
-  ('b-moontower', 'Moontower Revival', ARRAY['Indie Rock', 'Garage'], 'Four-piece indie rock. Loud guitars, louder feelings. Debut EP ''Porch Light'' out now — recorded live in a garage in Hyde Park, and it sounds like it (on purpose).', 'Hyde Park', 1840, 21),
-  ('b-brasshouse', 'Brass House ATX', ARRAY['Funk', 'Soul', 'Brass'], 'Nine-piece horn-driven funk machine, MD''d by Ada Osei. We play weddings that want to feel like block parties and block parties that want to feel like weddings.', 'East Austin', 4620, 22),
-  ('b-cedarrye', 'Cedar & Rye', ARRAY['Country', 'Americana'], 'Honky-tonk with a songwriter''s heart. Wednesday residency at the Rattlesnake Room. Bring your boots, or don''t, we''re not the dress code police.', 'Bouldin Creek', 2310, 23),
-  ('b-velvet', 'Velvet Hour', ARRAY['Jazz', 'Soul'], 'Late-night jazz for people who talk quietly in bars. Cass Monroe on vocals, Theo Park on keys. Thursdays at the Rattlesnake Room, occasionally somewhere fancier.', 'Clarksville', 1290, 24),
-  ('b-nightmarket', 'Night Market', ARRAY['Electronic', 'Live House'], 'DJ Kilowatt + live drums + lights by Priya. Half DJ set, half live band, all sweat. If the floor isn''t shaking we issue refunds (we have never issued a refund).', 'Downtown', 3480, 25)
+insert into public.bands (id, name, genres, bio, neighborhood, followers, kind, owner_id, seed) values
+  ('b-moontower', 'Moontower Revival', ARRAY['Indie Rock', 'Garage'], 'Four-piece indie rock. Loud guitars, louder feelings. Debut EP ''Porch Light'' out now — recorded live in a garage in Hyde Park, and it sounds like it (on purpose).', 'Hyde Park', 1840, null, null, 21),
+  ('b-brasshouse', 'Brass House ATX', ARRAY['Funk', 'Soul', 'Brass'], 'Nine-piece horn-driven funk machine, MD''d by Ada Osei. We play weddings that want to feel like block parties and block parties that want to feel like weddings.', 'East Austin', 4620, null, null, 22),
+  ('b-cedarrye', 'Cedar & Rye', ARRAY['Country', 'Americana'], 'Honky-tonk with a songwriter''s heart. Wednesday residency at the Rattlesnake Room. Bring your boots, or don''t, we''re not the dress code police.', 'Bouldin Creek', 2310, null, null, 23),
+  ('b-velvet', 'Velvet Hour', ARRAY['Jazz', 'Soul'], 'Late-night jazz for people who talk quietly in bars. Cass Monroe on vocals, Theo Park on keys. Thursdays at the Rattlesnake Room, occasionally somewhere fancier.', 'Clarksville', 1290, null, null, 24),
+  ('b-nightmarket', 'Night Market', ARRAY['Electronic', 'Live House'], 'DJ Kilowatt + live drums + lights by Priya. Half DJ set, half live band, all sweat. If the floor isn''t shaking we issue refunds (we have never issued a refund).', 'Downtown', 3480, null, null, 25)
 on conflict (id) do nothing;
 
-insert into public.band_members (band_id, musician_id, role) values
-  ('b-moontower', 'm-katie', 'Drums'),
-  ('b-moontower', 'm-nina', 'Bass / Vocals'),
-  ('b-moontower', 'm-marcus', 'Guitar'),
-  ('b-brasshouse', 'm-ada', 'MD / Keys / Vocals'),
-  ('b-brasshouse', 'm-dre', 'Drums'),
-  ('b-brasshouse', 'm-jbird', 'Bass'),
-  ('b-brasshouse', 'm-ray', 'Tenor Sax'),
-  ('b-brasshouse', 'm-belle', 'Trumpet'),
-  ('b-cedarrye', 'm-luz', 'Guitar / Pedal Steel'),
-  ('b-cedarrye', 'm-ivy', 'Fiddle'),
-  ('b-velvet', 'm-cass', 'Vocals'),
-  ('b-velvet', 'm-theo', 'Keys'),
-  ('b-nightmarket', 'm-kilo', 'DJ / Production'),
-  ('b-nightmarket', 'm-pri', 'Lighting / Visuals')
+insert into public.band_members (band_id, musician_id, role, admin, performing) values
+  ('b-moontower', 'm-katie', 'Drums', false, null),
+  ('b-moontower', 'm-nina', 'Bass / Vocals', false, null),
+  ('b-moontower', 'm-marcus', 'Guitar', false, null),
+  ('b-brasshouse', 'm-ada', 'MD / Keys / Vocals', true, null),
+  ('b-brasshouse', 'm-dre', 'Drums', false, null),
+  ('b-brasshouse', 'm-jbird', 'Bass', false, null),
+  ('b-brasshouse', 'm-ray', 'Tenor Sax', false, null),
+  ('b-brasshouse', 'm-belle', 'Trumpet', false, null),
+  ('b-cedarrye', 'm-luz', 'Guitar / Pedal Steel', true, null),
+  ('b-cedarrye', 'm-ivy', 'Fiddle', false, null),
+  ('b-velvet', 'm-cass', 'Vocals', false, null),
+  ('b-velvet', 'm-theo', 'Keys', false, null),
+  ('b-nightmarket', 'm-kilo', 'DJ / Production', false, null),
+  ('b-nightmarket', 'm-pri', 'Lighting / Visuals', false, null)
 on conflict (band_id, musician_id) do nothing;
 
 insert into public.band_open_slots (band_id, instrument, note) values
@@ -128,26 +128,26 @@ insert into public.band_open_slots (band_id, instrument, note) values
   ('b-nightmarket', 'vocals', 'Guest vocalists for club nights. House/disco vibes, tops-lines welcome.');
 
 insert into public.gigs (id, title, venue_id, band_id, date, time, payout, ticket) values
-  ('g-cedarrye-rattlesnake', 'Cedar & Rye — Honky-Tonk Night', 'v-rattlesnake', 'b-cedarrye', 'Tonight', '9:00 PM', 150, '$10'),
-  ('g-moontower-armadillo', 'Moontower Revival EP Release', 'v-armadillo', 'b-moontower', 'Fri Jul 10', '10:00 PM', null, '$12'),
-  ('g-brasshouse-sunset', 'Brass House ATX + guests', 'v-sunset', 'b-brasshouse', 'Sat Jul 11', '8:30 PM', null, '$18'),
-  ('g-velvet-prickly', 'Velvet Hour: Standards & Stories', 'v-prickly', 'b-velvet', 'Thu Jul 9', '7:30 PM', null, '$15'),
-  ('g-nightmarket-warehouse', 'Night Market — All Night Long', 'v-warehouse', 'b-nightmarket', 'Sat Jul 11', '11:00 PM', null, '$20'),
-  ('g-openmic-armadillo', 'Tuesday Open Mic', 'v-armadillo', null, 'Tue Jul 7', '7:00 PM', null, null)
+  ('e-cedarrye-rattlesnake', 'Cedar & Rye — Honky-Tonk Night', 'v-rattlesnake', 'b-cedarrye', 'Tonight', '9:00 PM', 150, '$10'),
+  ('e-moontower-armadillo', 'Moontower Revival — ''Porch Light'' EP Release', 'v-armadillo', 'b-moontower', 'Fri Jul 10', '10:00 PM', null, '$12'),
+  ('e-brasshouse-sunset', 'Brass House ATX + guests', 'v-sunset', 'b-brasshouse', 'Sat Jul 11', '8:30 PM', null, '$18'),
+  ('e-velvet-prickly', 'Velvet Hour: Standards & Stories', 'v-prickly', 'b-velvet', 'Thu Jul 9', '7:30 PM', null, '$15'),
+  ('e-nightmarket-warehouse', 'Night Market — All Night Long', 'v-warehouse', 'b-nightmarket', 'Sat Jul 11', '11:00 PM', null, '$20'),
+  ('e-openmic-armadillo', 'Tuesday Open Mic', 'v-armadillo', null, 'Tue Jul 7', '7:00 PM', null, null)
 on conflict (id) do nothing;
 
 insert into public.feed_posts (id, kind, author_type, author_id, text, ago, likes, comments, gig_id, video, video_owner_id, sub_for) values
-  ('p-1', 'need-sub', 'band', 'b-cedarrye', 'SOS, Austin. Our drummer''s van gave out in Waco and tonight''s residency is NOT cancelling. Need a country-comfortable drummer, brushes a plus. Charts ready, soundcheck 7:30.', '2h', 34, 11, 'g-cedarrye-rattlesnake', null, null, '{"instrument":"drums","date":"Tonight · 9:00 PM","payout":150}'::jsonb),
-  ('p-2', 'gig', 'band', 'b-moontower', 'EP RELEASE FRIDAY 🌙 ''Porch Light'' gets loud at the Blue Armadillo. First 50 through the door get a screen-printed poster Nina made in her kitchen.', '4h', 128, 23, 'g-moontower-armadillo', null, null, null),
-  ('p-3', 'video', 'musician', 'm-dre', 'New reel: half-time shuffle breakdown. This one took 30 takes and one noise complaint.', '5h', 412, 37, null, '{"id":"v-dre-2","title":"Half-time shuffle breakdown","durationSec":51,"plays":8900,"likes":990,"palette":["#ef4444","#1e1b4b"],"tags":["shuffle","lesson"]}'::jsonb, 'm-dre', null),
-  ('p-4', 'open-mic', 'venue', 'v-armadillo', 'Tuesday Open Mic sign-ups open at 6, music at 7. Backline provided (yes, real amps, no, not the broken one from last month — we fixed it).', '8h', 56, 9, 'g-openmic-armadillo', null, null, null),
-  ('p-5', 'gig', 'venue', 'v-sunset', 'SATURDAY: Brass House ATX turns our ballroom into a block party. Nine musicians, four horns, zero chill. A few tickets left.', '12h', 203, 31, 'g-brasshouse-sunset', null, null, null),
+  ('p-1', 'need-sub', 'band', 'b-cedarrye', 'SOS, Austin. Our drummer''s van gave out in Waco and tonight''s residency is NOT cancelling. Need a country-comfortable drummer, brushes a plus. Charts ready, soundcheck 7:30.', '2h', 34, 11, 'e-cedarrye-rattlesnake', null, null, '{"instrument":"drums","date":"Tonight · 9:00 PM","payout":150}'::jsonb),
+  ('p-2', 'gig', 'band', 'b-moontower', 'EP RELEASE FRIDAY 🌙 ''Porch Light'' gets loud at the Blue Armadillo. First 50 through the door get a screen-printed poster Nina made in her kitchen.', '4h', 128, 23, 'e-moontower-armadillo', null, null, null),
+  ('p-3', 'video', 'player', 'm-dre', 'New reel: half-time shuffle breakdown. This one took 30 takes and one noise complaint.', '5h', 412, 37, null, '{"id":"v-dre-2","title":"Half-time shuffle breakdown","durationSec":51,"plays":8900,"likes":990,"palette":["#ef4444","#1e1b4b"],"tags":["shuffle","lesson"]}'::jsonb, 'm-dre', null),
+  ('p-4', 'open-mic', 'venue', 'v-armadillo', 'Tuesday Open Mic sign-ups open at 6, music at 7. Backline provided (yes, real amps, no, not the broken one from last month — we fixed it).', '8h', 56, 9, 'e-openmic-armadillo', null, null, null),
+  ('p-5', 'gig', 'venue', 'v-sunset', 'SATURDAY: Brass House ATX turns our ballroom into a block party. Nine musicians, four horns, zero chill. A few tickets left.', '12h', 203, 31, 'e-brasshouse-sunset', null, null, null),
   ('p-6', 'news', 'venue', 'v-rattlesnake', 'We''re opening the back room for rehearsal rentals — $15/hr for Backline members, backline included. Weekday afternoons only for now.', '1d', 89, 17, null, null, null, null),
-  ('p-7', 'video', 'musician', 'm-ada', 'Someone asked how the run in the bridge works. Slowed it down. You''re welcome and I''m sorry.', '1d', 634, 52, null, '{"id":"v-ada-1","title":"Vocal run breakdown 🔥","durationSec":26,"plays":22800,"likes":3400,"palette":["#d946ef","#713f12"],"tags":["vocals","gospel"]}'::jsonb, 'm-ada', null),
-  ('p-8', 'need-sub', 'band', 'b-velvet', 'Velvet Hour needs an upright bassist for Thursday at Prickly Pear. Standards set — if you know ''Autumn Leaves'' in two keys you''re 80% there.', '1d', 21, 6, 'g-velvet-prickly', null, null, '{"instrument":"bass","date":"Thu Jul 9 · 7:30 PM","payout":175}'::jsonb),
-  ('p-9', 'gig', 'band', 'b-nightmarket', 'Saturday. Warehouse 512. New live set with real drums this time. Priya built a lighting rig that has its own weather system.', '2d', 176, 28, 'g-nightmarket-warehouse', null, null, null),
+  ('p-7', 'video', 'player', 'm-ada', 'Someone asked how the run in the bridge works. Slowed it down. You''re welcome and I''m sorry.', '1d', 634, 52, null, '{"id":"v-ada-1","title":"Vocal run breakdown 🔥","durationSec":26,"plays":22800,"likes":3400,"palette":["#d946ef","#713f12"],"tags":["vocals","gospel"]}'::jsonb, 'm-ada', null),
+  ('p-8', 'need-sub', 'band', 'b-velvet', 'Velvet Hour needs an upright bassist for Thursday at Prickly Pear. Standards set — if you know ''Autumn Leaves'' in two keys you''re 80% there.', '1d', 21, 6, 'e-velvet-prickly', null, null, '{"instrument":"bass","date":"Thu Jul 9 · 7:30 PM","payout":175}'::jsonb),
+  ('p-9', 'gig', 'band', 'b-nightmarket', 'Saturday. Warehouse 512. New live set with real drums this time. Priya built a lighting rig that has its own weather system.', '2d', 176, 28, 'e-nightmarket-warehouse', null, null, null),
   ('p-10', 'news', 'venue', 'v-prickly', 'Reminder: we pay every artist a guarantee, every night, no ''exposure'' math. Booking November now — send your reel through your Backline profile.', '2d', 342, 44, null, null, null, null),
-  ('p-11', 'video', 'musician', 'm-pri', 'Before/after from Friday''s bar gig. Same stage, same band, $90 of haze and intention.', '3d', 289, 33, null, '{"id":"v-pri-1","title":"Before/after: bar stage glow-up","durationSec":29,"plays":10300,"likes":1600,"palette":["#a855f7","#0e7490"],"tags":["lighting"]}'::jsonb, 'm-pri', null),
+  ('p-11', 'video', 'player', 'm-pri', 'Before/after from Friday''s bar gig. Same stage, same band, $90 of haze and intention.', '3d', 289, 33, null, '{"id":"v-pri-1","title":"Before/after: bar stage glow-up","durationSec":29,"plays":10300,"likes":1600,"palette":["#a855f7","#0e7490"],"tags":["lighting"]}'::jsonb, 'm-pri', null),
   ('p-12', 'news', 'band', 'b-brasshouse', 'We''re looking for a regular FOH engineer — 2-3 gigs a month, real budget. Details on our open slots. Tell your favorite sound person.', '3d', 67, 12, null, null, null, null)
 on conflict (id) do nothing;
 

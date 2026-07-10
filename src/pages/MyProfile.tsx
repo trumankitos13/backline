@@ -134,24 +134,82 @@ export default function MyProfile() {
         />
       </Card>
 
-      {/* --------------------------------------------------- post an opening */}
-      <Card
-        onClick={() => navigate("/?post=open")}
-        className="mt-4 flex items-center gap-3 p-4"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
-          <PlusIcon size={20} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-text-hi">Post an opening</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
-            Hire a sub as yourself, a band, or a venue — the fee stays private.
-          </p>
-        </div>
-        <span className="arrow-nudge shrink-0 text-text-lo" aria-hidden="true">
-          →
-        </span>
-      </Card>
+      {/* ------------------------------------- post an opening / assemble */}
+      <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+        <Card
+          onClick={() => navigate("/?post=open")}
+          className="flex items-center gap-3 p-4"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+            <PlusIcon size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-text-hi">Post an opening</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
+              One seat — as you, a band, or a venue.
+            </p>
+          </div>
+          <span className="arrow-nudge shrink-0 text-text-lo" aria-hidden="true">
+            →
+          </span>
+        </Card>
+        <Card
+          onClick={() => navigate("/?assemble=open")}
+          className="flex items-center gap-3 p-4"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400/12 text-cyan-300">
+            <UsersIcon size={20} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-text-hi">Start a project</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
+              Assemble a pickup band — N seats, group chat.
+            </p>
+          </div>
+          <span className="arrow-nudge shrink-0 text-text-lo" aria-hidden="true">
+            →
+          </span>
+        </Card>
+      </div>
+
+      {/* ------------------------------------------------- your projects */}
+      {state.projects.length > 0 && (
+        <section className="mt-8">
+          <SectionHeader
+            title="Your projects & bands"
+            className="mb-3"
+            action={<Mono className="text-[10px] text-text-lo">{state.projects.length}</Mono>}
+          />
+          <div className="flex flex-col gap-2.5">
+            {state.projects.map((p) => (
+              <Card
+                key={p.id}
+                onClick={() => navigate(`/b/${p.id}`)}
+                className="flex items-center gap-3 p-3.5"
+              >
+                <Avatar name={p.name} seed={p.seed} size={42} square />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-text-hi">{p.name}</p>
+                  <Mono className="block truncate text-[10px] text-text-lo">
+                    {p.members.length} {p.members.length === 1 ? "member" : "members"}
+                  </Mono>
+                </div>
+                <Mono
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold ${
+                    p.archived
+                      ? "border-hairline-strong text-text-lo"
+                      : p.kind === "standing"
+                        ? "border-amber-500/45 bg-amber-500/10 text-amber-300"
+                        : "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
+                  }`}
+                >
+                  {p.archived ? "ARCHIVED" : p.kind === "standing" ? "STANDING" : "PROJECT"}
+                </Mono>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ------------------------------------------------- your openings */}
       {openings.length > 0 && (
@@ -163,7 +221,7 @@ export default function MyProfile() {
           />
           <div className="flex flex-col gap-2.5">
             {openings.map((op) => {
-              const ctx = resolveActingContext(op.postedBy, user);
+              const ctx = resolveActingContext(op.postedBy, user, state.projects);
               return (
                 <Card key={op.id} className="flex items-center gap-3 p-3.5">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/12 text-amber-300">
@@ -185,7 +243,13 @@ export default function MyProfile() {
                   </div>
                   <div className="shrink-0 text-right">
                     <Mono className="text-sm font-bold text-text-hi">${op.fee}</Mono>
-                    <Mono className="block text-[9px] text-cyan-300">Open</Mono>
+                    <Mono
+                      className={`block text-[9px] uppercase ${
+                        op.status === "filled" ? "text-amber-300" : "text-cyan-300"
+                      }`}
+                    >
+                      {op.status === "filled" ? "Filled" : "Open"}
+                    </Mono>
                   </div>
                 </Card>
               );

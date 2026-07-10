@@ -3,7 +3,7 @@
 // the app (and the deployed site) always runs, even before the backend is set
 // up. Behavior matches the original SitIn prototype.
 
-import type { Booking, BookingStatus, CurrentUser, Message } from "../types";
+import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, Opening } from "../types";
 import { SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
@@ -21,7 +21,14 @@ function demoDefault(): PersistedData {
     bookings: [],
     likedPosts: [],
     respondedSubPosts: [],
+    openings: [],
+    projects: [],
   };
+}
+
+/** legacy escrow rename: persisted "paid" (pre-held/released) means "held". */
+function migrateBooking(b: Booking): Booking {
+  return (b.status as string) === "paid" ? { ...b, status: "held" } : b;
 }
 
 function read(): PersistedData {
@@ -29,7 +36,8 @@ function read(): PersistedData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return demoDefault();
     const parsed = JSON.parse(raw) as Partial<PersistedData>;
-    return { ...demoDefault(), ...parsed };
+    const merged = { ...demoDefault(), ...parsed };
+    return { ...merged, bookings: merged.bookings.map(migrateBooking) };
   } catch {
     return demoDefault();
   }
@@ -101,11 +109,12 @@ export const localBackend: Backend = {
       ),
     }));
   },
-  async markRead(_user: AuthUser, playerId: string) {
+  async markRead(_user: AuthUser, key: string) {
+    // `key` is a playerId for DMs, or a conversation id for group chats
     mutate((d) => ({
       ...d,
       conversations: d.conversations.map((c) =>
-        c.playerId === playerId ? { ...c, unread: 0 } : c,
+        c.playerId === key || c.id === key ? { ...c, unread: 0 } : c,
       ),
     }));
   },
@@ -116,6 +125,31 @@ export const localBackend: Backend = {
     mutate((d) => ({
       ...d,
       bookings: d.bookings.map((b) => (b.id === bookingId ? { ...b, status } : b)),
+    }));
+  },
+  async addOpening(_user: AuthUser, opening: Opening) {
+    mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));
+  },
+  async setOpeningStatus(_user: AuthUser, openingId: string, status: Opening["status"]) {
+    mutate((d) => ({
+      ...d,
+      openings: d.openings.map((o) => (o.id === openingId ? { ...o, status } : o)),
+    }));
+  },
+  async upsertProject(_user: AuthUser, project: Band) {
+    mutate((d) => ({
+      ...d,
+      projects: d.projects.some((p) => p.id === project.id)
+        ? d.projects.map((p) => (p.id === project.id ? project : p))
+        : [project, ...d.projects],
+    }));
+  },
+  async upsertConversation(_user: AuthUser, conversation: Conversation) {
+    mutate((d) => ({
+      ...d,
+      conversations: d.conversations.some((c) => c.id === conversation.id)
+        ? d.conversations.map((c) => (c.id === conversation.id ? conversation : c))
+        : [conversation, ...d.conversations],
     }));
   },
   async setLike(_user: AuthUser, postId: string, liked: boolean) {

@@ -1,13 +1,38 @@
 // /feed — the scene pulse: posts from venues, bands, and musicians you follow.
+// Openings the user posts (PostFlow) surface here first, attributed to the
+// acting-as context, with the fee kept private (it lives in the DM offer).
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Page } from "../components/shell";
 import { Button, EmptyState, Mono } from "../components/ui";
 import { PulseIcon } from "../components/icons";
 import { FEED_POSTS } from "../lib/data";
+import { instrumentLabel } from "../lib/instruments";
+import type { FeedPost, Opening } from "../lib/types";
 import { useApp } from "../lib/store";
 import { PostCard } from "../components/feed/PostCard";
 import { TonightInTown, WhoToFollow } from "../components/feed/FeedRail";
+
+/** a posted Opening rendered through the existing need-sub card. */
+function openingToPost(op: Opening): FeedPost {
+  return {
+    id: `p-${op.id}`,
+    kind: "need-sub",
+    author:
+      op.postedBy.kind === "player"
+        ? { type: "player", id: "me" }
+        : { type: op.postedBy.kind, id: op.postedBy.id },
+    text:
+      op.note ??
+      `Looking for ${instrumentLabel(op.instrument).toLowerCase()} — ${op.when.toLowerCase()}. DM to talk details.`,
+    ago: op.ago ?? "just now",
+    likes: 0,
+    comments: 0,
+    eventId: op.eventId,
+    subFor: { instrument: op.instrument, date: op.when, urgent: op.urgent ?? false },
+    own: true,
+  };
+}
 
 type Tab = "following" | "everyone";
 
@@ -20,13 +45,21 @@ export default function Feed() {
   const { state } = useApp();
   const [tab, setTab] = useState<Tab>("following");
 
+  // your posted openings lead the feed on both tabs (they're yours);
+  // filled/closed seats stop advertising
+  const openingPosts = useMemo(
+    () => state.openings.filter((o) => o.status === "open").map(openingToPost),
+    [state.openings],
+  );
+
   // players are treated as always-followed; bands/venues gate on follows
-  const posts =
+  const catalogPosts =
     tab === "everyone"
       ? FEED_POSTS
       : FEED_POSTS.filter(
           (p) => p.author.type === "player" || state.following.includes(p.author.id),
         );
+  const posts = [...openingPosts, ...catalogPosts];
 
   return (
     <Page wide title="Your scene" subtitle={<Mono className="text-text-lo">Austin, TX</Mono>}>

@@ -25,10 +25,12 @@ export function slotNoteText(note: string): string {
 
 /**
  * Deep-link into the SOS overlay (owned by Discover) with the bailed
- * instrument preselected. Contract: `/?sos=open&role=<instrumentId>`.
+ * instrument preselected. Contract: `/?sos=open&role=<instrumentId>`; an
+ * optional `&opening=<id>` ties the search to a posted Opening so the
+ * resulting offer/hold locks that seat.
  */
-export function sosHref(instrument: InstrumentId): string {
-  return `/?sos=open&role=${instrument}`;
+export function sosHref(instrument: InstrumentId, openingId?: string): string {
+  return `/?sos=open&role=${instrument}${openingId ? `&opening=${openingId}` : ""}`;
 }
 
 /**

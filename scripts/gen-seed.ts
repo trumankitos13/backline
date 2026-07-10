@@ -3,10 +3,10 @@
 // Run: node scripts/gen-seed.ts > supabase/seed.sql
 
 import {
-  MUSICIANS,
+  PLAYERS,
   BANDS,
   VENUES,
-  GIGS,
+  EVENTS,
   FEED_POSTS,
 } from "../src/lib/data.ts";
 
@@ -46,7 +46,7 @@ out.push(
   "insert into public.musicians (id, name, handle, bio, genres, gear, neighborhood, distance_miles, rate_min, rate_max, available_tonight, availability, response_mins, gigs_played, verified, seed) values",
 );
 out.push(
-  MUSICIANS.map((m) =>
+  PLAYERS.map((m) =>
     row([
       q(m.id), q(m.name), q(m.handle), q(m.bio), arr(m.genres), arr(m.gear),
       q(m.neighborhood), num(m.distanceMiles), num(m.rate.min), num(m.rate.max),
@@ -58,7 +58,7 @@ out.push(
 out.push("");
 
 // musician_instruments
-const instRows = MUSICIANS.flatMap((m) =>
+const instRows = PLAYERS.flatMap((m) =>
   m.instruments.map((i) => row([q(m.id), q(i.id), q(i.level), num(i.years)])),
 );
 out.push("insert into public.musician_instruments (musician_id, instrument, level, years) values");
@@ -66,7 +66,7 @@ out.push(instRows.join(",\n") + "\non conflict (musician_id, instrument) do noth
 out.push("");
 
 // videos
-const videoRows = MUSICIANS.flatMap((m) =>
+const videoRows = PLAYERS.flatMap((m) =>
   m.videos.map((v) =>
     row([
       q(v.id), q(m.id), q(v.title), num(v.durationSec), num(v.plays), num(v.likes),
@@ -81,7 +81,7 @@ out.push(videoRows.join(",\n") + "\non conflict (id) do nothing;");
 out.push("");
 
 // reviews
-const reviewRows = MUSICIANS.flatMap((m) =>
+const reviewRows = PLAYERS.flatMap((m) =>
   m.reviews.map((r) =>
     row([q(r.id), q(m.id), q(r.author), q(r.role), num(r.rating), q(r.text), q(r.date)]),
   ),
@@ -96,31 +96,36 @@ if (reviewRows.length) {
 
 // venues
 out.push(
-  "insert into public.venues (id, name, neighborhood, capacity, followers, vibe, seed) values",
+  "insert into public.venues (id, name, neighborhood, capacity, followers, vibe, managers, seed) values",
 );
 out.push(
   VENUES.map((v) =>
-    row([q(v.id), q(v.name), q(v.neighborhood), num(v.capacity), num(v.followers), q(v.vibe), num(v.seed)]),
+    row([q(v.id), q(v.name), q(v.neighborhood), num(v.capacity), num(v.followers), q(v.vibe), arr(v.managers ?? []), num(v.seed)]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
 out.push("");
 
 // bands
 out.push(
-  "insert into public.bands (id, name, genres, bio, neighborhood, followers, seed) values",
+  "insert into public.bands (id, name, genres, bio, neighborhood, followers, kind, owner_id, seed) values",
 );
 out.push(
   BANDS.map((b) =>
-    row([q(b.id), q(b.name), arr(b.genres), q(b.bio), q(b.neighborhood), num(b.followers), num(b.seed)]),
+    row([q(b.id), q(b.name), arr(b.genres), q(b.bio), q(b.neighborhood), num(b.followers), b.kind ? q(b.kind) : "null", b.ownerId ? q(b.ownerId) : "null", num(b.seed)]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
 out.push("");
 
 // band_members
 const memberRows = BANDS.flatMap((b) =>
-  b.members.map((mem) => row([q(b.id), q(mem.musicianId), q(mem.role)])),
+  b.members.map((mem) =>
+    row([
+      q(b.id), q(mem.playerId), q(mem.role), bool(!!mem.admin),
+      mem.performing === undefined ? "null" : bool(mem.performing),
+    ]),
+  ),
 );
-out.push("insert into public.band_members (band_id, musician_id, role) values");
+out.push("insert into public.band_members (band_id, musician_id, role, admin, performing) values");
 out.push(memberRows.join(",\n") + "\non conflict (band_id, musician_id) do nothing;");
 out.push("");
 
@@ -137,7 +142,7 @@ out.push(
   "insert into public.gigs (id, title, venue_id, band_id, date, time, payout, ticket) values",
 );
 out.push(
-  GIGS.map((g) =>
+  EVENTS.map((g) =>
     row([q(g.id), q(g.title), q(g.venueId), g.bandId ? q(g.bandId) : "null", q(g.date), q(g.time), num(g.payout), g.ticket ? q(g.ticket) : "null"]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
@@ -151,7 +156,7 @@ out.push(
   FEED_POSTS.map((p) =>
     row([
       q(p.id), q(p.kind), q(p.author.type), q(p.author.id), q(p.text), q(p.ago),
-      num(p.likes), num(p.comments), p.gigId ? q(p.gigId) : "null",
+      num(p.likes), num(p.comments), p.eventId ? q(p.eventId) : "null",
       jsonb(p.video), p.videoOwnerId ? q(p.videoOwnerId) : "null", jsonb(p.subFor),
     ]),
   ).join(",\n") + "\non conflict (id) do nothing;",

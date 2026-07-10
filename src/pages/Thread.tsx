@@ -26,6 +26,7 @@ import {
 import { BookingCard } from "../components/messages/BookingCard";
 import { BookingSheet } from "../components/messages/BookingSheet";
 import { PaymentSheet } from "../components/messages/PaymentSheet";
+import { GroupThread } from "../components/messages/GroupThread";
 
 export default function Thread() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +40,8 @@ function ThreadView({ id }: { id: string }) {
   const locState = (location.state ?? {}) as {
     prefill?: string;
     openBooking?: boolean;
+    /** offer is for this posted Opening — holding it locks the seat */
+    openingId?: string;
   };
 
   // Resolve the musician. Prefer an existing conversation's playerId;
@@ -75,6 +78,11 @@ function ThreadView({ id }: { id: string }) {
     if (convId && unread > 0) api.markRead(convId);
   }, [convId, unread, api]);
 
+  // group chats (project rosters) render their own surface
+  if (byId?.kind === "group") {
+    return <GroupThread conversation={byId} />;
+  }
+
   if (!musician) {
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
@@ -105,7 +113,7 @@ function ThreadView({ id }: { id: string }) {
     .map((i) => instrument(i.id).label)
     .join(" + ");
   const rating = ratingSummary(musician, state.ratingsGiven[musician.id]);
-  const payBooking = payId
+  const holdTarget = payId
     ? state.bookings.find((b) => b.id === payId)
     : undefined;
 
@@ -270,10 +278,11 @@ function ThreadView({ id }: { id: string }) {
         open={bookingOpen}
         onClose={() => setBookingOpen(false)}
         musician={musician}
+        openingId={locState.openingId}
       />
-      {payBooking && (
+      {holdTarget && (
         <PaymentSheet
-          booking={payBooking}
+          booking={holdTarget}
           musician={musician}
           onClose={() => setPayId(null)}
         />

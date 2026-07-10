@@ -110,9 +110,16 @@ export interface Band {
   /**
    * `admin` members can post/hire *as the band* (capabilities model — see
    * docs/V1_SPEC.md). `performing` distinguishes players in a seat from
-   * organizers/writers/producers who don't take a slot.
+   * organizers/writers/producers who don't take a slot. `stay` records the
+   * post-gig "Stay as a group?" ready-check vote (projects only).
    */
-  members: { playerId: string; role: string; admin?: boolean; performing?: boolean }[];
+  members: {
+    playerId: string;
+    role: string;
+    admin?: boolean;
+    performing?: boolean;
+    stay?: "in" | "out";
+  }[];
   openSlots: { instrument: InstrumentId; note: string }[];
   followers: number;
   eventIds: string[];
@@ -121,6 +128,8 @@ export interface Band {
   kind?: "standing" | "project";
   /** creator/owner (a playerId) — always an admin, may or may not perform. */
   ownerId?: string;
+  /** a past project that didn't promote — still viewable, no longer active. */
+  archived?: boolean;
   seed: number;
 }
 
@@ -182,8 +191,14 @@ export interface FeedPost {
   /** for kind === "video": the clip, plus whose reel it belongs to */
   video?: VideoClip;
   videoOwnerId?: string;
-  /** for kind === "need-sub" */
-  subFor?: { instrument: InstrumentId; date: string; payout: number };
+  /**
+   * for kind === "need-sub". `payout` is optional: user-posted openings keep
+   * the fee private (it lives in the DM offer — see V1_SPEC "fees private");
+   * legacy seed posts still advertise it. `urgent` defaults to true for seeds.
+   */
+  subFor?: { instrument: InstrumentId; date: string; payout?: number; urgent?: boolean };
+  /** the viewer authored this post (their openings render with owner controls) */
+  own?: boolean;
 }
 
 // --------------------------------------------------------------- openings
@@ -213,7 +228,14 @@ export interface Opening {
   ago?: string;
 }
 
-export type BookingStatus = "offer" | "accepted" | "paid" | "declined";
+/**
+ * The escrow lifecycle (docs/V1_SPEC.md → Payments & escrow):
+ * offer → accepted (they said yes, awaiting the hold) → held (money committed)
+ * → released (money delivered, post-gig) — plus terminal declined.
+ * The old single "paid" split into held vs released; legacy persisted "paid"
+ * is mapped to "held" at load time by each backend.
+ */
+export type BookingStatus = "offer" | "accepted" | "held" | "released" | "declined";
 
 export interface Booking {
   id: string;
@@ -224,6 +246,8 @@ export interface Booking {
   time: string;
   amount: number;
   status: BookingStatus;
+  /** when the booking fills a posted Opening, holding it locks that seat */
+  openingId?: string;
 }
 
 export interface Message {
@@ -232,12 +256,30 @@ export interface Message {
   text?: string;
   /** when set, render the booking card for this booking id instead of a bubble */
   bookingId?: string;
+  /** group chats: who spoke ("me" or a playerId) */
+  senderId?: string;
+  /** a system line ("🥁 Nia locked in on drums") — centered, no bubble */
+  system?: boolean;
   at: string;
 }
 
+/**
+ * DMs are 1:1 with a Player (`playerId`, ids `c-<playerId>`). Group chats
+ * belong to a project/band (`bandId`, ids `g-<bandId>`): the roster talks in
+ * one thread with sender attribution + system lock lines — and never a fee
+ * (fees stay in the 1:1 offer threads). See docs/V1_SPEC.md.
+ */
 export interface Conversation {
   id: string;
-  playerId: string;
+  kind?: "dm" | "group";
+  /** dm: the other player */
+  playerId?: string;
+  /** group: the roster ("me" + playerIds) */
+  participantIds?: string[];
+  /** group: the project/band this chat belongs to */
+  bandId?: string;
+  /** group: display title (usually the band's name) */
+  title?: string;
   messages: Message[];
   unread: number;
 }

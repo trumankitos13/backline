@@ -284,7 +284,10 @@ declined
 
 Proposed set: `offer → held → released → {refunded | disputed}` (+ terminal
 `declined`). The old single **`paid`** splits into **`held`** (money committed) vs
-**`released`** (money delivered) — that split *is* the escrow.
+**`released`** (money delivered) — that split *is* the escrow. *(Prototype note:
+until cards-on-file exist, `accepted` remains as the awaiting-hold state between
+offer and held — the payment sheet is the interactive stand-in for the
+accept-triggers-hold moment.)*
 - **accept ⇒ hold.** Acceptance and the hold are one event: the public **"lock"**
   (group chat "🥁 Nia locked in") and the private money move (amount/card only in
   the 1:1 thread) happen together.

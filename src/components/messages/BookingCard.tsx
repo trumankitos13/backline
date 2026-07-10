@@ -1,6 +1,8 @@
 // In-thread booking offer card — the centerpiece of the money flow.
-// Status renders live from the store: offer → accepted → paid (or declined).
-// Once paid, it hosts the post-gig rating entry (Uber-style).
+// Status renders live from the store: offer → accepted → held → released
+// (or declined). Held shows the escrow lock + a mock of the post-gig
+// auto-release; released hosts the rating entry (Uber-style: rate after
+// the gig completes, not after paying).
 
 import type { Booking, Player } from "../../lib/types";
 import { useApp } from "../../lib/store";
@@ -65,20 +67,40 @@ export function BookingCard({
             Lock it in before {first}'s night books up.
           </p>
           <Button className="mt-2.5 w-full" onClick={() => onPay(booking)}>
-            Pay ${booking.amount} — hold it
+            Hold ${booking.amount} — lock it in
           </Button>
         </div>
       )}
 
-      {booking.status === "paid" && (
+      {booking.status === "held" && (
+        <div className="border-t border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cyan-300">
+            <LockIcon size={15} /> Held — releases after the gig
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-text-lo">
+            {first} is locked in. The money moves 24h after showtime —
+            cancel-friendly up to 24h before.
+          </p>
+          {/* prototype stand-in for the 24h auto-release */}
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-2.5 w-full"
+            onClick={() => api.releaseBooking(booking.id, booking.playerId)}
+          >
+            Gig played — release ${booking.amount} now
+          </Button>
+        </div>
+      )}
+
+      {booking.status === "released" && (
         <>
           <div className="border-t border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-cyan-300">
-              <span>✅</span> Paid &amp; held
+              <CheckIcon size={15} /> Released — ${booking.amount} on its way to {first}
             </p>
-            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-text-lo">
-              <LockIcon size={12} className="shrink-0" /> Held until the gig —
-              cancel-friendly up to 24h before.
+            <p className="mt-1 text-[11px] text-text-lo">
+              Paid through Backline. This lands on your paid-on-time record.
             </p>
           </div>
 

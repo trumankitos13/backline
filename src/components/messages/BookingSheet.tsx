@@ -32,24 +32,40 @@ export function BookingSheet({
   open,
   onClose,
   musician,
+  openingId,
 }: {
   open: boolean;
   onClose: () => void;
   musician: Player;
+  /** offer fills this posted Opening — prefilled from it; holding locks the seat */
+  openingId?: string;
 }) {
-  const { api } = useApp();
+  const { state, api } = useApp();
   const first = musician.name.split(" ")[0] ?? musician.name;
   const primary: InstrumentId = musician.instruments[0]?.id ?? "guitar";
 
-  const [gigTitle, setGigTitle] = useState("Fill-in gig");
+  // when the offer is for a posted opening, prefill from it (fee = the posted
+  // take-home; title = the project's name when one owns the opening)
+  const opening = openingId ? state.openings.find((o) => o.id === openingId) : undefined;
+  const project = opening
+    ? state.projects.find((p) => p.id === opening.postedBy.id)
+    : undefined;
+
+  const [gigTitle, setGigTitle] = useState(project?.name ?? "Fill-in gig");
   const [venue, setVenue] = useState<string>(VENUES[0]?.name ?? "Other");
   const [customVenue, setCustomVenue] = useState("");
-  const [dateOpt, setDateOpt] = useState<string>("Tonight");
-  const [customDate, setCustomDate] = useState("");
+  const [dateOpt, setDateOpt] = useState<string>(
+    opening && !DATE_OPTIONS.includes(opening.when) ? CUSTOM_DATE : (opening?.when ?? "Tonight"),
+  );
+  const [customDate, setCustomDate] = useState(
+    opening && !DATE_OPTIONS.includes(opening.when) ? opening.when : "",
+  );
   const [time, setTime] = useState("9:00 PM");
-  const [amount, setAmount] = useState(String(musician.rate.min));
+  const [amount, setAmount] = useState(String(opening?.fee ?? musician.rate.min));
   const [note, setNote] = useState(
-    `Hey! Our ${ROLE_NOUN[primary]} can't make it — can you cover?`,
+    project
+      ? `Hey! Putting together ${project.name} — want the ${ROLE_NOUN[opening?.instrument ?? primary]} seat?`
+      : `Hey! Our ${ROLE_NOUN[primary]} can't make it — can you cover?`,
   );
 
   const parsedAmount = Number(amount);
@@ -67,6 +83,7 @@ export function BookingSheet({
       time: time.trim() || "9:00 PM",
       amount: Math.round(parsedAmount),
       note: note.trim() || undefined,
+      openingId,
     });
     onClose();
   };

@@ -61,11 +61,19 @@ on a subdomain (e.g. `app.kitesink.com`):
   tables), an `auth.users → profiles` trigger, and Data API grants.
 - `supabase/migrations/*_rls_policies.sql` — RLS on **every** table:
   catalog is public-read/no-write, user tables strictly owner-scoped.
-- `supabase/seed.sql` — the Austin demo catalog (musicians, bands, venues, gigs,
-  feed). Already populated.
-- `supabase/tests/rls.test.mjs` — the RLS isolation test suite (see below).
+- `supabase/migrations/*_booking_escrow_states.sql` — the escrow lifecycle:
+  adds `held` / `released` to the booking-status enum.
+- `supabase/migrations/*_openings_and_capabilities.sql` — the `openings` table
+  (owner-only RLS — the fee column is on it, and fees are private) plus the
+  capabilities columns (`band_members.admin`, `venues.managers`, project fields).
+- `supabase/seed.sql` — the Austin demo catalog (players, bands, venues, events,
+  feed), **generated** from `src/lib/data.ts` via
+  `node --experimental-strip-types scripts/gen-seed.ts > supabase/seed.sql`.
+- `supabase/tests/rls.test.mjs` — the RLS isolation test suite (see below),
+  including openings fee-privacy checks.
 - `src/lib/backend/supabase.ts` — the real backend: auth + all user-data
-  persistence. Already wired; it just needs a project to talk to.
+  persistence (profiles, follows, chats, bookings, openings). Already wired;
+  it just needs a project to talk to.
 
 > The two tracks below get you a working, testable backend. **Track A (local)**
 > is the fastest way to see cloud mode and run the tests — no cloud account, no
@@ -113,9 +121,12 @@ dependency (`npx supabase`).
 
 5. **Smoke-test the real flow:**
    - Create an account → complete onboarding → you land in the app.
-   - Follow a band, send a message, send/accept a booking, rate after paying.
+   - Follow a band, send a message, then run the full money loop: send an
+     offer → it's accepted → **Hold** → "Gig played — release" → rate.
+   - Post an opening (Reels tab → "Post an opening") → it leads your Feed.
    - Open **Studio** (`:54323`) → **Table editor** → confirm rows appear in
-     `profiles`, `follows`, `conversations`, `messages`, `bookings`.
+     `profiles`, `follows`, `conversations`, `messages`, `bookings`,
+     `openings` (booking status should read `held` → `released`).
    - Sign out and back in → your data is still there (persistence works).
 
 6. **Run the RLS isolation tests** against local:
@@ -187,11 +198,13 @@ Both are dormant until keyed (see `.env.local.example`):
 
 Add the same vars in Vercel for the deployed app.
 
-### Known gap (tracked in `docs/ROADMAP.md`, Phase 0)
-The catalog (musicians/bands/venues/gigs/feed) is seeded into Postgres, but the
-**app still reads it from the static `src/lib/data.ts`** even in cloud mode. The
-per-user data (profiles, bookings, messages, …) is fully DB-backed. Making the
-catalog DB-backed is the last open Phase 0 item.
+### Known gaps (tracked in `docs/ROADMAP.md`, Phase 0)
+- The catalog (players/bands/venues/events/feed) is seeded into Postgres, but
+  the **app still reads it from the static `src/lib/data.ts`** even in cloud
+  mode. The per-user data (profiles, bookings, messages, openings, …) is fully
+  DB-backed. Making the catalog DB-backed is the last open Phase 0 item.
+- **Pickup projects & group chats** are demo-grade: they persist in local mode
+  but have no cloud tables yet (they'll land with the catalog work).
 
 ---
 
