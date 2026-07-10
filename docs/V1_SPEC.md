@@ -293,6 +293,8 @@ Proposed set: `offer → held → released → {refunded | disputed}` (+ termina
   after; payout on Stripe's schedule.
 
 ### Cancellation — cancel-friendly up to 24h
+> **Decided: 24h cutoff, 50% late-cancel fee** to the player on a late booker-cancel.
+
 Deliberately generous; friction here kills the "just grab a sub" reflex. Cutoff =
 **24h before showtime.**
 
@@ -321,18 +323,17 @@ Volume will be tiny; automated arbitration is over-engineering.
   platform eats or claws back; low volume.
 
 ### Platform fee — and who pays it
-Propose: **the posted fee is the player's real take-home** — a "$200 opening" = $200
-in the drummer's pocket. Backline's cut (propose **~10%** + Stripe processing) is
-**added on top for the booker**, itemized on the offer:
-`Fee $200 · Backline service $20 · Total $220`. Why:
+> **Decided: the booker pays the fee.** The posted fee is the player's real
+> take-home.
+
+A "$200 opening" = $200 in the drummer's pocket. Backline's cut (propose **~10%** +
+Stripe processing) is **added on top for the booker**, itemized on the offer:
+`Fee $200 · Backline service $20 · Total $220`. Why this way:
 - Kills fee haggling ("before or after the app's cut?") — the opening's number is
   unambiguous.
 - Honors **fees-private**: the player only needs their guaranteed take-home; the
   service charge is the booker's line item.
 - Musician-friendly — the talent is never surprised by a deduction.
-
-(Alternative — deduct from payout, DoorDash-style — works mechanically; the
-recommendation is booker-pays-on-top for the trust story. **Needs your call.**)
 
 ### Fees private ↔ locks public (the payments side of the locked rule)
 - **Amount + card + receipt** live ONLY in the **1:1 offer/booking thread** and the
@@ -400,15 +401,64 @@ is right — "*Cedar & Rye* needs a drummer," not "you need a drummer."
 - **Quiet by default for the non-urgent.** Low-tier is in-app-only unless opted into
   push. High-tier defaults on because that *is* the product.
 
-### Delivery mechanics
-- **v1 web:** in-app center + badges already model this; real push via Web Push.
-- **v1 iOS (Expo):** `expo-notifications` + APNs; push token stored per account,
-  per device.
-- **Backend:** a `notifications` table (recipient, type, payload, read, created) +
-  fan-out on the trigger events above. In-app reads the table; push fires from the
-  same server hook that writes the row. Behind the backend seam like everything else.
-- **Preferences:** per-type, per-channel toggles (push / in-app / off) with the
-  defaults above — one "Notifications" settings screen.
+### SOS targeting & escalation — the smart part
+A blast is only as good as *who it reaches*; good targeting is the difference
+between "filled in 6 minutes" and spam.
+- **Eligibility filter.** An opening notifies players who (1) **play the
+  instrument**, (2) are **in range** (metro / radius of the venue), (3) are
+  **available** (not marked busy; `availableTonight` for same-night), and (4)
+  **haven't already declined** it. Optional booker-set **★ / reliability floor.**
+- **Ranked, not sprayed.** Order by a match score — proximity, rating, response
+  history ("usually replies fast"), and **people the booker follows/knows first.**
+  A warm sub beats a random one.
+- **Escalation loop (widen the net).** Fire to the **best tier first**; if
+  unclaimed after a window (e.g. 10 min for a tonight gig), **widen** — bigger
+  radius, lower floor, re-notify — until claimed or canceled. The poster sees live
+  status: "sent to 8 · widening in 4:00."
+- **First-claim-wins with a soft hold.** The first "I've got it" gets a short
+  **soft reservation** to confirm; others see "being grabbed." Prevents two subs
+  showing up. Confirm → normal offer/hold flow; timeout → back to the pool.
+
+### Every notification deep-links — and acts inline when it can
+- **Deep-link targets, no dead ends.** SOS → `SosFlow` with the role preselected
+  (the existing `?sos=open&role=` contract); offer → the 1:1 thread with the offer
+  card; ready-check → the group chat's "Stay as a group?" card; release → the
+  receipt.
+- **Inline actions** (iOS notification actions / web action buttons): **Accept /
+  Decline** on an offer, **"I've got it"** on an SOS, **Mute** on a chat — resolved
+  without opening the app where possible. The high-tempo ones must be one-tap.
+
+### Quiet hours, rate limits & do-not-disturb
+- **Quiet hours** (user-set; default ~10pm–8am) suppress **Normal/Low** push;
+  **High** (a *tonight* SOS, a bail) can still break through — that's the emergency
+  channel — with a per-user "hard mute everything" override.
+- **Rate-limit + collapse** so a busy group chat or a feed burst can't machine-gun
+  the lock screen; Low-tier batches into a **digest.**
+- **Anti-spam:** a player can't be SOS-blasted more than N×/day; a booker can't
+  blast beyond their eligible pool. Declining an opening suppresses re-notification.
+
+### Architecture & reliability
+- **Write first, then fan out.** Every trigger writes a `notifications` row
+  (recipient, type, **dedupe-key**, payload, read, created) **in the same
+  transaction** as the state change, then enqueues push. The **table is the source
+  of truth**; push is a best-effort projection — if push fails, the in-app
+  notification is still there.
+- **At-least-once + idempotent.** Each notification carries a **dedupe key** (e.g.
+  `sos:<openingId>:<playerId>`) so retries and multi-device fan-out never
+  double-notify; the client dedupes on it too.
+- **Cross-device read sync.** Read state lives on the row, not the device —
+  mark-read on the phone clears the web badge. Unread counts (the Chats badge)
+  derive from the table.
+- **Token lifecycle.** Push tokens stored **per account, per device**; pruned on
+  unregister / send-failure ("gone"). Three devices → three tokens; logout drops one.
+- **Provider abstraction.** One `notify(recipient, type, payload)` seam over Web
+  Push (VAPID) + APNs (via Expo), so triggers never know the channel; local mode
+  stubs the same seam.
+- **Surfaces.** v1 web = in-app center + badges (already modeled) + Web Push; v1
+  iOS = `expo-notifications` + APNs.
+- **Preferences.** Per-type × per-channel toggles (push / in-app / off) with the
+  defaults above, plus quiet hours and per-conversation mute — one "Notifications"
+  settings screen.
 
 ## Platform architecture (web + iOS + Android)
 
