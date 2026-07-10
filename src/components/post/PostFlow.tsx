@@ -94,6 +94,11 @@ export function PostFlow({
     if (role) navigate(`/?sos=open&role=${role}`);
   }
 
+  function viewInFeed() {
+    onClose();
+    navigate("/feed");
+  }
+
   return (
     <div
       role="dialog"
@@ -360,8 +365,8 @@ export function PostFlow({
             </div>
 
             <div className="mt-2 grid w-full grid-cols-2 gap-2">
-              <Button variant="secondary" size="md" className="w-full" onClick={onClose}>
-                Done
+              <Button variant="secondary" size="md" className="w-full" onClick={viewInFeed}>
+                See it in the feed
               </Button>
               <Button variant="primary" size="md" className="w-full" onClick={findSubs}>
                 <BoltIcon size={16} />

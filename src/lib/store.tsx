@@ -181,8 +181,10 @@ export interface AppApi {
   sendBookingOffer(input: BookingOfferInput): string;
   /** post an opening "acting as" a context; returns the opening id (session-only) */
   postOpening(input: OpeningInput): string;
-  /** mark a booking paid (called by the mock payment sheet) */
-  payBooking(bookingId: string, playerId: string): void;
+  /** commit the hold (mock of Stripe manual-capture) — booking becomes "held" */
+  holdBooking(bookingId: string, playerId: string): void;
+  /** release the held payment post-gig (mock of the 24h auto-release) */
+  releaseBooking(bookingId: string, playerId: string): void;
   toggleFollow(id: string): void;
   toggleLike(postId: string): void;
   /** record a post-gig star rating (1..5) for a musician (session-only) */
@@ -362,7 +364,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const acceptMsg: Message = {
             id: uid("m"),
             from: "them",
-            text: `${name} here — I'm in! Accepted the offer. Send payment through the app to lock it and I'll see you at soundcheck. 🤘`,
+            text: `${name} here — I'm in! Accepted the offer. Hold the payment in the app to lock it and I'll see you at soundcheck. 🤘`,
             at: nowLabel(),
           };
           dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
@@ -388,19 +390,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
           status: "open",
           ago: "just now",
         };
-        // session-only for now (like ratingsGiven) — pending an openings table.
         dispatch({ type: "POST_OPENING", opening });
+        persist((u) => backend.addOpening(u, opening));
         return id;
       },
 
-      payBooking(bookingId, playerId) {
-        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "paid" });
-        persist((u) => backend.setBookingStatus(u, bookingId, "paid"));
+      holdBooking(bookingId, playerId) {
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "held" });
+        persist((u) => backend.setBookingStatus(u, bookingId, "held"));
         window.setTimeout(() => {
           const msg: Message = {
             id: uid("m"),
             from: "them",
-            text: "Payment received — you're officially booked. Sending you my stage plot now.",
+            text: "Hold confirmed — you're locked in. 🔒 Sending you my stage plot now.",
+            at: nowLabel(),
+          };
+          dispatch({ type: "RECEIVE_MESSAGE", playerId, message: msg });
+          persist((u) => backend.addMessage(u, playerId, msg));
+        }, 1500);
+      },
+
+      releaseBooking(bookingId, playerId) {
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "released" });
+        persist((u) => backend.setBookingStatus(u, bookingId, "released"));
+        window.setTimeout(() => {
+          const msg: Message = {
+            id: uid("m"),
+            from: "them",
+            text: "Payment landed — pleasure playing for you. Book me anytime. 🤝",
             at: nowLabel(),
           };
           dispatch({ type: "RECEIVE_MESSAGE", playerId, message: msg });

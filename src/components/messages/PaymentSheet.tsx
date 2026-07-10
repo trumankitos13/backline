@@ -34,13 +34,15 @@ export function PaymentSheet({
   // clean up the fake-processing timer if the sheet unmounts mid-flight
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const fee = booking.amount * 0.05;
+  // booker pays the fee on top — the posted amount is the player's take-home
+  // (docs/V1_SPEC.md → "Platform fee — and who pays it").
+  const fee = booking.amount * 0.1;
   const total = booking.amount + fee;
 
   const pay = () => {
     setPhase("processing");
     timer.current = window.setTimeout(() => {
-      api.payBooking(booking.id, musician.id);
+      api.holdBooking(booking.id, musician.id);
       setPhase("success");
     }, 1200);
   };
@@ -137,11 +139,11 @@ export function PaymentSheet({
           {/* fee breakdown */}
           <div className="rounded-xl border border-hairline-subtle bg-ink-near p-3.5 text-sm">
             <div className="flex items-center justify-between text-text-mid">
-              <span>Performance fee</span>
+              <span>Fee — {musician.name.split(" ")[0]}'s take-home</span>
               <Mono className="text-[12px] text-text-hi">${money(booking.amount)}</Mono>
             </div>
             <div className="mt-1.5 flex items-center justify-between text-text-mid">
-              <span>Backline service (5%)</span>
+              <span>Backline service (10%)</span>
               <Mono className="text-[12px] text-text-hi">${money(fee)}</Mono>
             </div>
             <div className="mt-2.5 flex items-center justify-between border-t border-hairline-subtle pt-2.5 font-semibold">

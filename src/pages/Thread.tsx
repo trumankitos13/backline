@@ -105,7 +105,7 @@ function ThreadView({ id }: { id: string }) {
     .map((i) => instrument(i.id).label)
     .join(" + ");
   const rating = ratingSummary(musician, state.ratingsGiven[musician.id]);
-  const payBooking = payId
+  const holdTarget = payId
     ? state.bookings.find((b) => b.id === payId)
     : undefined;
 
@@ -271,9 +271,9 @@ function ThreadView({ id }: { id: string }) {
         onClose={() => setBookingOpen(false)}
         musician={musician}
       />
-      {payBooking && (
+      {holdTarget && (
         <PaymentSheet
-          booking={payBooking}
+          booking={holdTarget}
           musician={musician}
           onClose={() => setPayId(null)}
         />

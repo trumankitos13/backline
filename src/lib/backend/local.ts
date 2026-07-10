@@ -3,7 +3,7 @@
 // the app (and the deployed site) always runs, even before the backend is set
 // up. Behavior matches the original SitIn prototype.
 
-import type { Booking, BookingStatus, CurrentUser, Message } from "../types";
+import type { Booking, BookingStatus, CurrentUser, Message, Opening } from "../types";
 import { SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
@@ -21,7 +21,13 @@ function demoDefault(): PersistedData {
     bookings: [],
     likedPosts: [],
     respondedSubPosts: [],
+    openings: [],
   };
+}
+
+/** legacy escrow rename: persisted "paid" (pre-held/released) means "held". */
+function migrateBooking(b: Booking): Booking {
+  return (b.status as string) === "paid" ? { ...b, status: "held" } : b;
 }
 
 function read(): PersistedData {
@@ -29,7 +35,8 @@ function read(): PersistedData {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return demoDefault();
     const parsed = JSON.parse(raw) as Partial<PersistedData>;
-    return { ...demoDefault(), ...parsed };
+    const merged = { ...demoDefault(), ...parsed };
+    return { ...merged, bookings: merged.bookings.map(migrateBooking) };
   } catch {
     return demoDefault();
   }
@@ -117,6 +124,9 @@ export const localBackend: Backend = {
       ...d,
       bookings: d.bookings.map((b) => (b.id === bookingId ? { ...b, status } : b)),
     }));
+  },
+  async addOpening(_user: AuthUser, opening: Opening) {
+    mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));
   },
   async setLike(_user: AuthUser, postId: string, liked: boolean) {
     mutate((d) => ({

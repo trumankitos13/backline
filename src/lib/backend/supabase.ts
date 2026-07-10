@@ -87,6 +87,7 @@ export const supabaseBackend: Backend = {
       bookings: [],
       likedPosts: [],
       respondedSubPosts: [],
+      openings: [],
     };
     if (!user) return empty;
 
@@ -159,7 +160,8 @@ export const supabaseBackend: Backend = {
       date: b.date as string,
       time: b.time as string,
       amount: (b.amount as number) ?? 0,
-      status: b.status as BookingStatus,
+      // legacy escrow rename: rows written before held/released say "paid"
+      status: (b.status === "paid" ? "held" : b.status) as BookingStatus,
     }));
 
     return {
@@ -169,6 +171,8 @@ export const supabaseBackend: Backend = {
       bookings,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
+      // no openings table yet — cloud mode keeps openings session-only for now
+      openings: [],
     };
   },
 
@@ -275,6 +279,11 @@ export const supabaseBackend: Backend = {
       .eq("id", bookingId)
       .eq("user_id", user.id);
     fail("set booking status", error);
+  },
+
+  async addOpening() {
+    // TODO: persist once an `openings` table exists (Phase 0 catalog work).
+    // The optimistic store keeps the opening live for the session meanwhile.
   },
 
   async setLike(user, postId, liked) {

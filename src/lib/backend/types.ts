@@ -11,6 +11,7 @@ import type {
   Conversation,
   CurrentUser,
   Message,
+  Opening,
 } from "../types";
 
 /** The per-user slice of state that gets persisted (catalog lives in data.ts). */
@@ -21,6 +22,8 @@ export interface PersistedData {
   bookings: Booking[];
   likedPosts: string[];
   respondedSubPosts: string[];
+  /** openings the user posted (newest first) — they lead the feed */
+  openings: Opening[];
 }
 
 /** A minimal, backend-agnostic view of the signed-in account. */
@@ -60,6 +63,7 @@ export interface Backend {
   markRead(user: AuthUser, playerId: string): Promise<void>;
   addBooking(user: AuthUser, booking: Booking): Promise<void>;
   setBookingStatus(user: AuthUser, bookingId: string, status: BookingStatus): Promise<void>;
+  addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setLike(user: AuthUser, postId: string, liked: boolean): Promise<void>;
   addRespondedSub(user: AuthUser, postId: string): Promise<void>;
   reset(user: AuthUser): Promise<void>;

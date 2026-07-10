@@ -182,8 +182,14 @@ export interface FeedPost {
   /** for kind === "video": the clip, plus whose reel it belongs to */
   video?: VideoClip;
   videoOwnerId?: string;
-  /** for kind === "need-sub" */
-  subFor?: { instrument: InstrumentId; date: string; payout: number };
+  /**
+   * for kind === "need-sub". `payout` is optional: user-posted openings keep
+   * the fee private (it lives in the DM offer — see V1_SPEC "fees private");
+   * legacy seed posts still advertise it. `urgent` defaults to true for seeds.
+   */
+  subFor?: { instrument: InstrumentId; date: string; payout?: number; urgent?: boolean };
+  /** the viewer authored this post (their openings render with owner controls) */
+  own?: boolean;
 }
 
 // --------------------------------------------------------------- openings
@@ -213,7 +219,14 @@ export interface Opening {
   ago?: string;
 }
 
-export type BookingStatus = "offer" | "accepted" | "paid" | "declined";
+/**
+ * The escrow lifecycle (docs/V1_SPEC.md → Payments & escrow):
+ * offer → accepted (they said yes, awaiting the hold) → held (money committed)
+ * → released (money delivered, post-gig) — plus terminal declined.
+ * The old single "paid" split into held vs released; legacy persisted "paid"
+ * is mapped to "held" at load time by each backend.
+ */
+export type BookingStatus = "offer" | "accepted" | "held" | "released" | "declined";
 
 export interface Booking {
   id: string;
