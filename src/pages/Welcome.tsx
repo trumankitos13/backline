@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../lib/store";
 import { isCloudBackend } from "../lib/backend";
-import { MUSICIANS } from "../lib/data";
+import { PLAYERS } from "../lib/data";
 import { Avatar, Button, Card, Mono, Wordmark } from "../components/ui";
 import { BoltIcon, DollarIcon, PlayIcon, type IconProps } from "../components/icons";
 import { SignupSteps } from "../components/welcome/SignupSteps";
@@ -50,7 +50,7 @@ export default function Welcome() {
   const [signupOpen, setSignupOpen] = useState(needsAuth);
   const signupRef = useRef<HTMLDivElement>(null);
 
-  const tonight = MUSICIANS.filter((m) => m.availableTonight);
+  const tonight = PLAYERS.filter((m) => m.availableTonight);
 
   const openSignup = () => {
     setSignupOpen(true);

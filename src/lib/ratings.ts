@@ -1,10 +1,10 @@
-// Uber-style rating summaries for musicians. Gig apps show a prominent average
+// Uber-style rating summaries for musicians. Event apps show a prominent average
 // star rating with a total count (many more ratings than written reviews), plus
 // a distribution. We derive all of it deterministically from a musician's
 // existing fields (written reviews, gigsPlayed, verified, seed) so the numbers
 // are believable and stable without hand-authoring them per musician.
 
-import type { Musician } from "./types";
+import type { Player } from "./types";
 
 export interface RatingSummary {
   /** average, 0..5, one decimal */
@@ -29,7 +29,7 @@ function seededRand(seed: number): () => number {
  * Compute a musician's rating summary. Includes any extra ratings the user has
  * submitted this session (post-gig), passed in as `extra`.
  */
-export function ratingSummary(m: Musician, extra: number[] = []): RatingSummary {
+export function ratingSummary(m: Player, extra: number[] = []): RatingSummary {
   const rand = seededRand(m.seed * 2654435761);
 
   // baseline average: written reviews if any, else seed-based 4.5–5.0,

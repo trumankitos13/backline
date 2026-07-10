@@ -53,6 +53,21 @@ export function AuthPanel() {
     // otherwise the auth listener takes over and moves us into onboarding
   };
 
+  const onForgot = async () => {
+    if (busy) return;
+    setError(null);
+    setNotice(null);
+    if (email.trim().length < 4) {
+      setError("Enter your email above first, then tap reset.");
+      return;
+    }
+    setBusy(true);
+    const result = await api.resetPassword(email.trim());
+    setBusy(false);
+    if (result.error) setError(result.error);
+    else setNotice("If that email has an account, a reset link is on its way.");
+  };
+
   return (
     <Card className="p-5 sm:p-7">
       <div className="flex items-center gap-2.5">
@@ -106,6 +121,16 @@ export function AuthPanel() {
             className={INPUT_CLASS}
           />
         </label>
+
+        {mode === "signin" && (
+          <button
+            type="button"
+            onClick={onForgot}
+            className="-mt-1 self-end text-xs text-text-lo transition-colors hover:text-amber-300"
+          >
+            Forgot password?
+          </button>
+        )}
 
         {error && (
           <p className="flex items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-danger)_12%,transparent)] px-3 py-2 text-xs text-[var(--color-danger)]">

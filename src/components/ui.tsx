@@ -23,7 +23,7 @@ export function Wordmark({
       style={{ fontSize: size, letterSpacing: "-0.04em" }}
     >
       backl
-      {/* dotless i + amber standby dot as its tittle */}
+      {/* dotless i + orange standby dot as its tittle */}
       <span className="relative inline-block" aria-hidden="true">
         ı
         <span
@@ -31,7 +31,7 @@ export function Wordmark({
           style={{
             width: dot,
             height: dot,
-            top: `-${dot * 0.7}px`,
+            top: `-${dot * 0.35}px`,
             transform: "translateX(-50%)",
             boxShadow: "0 0 0.5em var(--accent)",
           }}
@@ -68,13 +68,15 @@ export function initials(name: string): string {
 
 /**
  * Fingerprint avatar — a deterministic generative identity mark (see
- * generative.ts). Round for people, rounded-square for bands/venues.
+ * generative.ts). Per the Backline identity, every avatar is a ROUNDED SQUARE
+ * (radius scales with size, ~11–22px); the `square` prop is retained for
+ * call-site compatibility but no longer toggles a circle.
  */
 export function Avatar({
   name,
   seed,
   size = 44,
-  square = false,
+  square: _square = false,
   className = "",
 }: {
   name: string;
@@ -85,12 +87,11 @@ export function Avatar({
 }) {
   const fp = fingerprint(`${name}-${seed}`);
   const showInitials = size >= 30;
+  const radius = Math.round(Math.min(22, Math.max(9, size * 0.28)));
   return (
     <div
-      className={`relative shrink-0 overflow-hidden ring-1 ring-white/10 ${
-        square ? "rounded-xl" : "rounded-full"
-      } ${className}`}
-      style={{ width: size, height: size, background: fp.background }}
+      className={`relative shrink-0 overflow-hidden ring-1 ring-white/10 ${className}`}
+      style={{ width: size, height: size, borderRadius: radius, background: fp.background }}
       aria-hidden="true"
     >
       <span className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
@@ -418,13 +419,14 @@ export function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-amber-500" : "bg-surface-raised"
+      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${
+        checked ? "border-transparent bg-amber-500" : "border-hairline-strong bg-surface-raised"
       }`}
     >
+      {/* always-visible white knob: slides left (off) → right (on) */}
       <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full transition-transform ${
-          checked ? "translate-x-[22px] bg-ink-near" : "translate-x-0.5 bg-text-mid"
+        className={`absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.5)] transition-transform ${
+          checked ? "translate-x-[22px]" : "translate-x-0.5"
         }`}
       />
     </button>

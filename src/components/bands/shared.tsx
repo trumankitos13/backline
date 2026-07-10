@@ -2,12 +2,12 @@
 // and open-slot urgency helpers. Used by Bands, BandDetail, and VenueDetail.
 
 import type { MouseEvent } from "react";
-import { Link } from "react-router-dom";
-import type { Gig } from "../../lib/types";
+import { Link, useNavigate } from "react-router-dom";
+import type { Event, InstrumentId } from "../../lib/types";
 import { getBand, getVenue } from "../../lib/data";
 import { useApp } from "../../lib/store";
 import { Button } from "../ui";
-import { CheckIcon, PlusIcon } from "../icons";
+import { BoltIcon, CheckIcon, ChevronRightIcon, PlusIcon } from "../icons";
 
 // ----------------------------------------------------------- slot urgency
 
@@ -19,6 +19,50 @@ export function isUrgent(note: string): boolean {
 /** strip the leading "URGENT:" so the badge doesn't repeat the word */
 export function slotNoteText(note: string): string {
   return note.replace(/^urgent:?\s*/i, "");
+}
+
+// -------------------------------------------------------------- SOS deep-link
+
+/**
+ * Deep-link into the SOS overlay (owned by Discover) with the bailed
+ * instrument preselected. Contract: `/?sos=open&role=<instrumentId>`.
+ */
+export function sosHref(instrument: InstrumentId): string {
+  return `/?sos=open&role=${instrument}`;
+}
+
+/**
+ * The app's signature CTA: fire an SOS for a specific open role. Navigates to
+ * the SOS overlay with the role preselected. `full` stretches to the row width
+ * (mobile-first); pass a label override for context-specific copy.
+ */
+export function FindSubButton({
+  instrument,
+  size = "md",
+  full = false,
+  label = "Find a sub — open SOS",
+  className = "",
+}: {
+  instrument: InstrumentId;
+  size?: "sm" | "md" | "lg";
+  full?: boolean;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <Link
+      to={sosHref(instrument)}
+      className={`${full ? "block" : "inline-block"} ${className}`}
+    >
+      <Button size={size} className={full ? "w-full" : ""}>
+        <BoltIcon size={size === "sm" ? 14 : 16} />
+        {label}
+        <span className="arrow-nudge" aria-hidden="true">
+          →
+        </span>
+      </Button>
+    </Link>
+  );
 }
 
 // ---------------------------------------------------------- follow button
@@ -60,14 +104,19 @@ export function FollowButton({
  * One upcoming gig as a row: date block (mono data layer), title, and a
  * cross-link — to the venue (on band pages) or to the band (on venue pages).
  */
-export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
+export function GigRow({ gig, link }: { gig: Event; link: "venue" | "band" }) {
+  const navigate = useNavigate();
   const venue = getVenue(gig.venueId);
   const band = gig.bandId ? getBand(gig.bandId) : undefined;
   const tonight = gig.date === "Tonight";
   const [dayOfWeek, ...restOfDate] = gig.date.split(" ");
+  const stop = (e: MouseEvent) => e.stopPropagation();
 
   return (
-    <div className="flex items-center gap-3 p-3.5 sm:p-4">
+    <div
+      onClick={() => navigate(`/e/${gig.id}`)}
+      className="flex cursor-pointer items-center gap-3 p-3.5 transition-colors hover:bg-surface-800/40 sm:p-4"
+    >
       <div
         className={`w-16 shrink-0 rounded-xl border px-1 py-2 text-center ${
           tonight
@@ -95,6 +144,7 @@ export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
             <>
               <Link
                 to={`/v/${venue.id}`}
+                onClick={stop}
                 className="font-medium text-text-mid transition-colors hover:text-amber-300 hover:underline"
               >
                 {venue.name}
@@ -107,6 +157,7 @@ export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
             (band ? (
               <Link
                 to={`/b/${band.id}`}
+                onClick={stop}
                 className="font-medium text-text-mid transition-colors hover:text-amber-300 hover:underline"
               >
                 {band.name}
@@ -120,6 +171,7 @@ export function GigRow({ gig, link }: { gig: Gig; link: "venue" | "band" }) {
       <span className="mono shrink-0 rounded-full border border-hairline-strong bg-surface-900 px-2.5 py-1 text-xs font-medium text-text-hi">
         {gig.ticket ?? "Free"}
       </span>
+      <ChevronRightIcon size={16} className="shrink-0 text-text-faint" />
     </div>
   );
 }

@@ -16,14 +16,18 @@ import {
   Toggle,
 } from "../components/ui";
 import {
+  BoltIcon,
   CalendarIcon,
+  InstrumentIcon,
   MapPinIcon,
   PlusIcon,
   UsersIcon,
 } from "../components/icons";
 import { useApp } from "../lib/store";
 import { isCloudBackend } from "../lib/backend";
-import { getBand, getMusician, getVenue } from "../lib/data";
+import { getBand, getPlayer, getVenue } from "../lib/data";
+import { resolveActingContext } from "../lib/actingAs";
+import { instrumentLabel } from "../lib/instruments";
 import {
   BookingStatusBadge,
   InstrumentChips,
@@ -53,6 +57,7 @@ export default function MyProfile() {
 
   // newest bookings first
   const bookings = [...state.bookings].reverse();
+  const openings = state.openings;
 
   const followed = state.following
     .map((fid): FollowedEntry | null => {
@@ -129,6 +134,66 @@ export default function MyProfile() {
         />
       </Card>
 
+      {/* --------------------------------------------------- post an opening */}
+      <Card
+        onClick={() => navigate("/?post=open")}
+        className="mt-4 flex items-center gap-3 p-4"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+          <PlusIcon size={20} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-text-hi">Post an opening</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
+            Hire a sub as yourself, a band, or a venue — the fee stays private.
+          </p>
+        </div>
+        <span className="arrow-nudge shrink-0 text-text-lo" aria-hidden="true">
+          →
+        </span>
+      </Card>
+
+      {/* ------------------------------------------------- your openings */}
+      {openings.length > 0 && (
+        <section className="mt-8">
+          <SectionHeader
+            title="Your openings"
+            className="mb-3"
+            action={<Mono className="text-[10px] text-text-lo">{openings.length} posted</Mono>}
+          />
+          <div className="flex flex-col gap-2.5">
+            {openings.map((op) => {
+              const ctx = resolveActingContext(op.postedBy, user);
+              return (
+                <Card key={op.id} className="flex items-center gap-3 p-3.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/12 text-amber-300">
+                    <InstrumentIcon instrument={op.instrument} size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-medium text-text-hi">
+                      <span className="truncate">{instrumentLabel(op.instrument)}</span>
+                      {op.urgent && (
+                        <span className="mono inline-flex items-center gap-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-ink-near">
+                          <BoltIcon size={9} />
+                          URGENT
+                        </span>
+                      )}
+                    </p>
+                    <Mono className="block truncate text-[10px] text-text-lo">
+                      as {ctx.name} · {op.when}
+                    </Mono>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <Mono className="text-sm font-bold text-text-hi">${op.fee}</Mono>
+                    <Mono className="block text-[9px] text-cyan-300">Open</Mono>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ---------------------------------------------------------- reels */}
       <section className="mt-8">
         <SectionHeader title="Your reels" className="mb-3" />
@@ -169,18 +234,18 @@ export default function MyProfile() {
         {bookings.length > 0 ? (
           <div className="flex flex-col gap-2.5">
             {bookings.map((b) => {
-              const mus = getMusician(b.musicianId);
+              const mus = getPlayer(b.playerId);
               return (
                 <Card
                   key={b.id}
-                  onClick={() => navigate(`/messages/c-${b.musicianId}`)}
+                  onClick={() => navigate(`/messages/c-${b.playerId}`)}
                   className="flex items-center gap-3 p-3.5"
                 >
                   {mus && <Avatar name={mus.name} seed={mus.seed} size={42} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium text-text-hi">
-                        {mus?.name ?? "Musician"}
+                        {mus?.name ?? "Player"}
                       </p>
                       <BookingStatusBadge status={b.status} />
                     </div>

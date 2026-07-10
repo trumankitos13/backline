@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { getMusician } from "../lib/data";
+import { getPlayer } from "../lib/data";
 import { instrument } from "../lib/instruments";
 import { ratingSummary } from "../lib/ratings";
 import { useApp } from "../lib/store";
@@ -41,13 +41,13 @@ function ThreadView({ id }: { id: string }) {
     openBooking?: boolean;
   };
 
-  // Resolve the musician. Prefer an existing conversation's musicianId;
-  // otherwise strip the "c-" prefix (ids follow the c-<musicianId> convention).
+  // Resolve the musician. Prefer an existing conversation's playerId;
+  // otherwise strip the "c-" prefix (ids follow the c-<playerId> convention).
   const byId = state.conversations.find((c) => c.id === id);
-  const musicianId = byId?.musicianId ?? id.slice(2);
-  const musician = getMusician(musicianId);
+  const playerId = byId?.playerId ?? id.slice(2);
+  const musician = getPlayer(playerId);
   const conversation =
-    byId ?? state.conversations.find((c) => c.musicianId === musicianId);
+    byId ?? state.conversations.find((c) => c.playerId === playerId);
 
   const [draft, setDraft] = useState(() => locState.prefill ?? "");
   const [bookingOpen, setBookingOpen] = useState(() => !!locState.openBooking);

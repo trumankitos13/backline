@@ -14,12 +14,16 @@ import {
 } from "../components/ui";
 import {
   ArrowLeftIcon,
+  CheckIcon,
+  InstrumentIcon,
   MapPinIcon,
   SendIcon,
   UsersIcon,
 } from "../components/icons";
-import { FollowButton, GigRow } from "../components/bands/shared";
-import { GIGS, getVenue } from "../lib/data";
+import { FindSubButton, FollowButton, GigRow } from "../components/bands/shared";
+import { LinksSection } from "../components/links";
+import { EVENTS, getVenue } from "../lib/data";
+import { instrumentLabel } from "../lib/instruments";
 
 export default function VenueDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +46,7 @@ export default function VenueDetail() {
     );
   }
 
-  const gigs = GIGS.filter((g) => g.venueId === venue.id);
+  const gigs = EVENTS.filter((g) => g.venueId === venue.id);
 
   return (
     <Page>
@@ -83,6 +87,67 @@ export default function VenueDetail() {
       <p className="mt-4 border-l-2 border-amber-500/50 pl-3 text-sm leading-relaxed text-text-mid italic">
         “{venue.vibe}”
       </p>
+
+      {/* -------------------------------------------- backline provided */}
+      {venue.backline && venue.backline.length > 0 && (
+        <>
+          <SectionHeader
+            title="Backline provided"
+            className="mt-8 mb-3"
+            action={
+              <span className="mono inline-flex items-center gap-1.5 text-[10px] text-cyan-300">
+                <CheckIcon size={12} />
+                House gear
+              </span>
+            }
+          />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {venue.backline.map((item) => (
+              <div
+                key={item}
+                className="flex items-center gap-2.5 rounded-xl border px-3 py-2.5"
+                style={{
+                  background: "rgba(75,214,207,.06)",
+                  borderColor: "rgba(75,214,207,.22)",
+                }}
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-400/15 text-cyan-300">
+                  <CheckIcon size={14} />
+                </span>
+                <span className="text-sm leading-snug text-text-hi">{item}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* --------------------------------------------- hiring house player */}
+      {venue.hiring && (
+        <>
+          <SectionHeader title="Hiring" className="mt-8 mb-3" />
+          <div className="rounded-2xl border border-amber-500/45 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                <InstrumentIcon instrument={venue.hiring.role} size={20} />
+              </span>
+              <div className="min-w-0">
+                <Mono className="text-[10px] text-amber-300">Hiring · house players</Mono>
+                <p className="text-sm font-semibold">
+                  {instrumentLabel(venue.hiring.role)}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2.5 text-sm leading-relaxed text-text-mid">
+              {venue.hiring.note}
+            </p>
+            <FindSubButton
+              instrument={venue.hiring.role}
+              full
+              className="mt-3.5"
+            />
+          </div>
+        </>
+      )}
 
       {/* ----------------------------------------------------- calendar */}
       <SectionHeader
@@ -133,6 +198,8 @@ export default function VenueDetail() {
           </div>
         </div>
       </Card>
+
+      <LinksSection links={venue.links} title="Venue links" className="mt-8" />
     </Page>
   );
 }

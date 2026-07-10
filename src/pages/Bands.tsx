@@ -19,9 +19,9 @@ import {
   MapPinIcon,
 } from "../components/icons";
 import { FollowButton, isUrgent, slotNoteText } from "../components/bands/shared";
-import { BANDS, VENUES, getMusician } from "../lib/data";
+import { BANDS, VENUES, getPlayer } from "../lib/data";
 import { instrumentLabel } from "../lib/instruments";
-import type { Band, Musician } from "../lib/types";
+import type { Band, Player } from "../lib/types";
 
 interface SlotEntry {
   band: Band;
@@ -84,8 +84,8 @@ function OpenSlotCard({ band, slot }: SlotEntry) {
 function BandCard({ band }: { band: Band }) {
   const navigate = useNavigate();
   const members = band.members
-    .map((m) => getMusician(m.musicianId))
-    .filter((m): m is Musician => Boolean(m));
+    .map((m) => getPlayer(m.playerId))
+    .filter((m): m is Player => Boolean(m));
 
   return (
     <Card onClick={() => navigate(`/b/${band.id}`)} className="p-4">

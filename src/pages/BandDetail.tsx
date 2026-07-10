@@ -19,23 +19,29 @@ import {
   ChevronRightIcon,
   InstrumentIcon,
   MapPinIcon,
+  PlusIcon,
   ShareIcon,
   UsersIcon,
   VerifiedIcon,
 } from "../components/icons";
 import {
+  FindSubButton,
   FollowButton,
   GigRow,
   isUrgent,
   slotNoteText,
 } from "../components/bands/shared";
-import { getBand, getGig, getMusician } from "../lib/data";
+import { LinksSection } from "../components/links";
+import { getBand, getEvent, getPlayer } from "../lib/data";
+import { myActingContexts } from "../lib/actingAs";
+import { useApp } from "../lib/store";
 import { instrumentLabel } from "../lib/instruments";
-import type { Gig, InstrumentId } from "../lib/types";
+import type { Event, InstrumentId } from "../lib/types";
 
 export default function BandDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { state } = useApp();
   const band = id ? getBand(id) : undefined;
 
   if (!band) {
@@ -55,10 +61,12 @@ export default function BandDetail() {
     );
   }
 
-  const firstMemberId = band.members[0]?.musicianId;
-  const gigs = band.gigIds
-    .map((gid) => getGig(gid))
-    .filter((g): g is Gig => Boolean(g));
+  const firstMemberId = band.members[0]?.playerId;
+  // the user can post *as this band* only if they admin it (capabilities model).
+  const canPostAs = myActingContexts(state.user).some((c) => c.id === band.id);
+  const gigs = band.eventIds
+    .map((gid) => getEvent(gid))
+    .filter((g): g is Event => Boolean(g));
 
   const coverSlot = (instrumentId: InstrumentId) => {
     if (!firstMemberId) return;
@@ -115,13 +123,13 @@ export default function BandDetail() {
         action={<Mono className="text-[10px] text-text-lo">{band.members.length} in the lineup</Mono>}
       />
       <Card className="divide-y divide-hairline-subtle">
-        {band.members.map(({ musicianId, role }) => {
-          const m = getMusician(musicianId);
+        {band.members.map(({ playerId, role }) => {
+          const m = getPlayer(playerId);
           if (!m) return null;
           return (
             <Link
-              key={musicianId}
-              to={`/m/${musicianId}`}
+              key={playerId}
+              to={`/m/${playerId}`}
               className="flex items-center gap-3 p-3.5 transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-surface-850"
             >
               <Avatar name={m.name} seed={m.seed} size={42} />
@@ -144,9 +152,9 @@ export default function BandDetail() {
         })}
       </Card>
 
-      {/* --------------------------------------------------- open slots */}
+      {/* --------------------------------------------------- open seats */}
       <SectionHeader
-        title="Open slots"
+        title="Open seats"
         className="mt-8 mb-3"
         action={
           band.openSlots.length > 0 ? (
@@ -161,26 +169,29 @@ export default function BandDetail() {
             return (
               <div
                 key={slot.instrument}
-                className={`rounded-2xl border p-4 ${
+                className={`rounded-2xl border border-dashed p-4 ${
                   urgent
-                    ? "border-amber-500/45 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent"
-                    : "border-hairline-subtle bg-surface-900"
+                    ? "border-amber-500/60 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent"
+                    : "border-hairline-strong bg-surface-900/40"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-dashed ${
                       urgent
-                        ? "bg-amber-500/15 text-amber-300"
-                        : "bg-surface-800 text-text-mid"
+                        ? "border-amber-500/50 bg-amber-500/15 text-amber-300"
+                        : "border-hairline-strong bg-surface-800/60 text-text-mid"
                     }`}
                   >
                     <InstrumentIcon instrument={slot.instrument} size={20} />
                   </span>
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                    Needs {instrumentLabel(slot.instrument)}
-                    {urgent && <UrgentBadge />}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                      {instrumentLabel(slot.instrument)}
+                      <span className="text-text-lo">— seat open</span>
+                      {urgent && <UrgentBadge />}
+                    </p>
+                  </div>
                 </div>
                 <p
                   className={`mt-2.5 text-sm leading-relaxed ${
@@ -189,11 +200,12 @@ export default function BandDetail() {
                 >
                   {slotNoteText(slot.note)}
                 </p>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                  <FindSubButton instrument={slot.instrument} size="sm" />
                   <Button
                     size="sm"
+                    variant="secondary"
                     onClick={() => coverSlot(slot.instrument)}
-                    className="flex-1 sm:flex-none"
                   >
                     I can cover this
                   </Button>
@@ -212,6 +224,17 @@ export default function BandDetail() {
         </p>
       )}
 
+      {/* post an opening as this band — only for admins (capabilities model) */}
+      {canPostAs && (
+        <Button
+          className="mt-3 w-full"
+          onClick={() => navigate(`/?post=open&as=${band.id}`)}
+        >
+          <PlusIcon size={16} />
+          Post an opening as {band.name}
+        </Button>
+      )}
+
       {/* ------------------------------------------------- upcoming gigs */}
       <SectionHeader title="Upcoming gigs" className="mt-8 mb-3" />
       {gigs.length > 0 ? (
@@ -228,6 +251,8 @@ export default function BandDetail() {
           body={`When ${band.name} announces a show, it lands here and in your feed.`}
         />
       )}
+
+      <LinksSection links={band.links} title="Band links" className="mt-8" />
     </Page>
   );
 }

@@ -5,11 +5,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MUSICIANS } from "../../lib/data";
+import { PLAYERS } from "../../lib/data";
 import { INSTRUMENTS, instrument } from "../../lib/instruments";
 import { ratingSummary } from "../../lib/ratings";
 import { useApp } from "../../lib/store";
-import type { InstrumentId, Musician } from "../../lib/types";
+import type { InstrumentId, Player } from "../../lib/types";
 import {
   Button,
   Chip,
@@ -80,22 +80,32 @@ function Ticker() {
   return <Mono className="text-[11px] text-cyan-300">{TICKS[i]}…</Mono>;
 }
 
-export function SosFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SosFlow({
+  open,
+  onClose,
+  initialRole = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** who bailed, from the ?role= deep link — preselected in the config step. */
+  initialRole?: InstrumentId | null;
+}) {
   const navigate = useNavigate();
   const { state } = useApp();
 
   const [phase, setPhase] = useState<Phase>("config");
-  const [bailed, setBailed] = useState<InstrumentId | null>("drums");
+  const [bailed, setBailed] = useState<InstrumentId | null>(initialRole ?? "drums");
   const [when, setWhen] = useState<WhenKey>("tonight");
-  const [reel, setReel] = useState<{ musician: Musician; index: number } | null>(null);
+  const [reel, setReel] = useState<{ musician: Player; index: number } | null>(null);
 
-  // fresh config each time the overlay is opened
+  // fresh config each time the overlay is opened; honour the deep-linked role.
   useEffect(() => {
     if (open) {
       setPhase("config");
       setReel(null);
+      setBailed(initialRole ?? "drums");
     }
-  }, [open]);
+  }, [open, initialRole]);
 
   // radar dwell, then reveal the ranked subs
   useEffect(() => {
@@ -117,7 +127,7 @@ export function SosFlow({ open, onClose }: { open: boolean; onClose: () => void 
   }, [open, onClose]);
 
   const matches = useMemo(() => {
-    const list = MUSICIANS.filter((m) =>
+    const list = PLAYERS.filter((m) =>
       bailed ? m.instruments.some((i) => i.id === bailed) : true,
     ).filter((m) => (when === "tonight" ? m.availableTonight : true));
     return [...list]
@@ -127,7 +137,7 @@ export function SosFlow({ open, onClose }: { open: boolean; onClose: () => void 
 
   const hintCount = useMemo(
     () =>
-      MUSICIANS.filter(
+      PLAYERS.filter(
         (m) =>
           m.availableTonight &&
           m.distanceMiles <= 5 &&
@@ -386,7 +396,7 @@ function SubRow({
   onMessage,
   onOffer,
 }: {
-  musician: Musician;
+  musician: Player;
   when: WhenKey;
   ratingsGiven?: number[];
   fastest: boolean;

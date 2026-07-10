@@ -72,6 +72,13 @@ export const supabaseBackend: Backend = {
     await supabase.auth.signOut();
   },
 
+  async resetPassword(email): Promise<AuthResult> {
+    const redirectTo =
+      typeof window !== "undefined" ? `${window.location.origin}/welcome` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error: error ? error.message : null };
+  },
+
   async load(user): Promise<PersistedData> {
     const empty: PersistedData = {
       user: null,
@@ -138,7 +145,7 @@ export const supabaseBackend: Backend = {
     const conversations: Conversation[] = ((convosRes.data ?? []) as Record<string, unknown>[]).map(
       (c) => ({
         id: c.id as string,
-        musicianId: c.musician_id as string,
+        playerId: c.musician_id as string,
         unread: (c.unread as number) ?? 0,
         messages: byConversation.get(c.id as string) ?? [],
       }),
@@ -146,7 +153,7 @@ export const supabaseBackend: Backend = {
 
     const bookings: Booking[] = ((bookingsRes.data ?? []) as Record<string, unknown>[]).map((b) => ({
       id: b.id as string,
-      musicianId: b.musician_id as string,
+      playerId: b.musician_id as string,
       gigTitle: b.gig_title as string,
       venueName: b.venue_name as string,
       date: b.date as string,
@@ -205,12 +212,12 @@ export const supabaseBackend: Backend = {
     }
   },
 
-  async addMessage(user, musicianId, message) {
+  async addMessage(user, playerId, message) {
     // upsert the conversation (unread untouched on conflict) and get its id
     const { data: conv, error: convErr } = await supabase
       .from("conversations")
       .upsert(
-        { user_id: user.id, musician_id: musicianId },
+        { user_id: user.id, musician_id: playerId },
         { onConflict: "user_id,musician_id" },
       )
       .select("id,unread")
@@ -237,12 +244,12 @@ export const supabaseBackend: Backend = {
     }
   },
 
-  async markRead(user, musicianId) {
+  async markRead(user, playerId) {
     const { error } = await supabase
       .from("conversations")
       .update({ unread: 0 })
       .eq("user_id", user.id)
-      .eq("musician_id", musicianId);
+      .eq("musician_id", playerId);
     fail("mark read", error);
   },
 
@@ -250,7 +257,7 @@ export const supabaseBackend: Backend = {
     const { error } = await supabase.from("bookings").insert({
       id: booking.id,
       user_id: user.id,
-      musician_id: booking.musicianId,
+      musician_id: booking.playerId,
       gig_title: booking.gigTitle,
       venue_name: booking.venueName,
       date: booking.date,

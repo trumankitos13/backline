@@ -16,6 +16,43 @@ export type InstrumentId =
 
 export type SkillLevel = "pro" | "semi-pro" | "hobbyist";
 
+// ---------------------------------------------------------- external links
+// Every object can link out to where it already lives on the internet.
+
+export type LinkKind =
+  | "website"
+  | "spotify"
+  | "apple-music"
+  | "soundcloud"
+  | "bandcamp"
+  | "instagram"
+  | "tiktok"
+  | "youtube"
+  | "bandsintown"
+  | "x";
+
+export interface ExternalLink {
+  kind: LinkKind;
+  url: string;
+  /** optional display override, e.g. a handle */
+  label?: string;
+}
+
+// ------------------------------------------------------------------ reels
+// A reel is an EMBED of an existing short-form post, not a hosted file — see
+// docs/V1_SPEC.md. The generative VideoClip below is the fallback shown when a
+// player has no reels yet.
+
+export type ReelPlatform = "tiktok" | "youtube" | "instagram";
+
+export interface Reel {
+  id: string;
+  platform: ReelPlatform;
+  /** canonical post URL; the embed is derived from it at render time */
+  url: string;
+  caption?: string;
+}
+
 export interface VideoClip {
   id: string;
   title: string;
@@ -36,7 +73,7 @@ export interface Review {
   date: string;
 }
 
-export interface Musician {
+export interface Player {
   id: string;
   name: string;
   handle: string;
@@ -53,9 +90,13 @@ export interface Musician {
   responseMins: number;
   gigsPlayed: number;
   verified: boolean;
+  /** embedded short-form reels (TikTok/YouTube/Instagram) — v1 */
+  reels?: Reel[];
+  /** generative placeholder clips, shown when reels is empty */
   videos: VideoClip[];
   reviews: Review[];
   bandIds: string[];
+  links?: ExternalLink[];
   /** avatar gradient seed */
   seed: number;
 }
@@ -66,10 +107,20 @@ export interface Band {
   genres: string[];
   bio: string;
   neighborhood: string;
-  members: { musicianId: string; role: string }[];
+  /**
+   * `admin` members can post/hire *as the band* (capabilities model — see
+   * docs/V1_SPEC.md). `performing` distinguishes players in a seat from
+   * organizers/writers/producers who don't take a slot.
+   */
+  members: { playerId: string; role: string; admin?: boolean; performing?: boolean }[];
   openSlots: { instrument: InstrumentId; note: string }[];
   followers: number;
-  gigIds: string[];
+  eventIds: string[];
+  links?: ExternalLink[];
+  /** "standing" = a real band; "project" = a pickup/one-off that can be promoted. */
+  kind?: "standing" | "project";
+  /** creator/owner (a playerId) — always an admin, may or may not perform. */
+  ownerId?: string;
   seed: number;
 }
 
@@ -80,19 +131,41 @@ export interface Venue {
   capacity: number;
   followers: number;
   vibe: string;
+  /** gear the house provides — "the backline" (the app's namesake) */
+  backline?: string[];
+  /** a house-player role the venue is hiring for → routes into SOS */
+  hiring?: { role: InstrumentId; note: string };
+  /** players (playerIds) who can post/hire *as the venue* (capabilities model). */
+  managers?: string[];
+  links?: ExternalLink[];
   seed: number;
 }
 
-export interface Gig {
+export type EventSource = "backline" | "bandsintown" | "ticketmaster" | "seatgeek";
+
+/** A show — a first-class object with its own page (/e/:id). */
+export interface Event {
   id: string;
   title: string;
   venueId: string;
+  /** headliner / primary act */
   bandId?: string;
+  /** full lineup beyond the headliner */
+  bandIds?: string[];
+  playerIds?: string[];
+  description?: string;
   /** display date, e.g. "Tonight" or "Fri Jul 10" */
   date: string;
   time: string;
   payout?: number;
   ticket?: string;
+  ticketUrl?: string;
+  /** an open sub slot on this event's lineup → routes into SOS */
+  subNeeded?: { instrument: InstrumentId; payout: number; note?: string };
+  links?: ExternalLink[];
+  /** where this event came from; imported events deep-link out */
+  source?: EventSource;
+  externalUrl?: string;
 }
 
 export type PostKind = "gig" | "need-sub" | "video" | "open-mic" | "news";
@@ -100,12 +173,12 @@ export type PostKind = "gig" | "need-sub" | "video" | "open-mic" | "news";
 export interface FeedPost {
   id: string;
   kind: PostKind;
-  author: { type: "band" | "venue" | "musician"; id: string };
+  author: { type: "band" | "venue" | "player"; id: string };
   text: string;
   ago: string;
   likes: number;
   comments: number;
-  gigId?: string;
+  eventId?: string;
   /** for kind === "video": the clip, plus whose reel it belongs to */
   video?: VideoClip;
   videoOwnerId?: string;
@@ -113,11 +186,38 @@ export interface FeedPost {
   subFor?: { instrument: InstrumentId; date: string; payout: number };
 }
 
+// --------------------------------------------------------------- openings
+// The unified "someone needs a player" concept — one shape behind a band's open
+// seat, a venue's house-player hire, and an event's sub-needed slot. Posted in a
+// context ("acting as" — see docs/V1_SPEC.md); the fee is private, the lock is
+// public.
+
+export type OpeningStatus = "open" | "filled" | "closed";
+
+export interface Opening {
+  id: string;
+  instrument: InstrumentId;
+  /** the "acting as" context: yourself, a band you admin, or a venue you manage. */
+  postedBy: { kind: "player" | "band" | "venue"; id: string };
+  /** optional: tie the opening to a specific show. */
+  eventId?: string;
+  /** display date, e.g. "Tonight" or "Fri Jul 10". */
+  when: string;
+  /** held on accept — private to the offer thread. */
+  fee: number;
+  note?: string;
+  /** SOS-grade — surfaces with urgency. */
+  urgent?: boolean;
+  status: OpeningStatus;
+  /** display timestamp, e.g. "just now" / "2h". */
+  ago?: string;
+}
+
 export type BookingStatus = "offer" | "accepted" | "paid" | "declined";
 
 export interface Booking {
   id: string;
-  musicianId: string;
+  playerId: string;
   gigTitle: string;
   venueName: string;
   date: string;
@@ -137,12 +237,14 @@ export interface Message {
 
 export interface Conversation {
   id: string;
-  musicianId: string;
+  playerId: string;
   messages: Message[];
   unread: number;
 }
 
 export interface CurrentUser {
+  /** the user's own player id, when they exist in the catalog (prototype: optional). */
+  id?: string;
   name: string;
   handle: string;
   instruments: InstrumentId[];

@@ -66,6 +66,9 @@ export const localBackend: Backend = {
   async signOut() {
     // no session to end in demo mode
   },
+  async resetPassword(): Promise<AuthResult> {
+    return { error: "Accounts require Supabase — this build is in demo mode." };
+  },
 
   async load() {
     return read();
@@ -87,22 +90,22 @@ export const localBackend: Backend = {
         : d.following.filter((f) => f !== targetId),
     }));
   },
-  async addMessage(_user: AuthUser, musicianId: string, message: Message) {
+  async addMessage(_user: AuthUser, playerId: string, message: Message) {
     mutate((d) => ({
       ...d,
       conversations: upsertMessage(
         d.conversations,
-        musicianId,
+        playerId,
         message,
         message.from === "them",
       ),
     }));
   },
-  async markRead(_user: AuthUser, musicianId: string) {
+  async markRead(_user: AuthUser, playerId: string) {
     mutate((d) => ({
       ...d,
       conversations: d.conversations.map((c) =>
-        c.musicianId === musicianId ? { ...c, unread: 0 } : c,
+        c.playerId === playerId ? { ...c, unread: 0 } : c,
       ),
     }));
   },

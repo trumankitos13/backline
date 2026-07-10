@@ -46,6 +46,8 @@ export interface Backend {
   signUp(email: string, password: string, name: string): Promise<AuthResult>;
   signIn(email: string, password: string): Promise<AuthResult>;
   signOut(): Promise<void>;
+  /** send a password-reset email (no-op in local/demo mode) */
+  resetPassword(email: string): Promise<AuthResult>;
 
   // --- data ---
   /** load everything persisted for `user` (or the demo default when local) */
@@ -54,8 +56,8 @@ export interface Backend {
   saveUser(user: AuthUser, profile: CurrentUser): Promise<void>;
   updateUser(user: AuthUser, patch: Partial<CurrentUser>): Promise<void>;
   setFollow(user: AuthUser, targetId: string, following: boolean): Promise<void>;
-  addMessage(user: AuthUser, musicianId: string, message: Message): Promise<void>;
-  markRead(user: AuthUser, musicianId: string): Promise<void>;
+  addMessage(user: AuthUser, playerId: string, message: Message): Promise<void>;
+  markRead(user: AuthUser, playerId: string): Promise<void>;
   addBooking(user: AuthUser, booking: Booking): Promise<void>;
   setBookingStatus(user: AuthUser, bookingId: string, status: BookingStatus): Promise<void>;
   setLike(user: AuthUser, postId: string, liked: boolean): Promise<void>;
