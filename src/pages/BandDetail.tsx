@@ -19,6 +19,7 @@ import {
   ChevronRightIcon,
   InstrumentIcon,
   MapPinIcon,
+  PlusIcon,
   ShareIcon,
   UsersIcon,
   VerifiedIcon,
@@ -32,12 +33,15 @@ import {
 } from "../components/bands/shared";
 import { LinksSection } from "../components/links";
 import { getBand, getEvent, getPlayer } from "../lib/data";
+import { myActingContexts } from "../lib/actingAs";
+import { useApp } from "../lib/store";
 import { instrumentLabel } from "../lib/instruments";
 import type { Event, InstrumentId } from "../lib/types";
 
 export default function BandDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { state } = useApp();
   const band = id ? getBand(id) : undefined;
 
   if (!band) {
@@ -58,6 +62,8 @@ export default function BandDetail() {
   }
 
   const firstMemberId = band.members[0]?.playerId;
+  // the user can post *as this band* only if they admin it (capabilities model).
+  const canPostAs = myActingContexts(state.user).some((c) => c.id === band.id);
   const gigs = band.eventIds
     .map((gid) => getEvent(gid))
     .filter((g): g is Event => Boolean(g));
@@ -216,6 +222,17 @@ export default function BandDetail() {
         <p className="text-sm text-text-lo">
           Full lineup right now — follow {band.name} to hear when that changes.
         </p>
+      )}
+
+      {/* post an opening as this band — only for admins (capabilities model) */}
+      {canPostAs && (
+        <Button
+          className="mt-3 w-full"
+          onClick={() => navigate(`/?post=open&as=${band.id}`)}
+        >
+          <PlusIcon size={16} />
+          Post an opening as {band.name}
+        </Button>
       )}
 
       {/* ------------------------------------------------- upcoming gigs */}

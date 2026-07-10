@@ -467,7 +467,7 @@ export const BANDS: Band[] = [
     bio: "Nine-piece horn-driven funk machine, MD'd by Ada Osei. We play weddings that want to feel like block parties and block parties that want to feel like weddings.",
     neighborhood: "East Austin",
     members: [
-      { playerId: "m-ada", role: "MD / Keys / Vocals" },
+      { playerId: "m-ada", role: "MD / Keys / Vocals", admin: true },
       { playerId: "m-dre", role: "Drums" },
       { playerId: "m-jbird", role: "Bass" },
       { playerId: "m-ray", role: "Tenor Sax" },
@@ -489,7 +489,7 @@ export const BANDS: Band[] = [
     bio: "Honky-tonk with a songwriter's heart. Wednesday residency at the Rattlesnake Room. Bring your boots, or don't, we're not the dress code police.",
     neighborhood: "Bouldin Creek",
     members: [
-      { playerId: "m-luz", role: "Guitar / Pedal Steel" },
+      { playerId: "m-luz", role: "Guitar / Pedal Steel", admin: true },
       { playerId: "m-ivy", role: "Fiddle" },
     ],
     openSlots: [

@@ -23,6 +23,7 @@ import type {
   Conversation,
   CurrentUser,
   Message,
+  Opening,
 } from "./types";
 import { getPlayer } from "./data";
 import { upsertMessage } from "./conversations";
@@ -40,6 +41,8 @@ export interface AppState {
   respondedSubPosts: string[];
   /** post-gig star ratings the user has given, keyed by musician id (session-only) */
   ratingsGiven: Record<string, number[]>;
+  /** openings the user posted, newest first (session-only, like ratingsGiven) */
+  openings: Opening[];
 }
 
 const EMPTY_STATE: AppState = {
@@ -50,6 +53,7 @@ const EMPTY_STATE: AppState = {
   likedPosts: [],
   respondedSubPosts: [],
   ratingsGiven: {},
+  openings: [],
 };
 
 type Action =
@@ -64,7 +68,8 @@ type Action =
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
   | { type: "TOGGLE_LIKE"; postId: string }
   | { type: "RESPOND_SUB"; postId: string }
-  | { type: "RATE_MUSICIAN"; playerId: string; stars: number };
+  | { type: "RATE_MUSICIAN"; playerId: string; stars: number }
+  | { type: "POST_OPENING"; opening: Opening };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -141,6 +146,8 @@ function reducer(state: AppState, action: Action): AppState {
           ],
         },
       };
+    case "POST_OPENING":
+      return { ...state, openings: [action.opening, ...state.openings] };
     default:
       return state;
   }
@@ -156,11 +163,24 @@ interface BookingOfferInput {
   note?: string;
 }
 
+interface OpeningInput {
+  instrument: Opening["instrument"];
+  /** the "acting as" context (self / band you admin / venue you manage) */
+  postedBy: Opening["postedBy"];
+  when: string;
+  fee: number;
+  note?: string;
+  urgent?: boolean;
+  eventId?: string;
+}
+
 export interface AppApi {
   /** send a chat message; the musician sends a canned reply shortly after */
   sendMessage(playerId: string, text: string, opts?: { simulateReply?: boolean }): void;
   /** send a booking offer into the thread; simulated acceptance follows */
   sendBookingOffer(input: BookingOfferInput): string;
+  /** post an opening "acting as" a context; returns the opening id (session-only) */
+  postOpening(input: OpeningInput): string;
   /** mark a booking paid (called by the mock payment sheet) */
   payBooking(bookingId: string, playerId: string): void;
   toggleFollow(id: string): void;
@@ -352,6 +372,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }, 3500);
 
         return bookingId;
+      },
+
+      postOpening(input) {
+        const id = uid("op");
+        const opening: Opening = {
+          id,
+          instrument: input.instrument,
+          postedBy: input.postedBy,
+          when: input.when,
+          fee: input.fee,
+          note: input.note,
+          urgent: input.urgent,
+          eventId: input.eventId,
+          status: "open",
+          ago: "just now",
+        };
+        // session-only for now (like ratingsGiven) — pending an openings table.
+        dispatch({ type: "POST_OPENING", opening });
+        return id;
       },
 
       payBooking(bookingId, playerId) {

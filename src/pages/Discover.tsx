@@ -17,12 +17,14 @@ import {
   CloseIcon,
   InstrumentIcon,
   MapPinIcon,
+  PlusIcon,
   SearchIcon,
   VerifiedIcon,
 } from "../components/icons";
 import { ReelViewer } from "../components/video";
 import { SosBanner } from "../components/discover/SosBanner";
 import { SosFlow } from "../components/discover/SosFlow";
+import { PostFlow } from "../components/post/PostFlow";
 import { ReelGridTile } from "../components/discover/ReelGridTile";
 import { BandRecruitStrip } from "../components/discover/BandRecruitStrip";
 
@@ -44,6 +46,8 @@ function isInstrumentId(v: string | null): v is InstrumentId {
 export default function Discover() {
   const [searchParams, setSearchParams] = useSearchParams();
   const sosOpen = searchParams.get("sos") === "open";
+  const postOpen = searchParams.get("post") === "open";
+  const asParam = searchParams.get("as");
   const roleParam = searchParams.get("role");
   const sosRole: InstrumentId | null = isInstrumentId(roleParam) ? roleParam : null;
 
@@ -62,6 +66,18 @@ export default function Discover() {
   function closeSos() {
     const next = new URLSearchParams(searchParams);
     next.delete("sos");
+    next.delete("role");
+    setSearchParams(next, { replace: true });
+  }
+  function openPost() {
+    const next = new URLSearchParams(searchParams);
+    next.set("post", "open");
+    setSearchParams(next, { replace: true });
+  }
+  function closePost() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("post");
+    next.delete("as");
     next.delete("role");
     setSearchParams(next, { replace: true });
   }
@@ -143,6 +159,25 @@ export default function Discover() {
 
       <div className="space-y-4">
         <SosBanner tonightCount={tonightTotal} onOpen={openSos} />
+
+        {/* deliberate path: compose an opening "acting as" you / a band / a venue */}
+        <button
+          onClick={openPost}
+          className="flex w-full items-center gap-3 rounded-2xl border border-hairline-strong bg-surface-900 px-4 py-3 text-left transition-colors hover:border-text-faint"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-hairline-strong bg-surface-800 text-amber-300">
+            <PlusIcon size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-text-hi">Post an opening</p>
+            <p className="truncate text-xs text-text-lo">
+              Hire a player as yourself, a band, or a venue — the fee stays private.
+            </p>
+          </div>
+          <span className="arrow-nudge shrink-0 text-text-lo" aria-hidden="true">
+            →
+          </span>
+        </button>
 
         {/* search */}
         <div className="relative">
@@ -244,6 +279,12 @@ export default function Discover() {
       )}
 
       <SosFlow open={sosOpen} initialRole={sosRole} onClose={closeSos} />
+      <PostFlow
+        open={postOpen}
+        initialContextId={asParam}
+        initialRole={sosRole}
+        onClose={closePost}
+      />
     </Page>
   );
 }

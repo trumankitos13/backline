@@ -107,11 +107,20 @@ export interface Band {
   genres: string[];
   bio: string;
   neighborhood: string;
-  members: { playerId: string; role: string }[];
+  /**
+   * `admin` members can post/hire *as the band* (capabilities model — see
+   * docs/V1_SPEC.md). `performing` distinguishes players in a seat from
+   * organizers/writers/producers who don't take a slot.
+   */
+  members: { playerId: string; role: string; admin?: boolean; performing?: boolean }[];
   openSlots: { instrument: InstrumentId; note: string }[];
   followers: number;
   eventIds: string[];
   links?: ExternalLink[];
+  /** "standing" = a real band; "project" = a pickup/one-off that can be promoted. */
+  kind?: "standing" | "project";
+  /** creator/owner (a playerId) — always an admin, may or may not perform. */
+  ownerId?: string;
   seed: number;
 }
 
@@ -126,6 +135,8 @@ export interface Venue {
   backline?: string[];
   /** a house-player role the venue is hiring for → routes into SOS */
   hiring?: { role: InstrumentId; note: string };
+  /** players (playerIds) who can post/hire *as the venue* (capabilities model). */
+  managers?: string[];
   links?: ExternalLink[];
   seed: number;
 }
@@ -175,6 +186,33 @@ export interface FeedPost {
   subFor?: { instrument: InstrumentId; date: string; payout: number };
 }
 
+// --------------------------------------------------------------- openings
+// The unified "someone needs a player" concept — one shape behind a band's open
+// seat, a venue's house-player hire, and an event's sub-needed slot. Posted in a
+// context ("acting as" — see docs/V1_SPEC.md); the fee is private, the lock is
+// public.
+
+export type OpeningStatus = "open" | "filled" | "closed";
+
+export interface Opening {
+  id: string;
+  instrument: InstrumentId;
+  /** the "acting as" context: yourself, a band you admin, or a venue you manage. */
+  postedBy: { kind: "player" | "band" | "venue"; id: string };
+  /** optional: tie the opening to a specific show. */
+  eventId?: string;
+  /** display date, e.g. "Tonight" or "Fri Jul 10". */
+  when: string;
+  /** held on accept — private to the offer thread. */
+  fee: number;
+  note?: string;
+  /** SOS-grade — surfaces with urgency. */
+  urgent?: boolean;
+  status: OpeningStatus;
+  /** display timestamp, e.g. "just now" / "2h". */
+  ago?: string;
+}
+
 export type BookingStatus = "offer" | "accepted" | "paid" | "declined";
 
 export interface Booking {
@@ -205,6 +243,8 @@ export interface Conversation {
 }
 
 export interface CurrentUser {
+  /** the user's own player id, when they exist in the catalog (prototype: optional). */
+  id?: string;
   name: string;
   handle: string;
   instruments: InstrumentId[];
