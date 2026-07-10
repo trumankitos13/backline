@@ -4,7 +4,7 @@
 // signed-in user can act as, and resolves an opening's postedBy back to a
 // context for attribution. See docs/V1_SPEC.md → "Roles & capabilities".
 
-import type { CurrentUser, Opening } from "./types";
+import type { Band, CurrentUser, Opening } from "./types";
 import { BANDS, VENUES, getBand, getVenue } from "./data";
 
 export interface ActingContext {
@@ -62,9 +62,27 @@ function myVenueIds(user: CurrentUser | null): string[] {
   return DEMO_MY_VENUE_IDS;
 }
 
-/** every context the user can post/hire as: Me + bands you admin + venues you manage. */
-export function myActingContexts(user: CurrentUser | null): ActingContext[] {
+/**
+ * every context the user can post/hire as: Me + bands you admin + venues you
+ * manage + projects/bands you own (`projects` = the user-created ones in the
+ * store — owning one puts it in the picker, per the spec).
+ */
+export function myActingContexts(
+  user: CurrentUser | null,
+  projects: Band[] = [],
+): ActingContext[] {
   const contexts: ActingContext[] = [meContext(user)];
+  for (const p of projects) {
+    if (p.archived) continue;
+    contexts.push({
+      kind: "band",
+      id: p.id,
+      name: p.name,
+      seed: p.seed,
+      square: true,
+      detail: p.kind === "standing" ? "Your band" : "Your project",
+    });
+  }
   for (const id of myBandIds(user)) {
     const b = getBand(id);
     if (b) {
@@ -81,17 +99,24 @@ export function myActingContexts(user: CurrentUser | null): ActingContext[] {
 }
 
 /** look up a context the user can act as by its id ("me" | band id | venue id). */
-export function contextById(id: string | null, user: CurrentUser | null): ActingContext {
+export function contextById(
+  id: string | null,
+  user: CurrentUser | null,
+  projects: Band[] = [],
+): ActingContext {
   if (!id) return meContext(user);
-  return myActingContexts(user).find((c) => c.id === id) ?? meContext(user);
+  return myActingContexts(user, projects).find((c) => c.id === id) ?? meContext(user);
 }
 
 /** resolve an opening's postedBy to a context for attribution (not just the user's own). */
 export function resolveActingContext(
   postedBy: Opening["postedBy"],
   user: CurrentUser | null,
+  projects: Band[] = [],
 ): ActingContext {
   if (postedBy.kind === "band") {
+    const p = projects.find((x) => x.id === postedBy.id);
+    if (p) return { kind: "band", id: p.id, name: p.name, seed: p.seed, square: true, detail: p.kind === "standing" ? "Your band" : "Your project" };
     const b = getBand(postedBy.id);
     if (b) return { kind: "band", id: b.id, name: b.name, seed: b.seed, square: true, detail: "Band" };
   }

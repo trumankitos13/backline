@@ -84,11 +84,14 @@ export function SosFlow({
   open,
   onClose,
   initialRole = null,
+  initialOpeningId = null,
 }: {
   open: boolean;
   onClose: () => void;
   /** who bailed, from the ?role= deep link — preselected in the config step. */
   initialRole?: InstrumentId | null;
+  /** filling a posted Opening (?opening=) — offers carry it so holds lock the seat. */
+  initialOpeningId?: string | null;
 }) {
   const navigate = useNavigate();
   const { state } = useApp();
@@ -321,7 +324,12 @@ export function SosFlow({
                     fastest={i === 0}
                     onOpenReel={() => m.videos[0] && setReel({ musician: m, index: 0 })}
                     onMessage={() => go(`/messages/c-${m.id}`)}
-                    onOffer={() => go(`/messages/c-${m.id}`, { openBooking: true })}
+                    onOffer={() =>
+                      go(`/messages/c-${m.id}`, {
+                        openBooking: true,
+                        ...(initialOpeningId ? { openingId: initialOpeningId } : {}),
+                      })
+                    }
                   />
                 ))}
               </div>

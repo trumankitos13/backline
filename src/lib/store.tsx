@@ -19,13 +19,16 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  Band,
   Booking,
   Conversation,
   CurrentUser,
+  InstrumentId,
   Message,
   Opening,
 } from "./types";
 import { getPlayer } from "./data";
+import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
 import type { AuthResult } from "./backend/types";
@@ -41,8 +44,10 @@ export interface AppState {
   respondedSubPosts: string[];
   /** post-gig star ratings the user has given, keyed by musician id (session-only) */
   ratingsGiven: Record<string, number[]>;
-  /** openings the user posted, newest first (session-only, like ratingsGiven) */
+  /** openings the user posted, newest first */
   openings: Opening[];
+  /** pickup projects / standing bands the user created (assemble flow) */
+  projects: Band[];
 }
 
 const EMPTY_STATE: AppState = {
@@ -54,6 +59,7 @@ const EMPTY_STATE: AppState = {
   respondedSubPosts: [],
   ratingsGiven: {},
   openings: [],
+  projects: [],
 };
 
 type Action =
@@ -69,7 +75,10 @@ type Action =
   | { type: "TOGGLE_LIKE"; postId: string }
   | { type: "RESPOND_SUB"; postId: string }
   | { type: "RATE_MUSICIAN"; playerId: string; stars: number }
-  | { type: "POST_OPENING"; opening: Opening };
+  | { type: "POST_OPENING"; opening: Opening }
+  | { type: "SET_OPENING_STATUS"; openingId: string; status: Opening["status"] }
+  | { type: "UPSERT_PROJECT"; project: Band }
+  | { type: "UPSERT_CONVERSATION"; conversation: Conversation };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -148,6 +157,29 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case "POST_OPENING":
       return { ...state, openings: [action.opening, ...state.openings] };
+    case "SET_OPENING_STATUS":
+      return {
+        ...state,
+        openings: state.openings.map((o) =>
+          o.id === action.openingId ? { ...o, status: action.status } : o,
+        ),
+      };
+    case "UPSERT_PROJECT":
+      return {
+        ...state,
+        projects: state.projects.some((p) => p.id === action.project.id)
+          ? state.projects.map((p) => (p.id === action.project.id ? action.project : p))
+          : [action.project, ...state.projects],
+      };
+    case "UPSERT_CONVERSATION":
+      return {
+        ...state,
+        conversations: state.conversations.some((c) => c.id === action.conversation.id)
+          ? state.conversations.map((c) =>
+              c.id === action.conversation.id ? action.conversation : c,
+            )
+          : [action.conversation, ...state.conversations],
+      };
     default:
       return state;
   }
@@ -161,7 +193,42 @@ interface BookingOfferInput {
   time: string;
   amount: number;
   note?: string;
+  /** when the offer is for a posted Opening — holding it locks that seat */
+  openingId?: string;
 }
+
+interface CreateProjectInput {
+  name: string;
+  when: string;
+  /** null = organizer only (writer/producer); else the creator takes a seat */
+  playing: { instrument: InstrumentId } | null;
+  /** one opening is posted per seat */
+  seats: InstrumentId[];
+  feePerSeat: number;
+  note?: string;
+}
+
+/** deterministic avatar seed for user-created projects */
+function seedFromId(id: string): number {
+  let h = 0;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
+  return 50 + h;
+}
+
+const GROUP_HELLOS = [
+  "Hey all — locked in. Send charts when you have them 🙌",
+  "In! What's the parking situation at the venue?",
+  "Locked. I'll bring my own in-ears — who's running sound?",
+  "Yo! Happy to be on this one. Setlist anywhere?",
+];
+
+const GROUP_REPLIES = [
+  "Copy that 👍",
+  "Works for me. See everyone at soundcheck.",
+  "Can do. Anyone need a ride from the east side?",
+  "🔥🔥",
+  "On it — I'll post the setlist tonight.",
+];
 
 interface OpeningInput {
   instrument: Opening["instrument"];
@@ -179,8 +246,14 @@ export interface AppApi {
   sendMessage(playerId: string, text: string, opts?: { simulateReply?: boolean }): void;
   /** send a booking offer into the thread; simulated acceptance follows */
   sendBookingOffer(input: BookingOfferInput): string;
-  /** post an opening "acting as" a context; returns the opening id (session-only) */
+  /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
+  /** assemble a pickup band: creates a project + one opening per seat */
+  createProject(input: CreateProjectInput): string;
+  /** record a "Stay as a group?" vote; promotes/archives when resolved */
+  setStay(projectId: string, playerId: string, stay: "in" | "out"): void;
+  /** send a message into a group chat; a roster member replies shortly */
+  sendGroupMessage(conversationId: string, text: string): void;
   /** commit the hold (mock of Stripe manual-capture) — booking becomes "held" */
   holdBooking(bookingId: string, playerId: string): void;
   /** release the held payment post-gig (mock of the 24h auto-release) */
@@ -336,6 +409,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           time: input.time,
           amount: input.amount,
           status: "offer",
+          openingId: input.openingId,
         };
         const noteMsg: Message | null = input.note
           ? { id: uid("m"), from: "me", text: input.note, at: nowLabel() }
@@ -395,9 +469,158 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return id;
       },
 
+      createProject(input) {
+        const projectId = uid("proj");
+        const me = input.playing
+          ? {
+              playerId: "me",
+              role: instrumentLabel(input.playing.instrument),
+              admin: true,
+              performing: true,
+            }
+          : { playerId: "me", role: "Organizer", admin: true, performing: false };
+        const project: Band = {
+          id: projectId,
+          name: input.name,
+          genres: [],
+          bio: "",
+          neighborhood: stateRef.current.user?.neighborhood ?? "",
+          members: [me],
+          openSlots: [],
+          followers: 0,
+          eventIds: [],
+          kind: "project",
+          ownerId: "me",
+          seed: seedFromId(projectId),
+        };
+        dispatch({ type: "UPSERT_PROJECT", project });
+        persist((u) => backend.upsertProject(u, project));
+
+        // one opening per seat, posted by the project (fees private per seat)
+        for (const seat of input.seats) {
+          const opening: Opening = {
+            id: uid("op"),
+            instrument: seat,
+            postedBy: { kind: "band", id: projectId },
+            when: input.when,
+            fee: input.feePerSeat,
+            note: input.note,
+            status: "open",
+            ago: "just now",
+          };
+          dispatch({ type: "POST_OPENING", opening });
+          persist((u) => backend.addOpening(u, opening));
+        }
+        return projectId;
+      },
+
       holdBooking(bookingId, playerId) {
         dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "held" });
         persist((u) => backend.setBookingStatus(u, bookingId, "held"));
+
+        // Seat fill: a booking tied to an opening locks that seat. If the
+        // opening belongs to a project, the player joins the roster and the
+        // group chat spins up on the first hold (docs/V1_SPEC.md). The system
+        // line is public — the lock, never the fee.
+        const booking = stateRef.current.bookings.find((b) => b.id === bookingId);
+        const opening = booking?.openingId
+          ? stateRef.current.openings.find((o) => o.id === booking.openingId)
+          : undefined;
+        const player = getPlayer(playerId);
+        if (opening && opening.status === "open") {
+          dispatch({ type: "SET_OPENING_STATUS", openingId: opening.id, status: "filled" });
+          persist((u) => backend.setOpeningStatus(u, opening.id, "filled"));
+
+          const project = stateRef.current.projects.find(
+            (p) => p.id === opening.postedBy.id,
+          );
+          if (project && player) {
+            const role = instrumentLabel(opening.instrument);
+            const joined: Band = project.members.some((m) => m.playerId === playerId)
+              ? project
+              : {
+                  ...project,
+                  members: [
+                    ...project.members,
+                    { playerId, role, performing: true },
+                  ],
+                };
+            dispatch({ type: "UPSERT_PROJECT", project: joined });
+            persist((u) => backend.upsertProject(u, joined));
+
+            const gid = `g-${project.id}`;
+            const existing = stateRef.current.conversations.find((c) => c.id === gid);
+            const lockLine: Message = {
+              id: uid("m"),
+              from: "them",
+              system: true,
+              text: `${instrument(opening.instrument).emoji} ${player.name} locked in on ${role.toLowerCase()}`,
+              at: nowLabel(),
+            };
+            const seatsLeft = stateRef.current.openings.filter(
+              (o) =>
+                o.postedBy.id === project.id &&
+                o.id !== opening.id &&
+                o.status === "open",
+            ).length;
+            const lines: Message[] = [lockLine];
+            if (seatsLeft === 0) {
+              lines.push({
+                id: uid("m"),
+                from: "them",
+                system: true,
+                text: "🎉 Lineup complete — see everyone at soundcheck",
+                at: nowLabel(),
+              });
+            }
+            const convo: Conversation = existing
+              ? {
+                  ...existing,
+                  participantIds: existing.participantIds?.includes(playerId)
+                    ? existing.participantIds
+                    : [...(existing.participantIds ?? ["me"]), playerId],
+                  messages: [...existing.messages, ...lines],
+                  unread: existing.unread + lines.length,
+                }
+              : {
+                  id: gid,
+                  kind: "group",
+                  participantIds: ["me", playerId],
+                  bandId: project.id,
+                  title: project.name,
+                  messages: [
+                    {
+                      id: uid("m"),
+                      from: "them",
+                      system: true,
+                      text: `Group chat for ${project.name}. Fees stay in your 1:1 threads — only locks are public here.`,
+                      at: nowLabel(),
+                    },
+                    ...lines,
+                  ],
+                  unread: lines.length + 1,
+                };
+            dispatch({ type: "UPSERT_CONVERSATION", conversation: convo });
+            persist((u) => backend.upsertConversation(u, convo));
+
+            // the freshly locked player says hi in the group after a beat
+            window.setTimeout(() => {
+              const cur = stateRef.current.conversations.find((c) => c.id === gid);
+              if (!cur) return;
+              const hi: Message = {
+                id: uid("m"),
+                from: "them",
+                senderId: playerId,
+                text: GROUP_HELLOS[Math.floor(Math.random() * GROUP_HELLOS.length)],
+                at: nowLabel(),
+              };
+              const next = { ...cur, messages: [...cur.messages, hi], unread: cur.unread + 1 };
+              dispatch({ type: "UPSERT_CONVERSATION", conversation: next });
+              persist((u) => backend.upsertConversation(u, next));
+            }, 2600);
+          }
+        }
+
         window.setTimeout(() => {
           const msg: Message = {
             id: uid("m"),
@@ -423,6 +646,140 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dispatch({ type: "RECEIVE_MESSAGE", playerId, message: msg });
           persist((u) => backend.addMessage(u, playerId, msg));
         }, 1500);
+
+        // Post-gig ready-check: once EVERY seat's booking for a project is
+        // released, the "Stay as a group?" card goes live in the group chat
+        // (game-lobby style — see docs/V1_SPEC.md). Simulated members vote in
+        // after a beat; promotion waits for the owner's vote.
+        const st = stateRef.current;
+        const booking = st.bookings.find((b) => b.id === bookingId);
+        const opening = booking?.openingId
+          ? st.openings.find((o) => o.id === booking.openingId)
+          : undefined;
+        const project = opening
+          ? st.projects.find((p) => p.id === opening.postedBy.id)
+          : undefined;
+        if (!project || project.kind !== "project" || project.archived) return;
+
+        const projectOpeningIds = new Set(
+          st.openings.filter((o) => o.postedBy.id === project.id).map((o) => o.id),
+        );
+        const seatBookings = st.bookings.filter(
+          (b) => b.openingId && projectOpeningIds.has(b.openingId),
+        );
+        const noneOpen = st.openings.every(
+          (o) => o.postedBy.id !== project.id || o.status !== "open",
+        );
+        const allReleased =
+          seatBookings.length > 0 &&
+          seatBookings.every((b) => b.id === bookingId || b.status === "released");
+        if (!noneOpen || !allReleased) return;
+
+        const gid = `g-${project.id}`;
+        const cur = st.conversations.find((c) => c.id === gid);
+        if (!cur) return;
+        const wrap: Message = {
+          id: uid("m"),
+          from: "them",
+          system: true,
+          text: "🎉 That's a wrap — everyone's been paid. Stay as a group? Vote below.",
+          at: nowLabel(),
+        };
+        const next = { ...cur, messages: [...cur.messages, wrap], unread: cur.unread + 1 };
+        dispatch({ type: "UPSERT_CONVERSATION", conversation: next });
+        persist((u) => backend.upsertConversation(u, next));
+
+        // simulated members vote "in" on a stagger; the owner's vote decides
+        project.members
+          .filter((m) => m.playerId !== "me")
+          .forEach((m, i) => {
+            window.setTimeout(() => {
+              const p = stateRef.current.projects.find((x) => x.id === project.id);
+              if (!p || p.kind === "standing" || p.archived) return;
+              const voted: Band = {
+                ...p,
+                members: p.members.map((mm) =>
+                  mm.playerId === m.playerId ? { ...mm, stay: "in" as const } : mm,
+                ),
+              };
+              dispatch({ type: "UPSERT_PROJECT", project: voted });
+              persist((u) => backend.upsertProject(u, voted));
+            }, 2200 + i * 1600);
+          });
+      },
+
+      setStay(projectId, playerId, stay) {
+        const p = stateRef.current.projects.find((x) => x.id === projectId);
+        if (!p) return;
+        let next: Band = {
+          ...p,
+          members: p.members.map((m) =>
+            m.playerId === playerId ? { ...m, stay } : m,
+          ),
+        };
+
+        const gid = `g-${projectId}`;
+        const appendSystem = (text: string) => {
+          const cur = stateRef.current.conversations.find((c) => c.id === gid);
+          if (!cur) return;
+          const line: Message = { id: uid("m"), from: "them", system: true, text, at: nowLabel() };
+          const convo = { ...cur, messages: [...cur.messages, line], unread: cur.unread };
+          dispatch({ type: "UPSERT_CONVERSATION", conversation: convo });
+          persist((u) => backend.upsertConversation(u, convo));
+        };
+
+        // resolution rules (docs/V1_SPEC.md): the project becomes STANDING only
+        // if the owner opts in AND at least one other member opts in; the
+        // standing lineup = those who voted in. Owner out ⇒ archive.
+        const ownerIn = next.members.some((m) => m.playerId === "me" && m.stay === "in");
+        const othersIn = next.members.filter((m) => m.playerId !== "me" && m.stay === "in").length;
+        if (playerId === "me" && stay === "out") {
+          next = { ...next, archived: true };
+          dispatch({ type: "UPSERT_PROJECT", project: next });
+          persist((u) => backend.upsertProject(u, next));
+          appendSystem(`📦 ${next.name} is archived — great gig, y'all.`);
+          return;
+        }
+        if (ownerIn && othersIn >= 1) {
+          next = {
+            ...next,
+            kind: "standing",
+            members: next.members.filter((m) => m.stay === "in"),
+          };
+          dispatch({ type: "UPSERT_PROJECT", project: next });
+          persist((u) => backend.upsertProject(u, next));
+          appendSystem(`⭐ ${next.name} is now a standing band — it's in your "acting as" picker.`);
+          return;
+        }
+        dispatch({ type: "UPSERT_PROJECT", project: next });
+        persist((u) => backend.upsertProject(u, next));
+      },
+
+      sendGroupMessage(conversationId, text) {
+        const cur = stateRef.current.conversations.find((c) => c.id === conversationId);
+        if (!cur) return;
+        const msg: Message = { id: uid("m"), from: "me", senderId: "me", text, at: nowLabel() };
+        const next = { ...cur, messages: [...cur.messages, msg] };
+        dispatch({ type: "UPSERT_CONVERSATION", conversation: next });
+        persist((u) => backend.upsertConversation(u, next));
+
+        const others = (cur.participantIds ?? []).filter((x) => x !== "me");
+        if (others.length === 0) return;
+        window.setTimeout(() => {
+          const now = stateRef.current.conversations.find((c) => c.id === conversationId);
+          if (!now) return;
+          const senderId = others[Math.floor(Math.random() * others.length)];
+          const reply: Message = {
+            id: uid("m"),
+            from: "them",
+            senderId,
+            text: GROUP_REPLIES[Math.floor(Math.random() * GROUP_REPLIES.length)],
+            at: nowLabel(),
+          };
+          const bumped = { ...now, messages: [...now.messages, reply], unread: now.unread + 1 };
+          dispatch({ type: "UPSERT_CONVERSATION", conversation: bumped });
+          persist((u) => backend.upsertConversation(u, bumped));
+        }, 1800 + Math.random() * 1600);
       },
 
       toggleFollow(id) {
@@ -446,7 +803,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markRead(conversationId) {
         const conv = stateRef.current.conversations.find((c) => c.id === conversationId);
         dispatch({ type: "MARK_READ", conversationId });
-        if (conv) persist((u) => backend.markRead(u, conv.playerId));
+        // DMs persist by playerId; group chats by conversation id
+        const key = conv?.kind === "group" ? conv.id : conv?.playerId;
+        if (key) persist((u) => backend.markRead(u, key));
       },
       setUser(user) {
         dispatch({ type: "SET_USER", user });

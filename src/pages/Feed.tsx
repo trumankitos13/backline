@@ -45,9 +45,10 @@ export default function Feed() {
   const { state } = useApp();
   const [tab, setTab] = useState<Tab>("following");
 
-  // your posted openings lead the feed on both tabs (they're yours)
+  // your posted openings lead the feed on both tabs (they're yours);
+  // filled/closed seats stop advertising
   const openingPosts = useMemo(
-    () => state.openings.map(openingToPost),
+    () => state.openings.filter((o) => o.status === "open").map(openingToPost),
     [state.openings],
   );
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { CurrentUser, FeedPost, Event, PostKind, VideoClip } from "../../lib/types";
+import type { Band, CurrentUser, FeedPost, Event, PostKind, VideoClip } from "../../lib/types";
 import { getEvent, getBand, getPlayer, getVenue } from "../../lib/data";
 import { instrumentLabel } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
@@ -31,12 +31,23 @@ interface AuthorInfo {
   verified?: boolean;
 }
 
-function resolveAuthor(post: FeedPost, me: CurrentUser | null): AuthorInfo | null {
+function resolveAuthor(
+  post: FeedPost,
+  me: CurrentUser | null,
+  projects: Band[],
+): AuthorInfo | null {
   const { type, id } = post.author;
   if (type === "band") {
-    const b = getBand(id);
+    // user-created projects post as bands too
+    const b = projects.find((p) => p.id === id) ?? getBand(id);
     return b
-      ? { name: b.name, seed: b.seed, href: `/b/${b.id}`, typeLabel: "Band", square: true }
+      ? {
+          name: b.name,
+          seed: b.seed,
+          href: `/b/${b.id}`,
+          typeLabel: b.kind === "project" ? "Project" : "Band",
+          square: true,
+        }
       : null;
   }
   if (type === "venue") {
@@ -284,7 +295,7 @@ function PostFooter({ post }: { post: FeedPost }) {
 
 export function PostCard({ post }: { post: FeedPost }) {
   const { state } = useApp();
-  const author = resolveAuthor(post, state.user);
+  const author = resolveAuthor(post, state.user, state.projects);
   if (!author) return null;
   const gig = post.eventId ? getEvent(post.eventId) : undefined;
   const pill = KIND_PILL[post.kind];

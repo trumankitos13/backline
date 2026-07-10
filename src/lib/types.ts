@@ -110,9 +110,16 @@ export interface Band {
   /**
    * `admin` members can post/hire *as the band* (capabilities model — see
    * docs/V1_SPEC.md). `performing` distinguishes players in a seat from
-   * organizers/writers/producers who don't take a slot.
+   * organizers/writers/producers who don't take a slot. `stay` records the
+   * post-gig "Stay as a group?" ready-check vote (projects only).
    */
-  members: { playerId: string; role: string; admin?: boolean; performing?: boolean }[];
+  members: {
+    playerId: string;
+    role: string;
+    admin?: boolean;
+    performing?: boolean;
+    stay?: "in" | "out";
+  }[];
   openSlots: { instrument: InstrumentId; note: string }[];
   followers: number;
   eventIds: string[];
@@ -121,6 +128,8 @@ export interface Band {
   kind?: "standing" | "project";
   /** creator/owner (a playerId) — always an admin, may or may not perform. */
   ownerId?: string;
+  /** a past project that didn't promote — still viewable, no longer active. */
+  archived?: boolean;
   seed: number;
 }
 
@@ -237,6 +246,8 @@ export interface Booking {
   time: string;
   amount: number;
   status: BookingStatus;
+  /** when the booking fills a posted Opening, holding it locks that seat */
+  openingId?: string;
 }
 
 export interface Message {
@@ -245,12 +256,30 @@ export interface Message {
   text?: string;
   /** when set, render the booking card for this booking id instead of a bubble */
   bookingId?: string;
+  /** group chats: who spoke ("me" or a playerId) */
+  senderId?: string;
+  /** a system line ("🥁 Nia locked in on drums") — centered, no bubble */
+  system?: boolean;
   at: string;
 }
 
+/**
+ * DMs are 1:1 with a Player (`playerId`, ids `c-<playerId>`). Group chats
+ * belong to a project/band (`bandId`, ids `g-<bandId>`): the roster talks in
+ * one thread with sender attribution + system lock lines — and never a fee
+ * (fees stay in the 1:1 offer threads). See docs/V1_SPEC.md.
+ */
 export interface Conversation {
   id: string;
-  playerId: string;
+  kind?: "dm" | "group";
+  /** dm: the other player */
+  playerId?: string;
+  /** group: the roster ("me" + playerIds) */
+  participantIds?: string[];
+  /** group: the project/band this chat belongs to */
+  bandId?: string;
+  /** group: display title (usually the band's name) */
+  title?: string;
   messages: Message[];
   unread: number;
 }

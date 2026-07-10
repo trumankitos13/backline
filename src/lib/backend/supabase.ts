@@ -98,6 +98,7 @@ export const supabaseBackend: Backend = {
       likedPosts: [],
       respondedSubPosts: [],
       openings: [],
+      projects: [],
     };
     if (!user) return empty;
 
@@ -198,6 +199,8 @@ export const supabaseBackend: Backend = {
         status: (o.status as Opening["status"]) ?? "open",
         ago: agoLabel(o.created_at as string),
       })),
+      // no cloud tables yet for projects/group chats — demo-grade in cloud mode
+      projects: [],
     };
   },
 
@@ -321,6 +324,24 @@ export const supabaseBackend: Backend = {
       status: opening.status,
     });
     fail("add opening", error);
+  },
+
+  async setOpeningStatus(user, openingId, status) {
+    const { error } = await supabase
+      .from("openings")
+      .update({ status })
+      .eq("id", openingId)
+      .eq("user_id", user.id);
+    fail("set opening status", error);
+  },
+
+  async upsertProject() {
+    // TODO: needs a projects/user_bands table — lands with the catalog work.
+  },
+
+  async upsertConversation() {
+    // TODO: cloud conversations are 1:1 (musician_id-keyed); group chats need
+    // a schema extension. Lands with the catalog work.
   },
 
   async setLike(user, postId, liked) {
