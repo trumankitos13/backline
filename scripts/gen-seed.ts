@@ -43,7 +43,7 @@ out.push("");
 
 // musicians
 out.push(
-  "insert into public.musicians (id, name, handle, bio, genres, gear, neighborhood, distance_miles, rate_min, rate_max, available_tonight, availability, response_mins, gigs_played, verified, seed) values",
+  "insert into public.musicians (id, name, handle, bio, genres, gear, neighborhood, distance_miles, rate_min, rate_max, available_tonight, availability, response_mins, gigs_played, verified, links, reels, seed) values",
 );
 out.push(
   PLAYERS.map((m) =>
@@ -51,7 +51,7 @@ out.push(
       q(m.id), q(m.name), q(m.handle), q(m.bio), arr(m.genres), arr(m.gear),
       q(m.neighborhood), num(m.distanceMiles), num(m.rate.min), num(m.rate.max),
       bool(m.availableTonight), arr(m.availability), num(m.responseMins),
-      num(m.gigsPlayed), bool(m.verified), num(m.seed),
+      num(m.gigsPlayed), bool(m.verified), jsonb(m.links), jsonb(m.reels), num(m.seed),
     ]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
@@ -96,22 +96,22 @@ if (reviewRows.length) {
 
 // venues
 out.push(
-  "insert into public.venues (id, name, neighborhood, capacity, followers, vibe, managers, seed) values",
+  "insert into public.venues (id, name, neighborhood, capacity, followers, vibe, managers, backline, hiring, links, seed) values",
 );
 out.push(
   VENUES.map((v) =>
-    row([q(v.id), q(v.name), q(v.neighborhood), num(v.capacity), num(v.followers), q(v.vibe), arr(v.managers ?? []), num(v.seed)]),
+    row([q(v.id), q(v.name), q(v.neighborhood), num(v.capacity), num(v.followers), q(v.vibe), arr(v.managers ?? []), v.backline ? arr(v.backline) : "null", jsonb(v.hiring), jsonb(v.links), num(v.seed)]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
 out.push("");
 
 // bands
 out.push(
-  "insert into public.bands (id, name, genres, bio, neighborhood, followers, kind, owner_id, seed) values",
+  "insert into public.bands (id, name, genres, bio, neighborhood, followers, kind, owner_id, links, seed) values",
 );
 out.push(
   BANDS.map((b) =>
-    row([q(b.id), q(b.name), arr(b.genres), q(b.bio), q(b.neighborhood), num(b.followers), b.kind ? q(b.kind) : "null", b.ownerId ? q(b.ownerId) : "null", num(b.seed)]),
+    row([q(b.id), q(b.name), arr(b.genres), q(b.bio), q(b.neighborhood), num(b.followers), b.kind ? q(b.kind) : "null", b.ownerId ? q(b.ownerId) : "null", jsonb(b.links), num(b.seed)]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
 out.push("");
@@ -139,11 +139,18 @@ out.push("");
 
 // gigs
 out.push(
-  "insert into public.gigs (id, title, venue_id, band_id, date, time, payout, ticket) values",
+  "insert into public.gigs (id, title, venue_id, band_id, band_ids, player_ids, description, date, time, payout, ticket, ticket_url, sub_needed, links, source, external_url) values",
 );
 out.push(
   EVENTS.map((g) =>
-    row([q(g.id), q(g.title), q(g.venueId), g.bandId ? q(g.bandId) : "null", q(g.date), q(g.time), num(g.payout), g.ticket ? q(g.ticket) : "null"]),
+    row([
+      q(g.id), q(g.title), q(g.venueId), g.bandId ? q(g.bandId) : "null",
+      g.bandIds ? arr(g.bandIds) : "null", g.playerIds ? arr(g.playerIds) : "null",
+      g.description ? q(g.description) : "null", q(g.date), q(g.time), num(g.payout),
+      g.ticket ? q(g.ticket) : "null", g.ticketUrl ? q(g.ticketUrl) : "null",
+      jsonb(g.subNeeded), jsonb(g.links), g.source ? q(g.source) : "null",
+      g.externalUrl ? q(g.externalUrl) : "null",
+    ]),
   ).join(",\n") + "\non conflict (id) do nothing;",
 );
 out.push("");

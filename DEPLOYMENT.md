@@ -66,6 +66,10 @@ on a subdomain (e.g. `app.kitesink.com`):
 - `supabase/migrations/*_openings_and_capabilities.sql` — the `openings` table
   (owner-only RLS — the fee column is on it, and fees are private) plus the
   capabilities columns (`band_members.admin`, `venues.managers`, project fields).
+- `supabase/migrations/*_phase0_catalog_and_cloud_projects.sql` — catalog
+  parity (links/reels/backline/hiring/event fields the 4-object refactor
+  added) + `user_projects` and `group_conversations` (whole-document jsonb,
+  owner-only RLS) + `bookings.opening_id`.
 - `supabase/seed.sql` — the Austin demo catalog (players, bands, venues, events,
   feed), **generated** from `src/lib/data.ts` via
   `node --experimental-strip-types scripts/gen-seed.ts > supabase/seed.sql`.
@@ -126,7 +130,10 @@ dependency (`npx supabase`).
    - Post an opening (Reels tab → "Post an opening") → it leads your Feed.
    - Open **Studio** (`:54323`) → **Table editor** → confirm rows appear in
      `profiles`, `follows`, `conversations`, `messages`, `bookings`,
-     `openings` (booking status should read `held` → `released`).
+     `openings` (booking status should read `held` → `released`); assembling a
+     pickup band adds rows in `user_projects` + `group_conversations`.
+   - **Prove the catalog is DB-backed:** in Studio, edit a musician's name in
+     the `musicians` table → reload the app → the new name shows everywhere.
    - Sign out and back in → your data is still there (persistence works).
 
 6. **Run the RLS isolation tests** against local:
@@ -198,13 +205,16 @@ Both are dormant until keyed (see `.env.local.example`):
 
 Add the same vars in Vercel for the deployed app.
 
-### Known gaps (tracked in `docs/ROADMAP.md`, Phase 0)
-- The catalog (players/bands/venues/events/feed) is seeded into Postgres, but
-  the **app still reads it from the static `src/lib/data.ts`** even in cloud
-  mode. The per-user data (profiles, bookings, messages, openings, …) is fully
-  DB-backed. Making the catalog DB-backed is the last open Phase 0 item.
-- **Pickup projects & group chats** are demo-grade: they persist in local mode
-  but have no cloud tables yet (they'll land with the catalog work).
+### Phase 0 status: complete (code side)
+- **The catalog is DB-backed in cloud mode.** At boot the app loads
+  players/bands/venues/events/feed from Postgres and installs them over the
+  static arrays; `src/lib/data.ts` remains the demo catalog and the fallback
+  when the project isn't seeded (the app never boots empty).
+- **Everything the app writes persists in cloud mode**: profiles, follows,
+  chats (DMs *and* group chats), bookings (held/released), openings, and
+  pickup projects.
+- What remains for Phase 0 exit is on your side: stand up the project (Track A
+  or B above), seed it, and run the RLS suite green.
 
 ---
 

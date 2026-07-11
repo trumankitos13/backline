@@ -7,14 +7,20 @@
 // the first message. Bookings and messages carry client-generated text ids.
 
 import { supabase } from "../supabase";
+import type { Catalog } from "../data";
 import type {
   Booking,
+  Band,
   BookingStatus,
   Conversation,
   CurrentUser,
+  Event,
+  FeedPost,
   InstrumentId,
   Message,
   Opening,
+  Player,
+  Venue,
 } from "../types";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
 
@@ -89,6 +95,165 @@ export const supabaseBackend: Backend = {
     return { error: error ? error.message : null };
   },
 
+  async loadCatalog(): Promise<Catalog | null> {
+    // Phase 0: the catalog is served from Postgres in cloud mode. Ten
+    // public-read tables, assembled into the app's four objects + feed.
+    // An unseeded project (no musicians) returns null → demo catalog stays.
+    type Row = Record<string, unknown>;
+    const [mus, insts, vids, revs, bands, members, slots, venues, gigs, posts] =
+      await Promise.all([
+        supabase.from("musicians").select("*").order("created_at"),
+        supabase.from("musician_instruments").select("*"),
+        supabase.from("videos").select("*"),
+        supabase.from("reviews").select("*"),
+        supabase.from("bands").select("*").order("created_at"),
+        supabase.from("band_members").select("*"),
+        supabase.from("band_open_slots").select("*"),
+        supabase.from("venues").select("*").order("created_at"),
+        supabase.from("gigs").select("*").order("created_at"),
+        supabase.from("feed_posts").select("*").order("created_at"),
+      ]);
+    for (const [what, res] of Object.entries({ mus, insts, vids, revs, bands, members, slots, venues, gigs, posts })) {
+      fail(`load catalog ${what}`, res.error);
+    }
+    const musRows = (mus.data ?? []) as Row[];
+    if (musRows.length === 0) return null; // not seeded — keep the demo catalog
+
+    const by = <T extends Row>(rows: T[] | null | undefined, key: string) => {
+      const m = new Map<string, T[]>();
+      for (const r of rows ?? []) {
+        const k = r[key] as string;
+        const list = m.get(k) ?? [];
+        list.push(r);
+        m.set(k, list);
+      }
+      return m;
+    };
+    const instsBy = by((insts.data ?? []) as Row[], "musician_id");
+    const vidsBy = by((vids.data ?? []) as Row[], "musician_id");
+    const revsBy = by((revs.data ?? []) as Row[], "musician_id");
+    const membersBy = by((members.data ?? []) as Row[], "band_id");
+    const slotsBy = by((slots.data ?? []) as Row[], "band_id");
+    const memberBands = by((members.data ?? []) as Row[], "musician_id");
+    const gigRows = (gigs.data ?? []) as Row[];
+
+    const players: Player[] = musRows.map((m) => ({
+      id: m.id as string,
+      name: m.name as string,
+      handle: m.handle as string,
+      instruments: (instsBy.get(m.id as string) ?? []).map((i) => ({
+        id: i.instrument as InstrumentId,
+        level: i.level as Player["instruments"][number]["level"],
+        years: (i.years as number) ?? 0,
+      })),
+      genres: (m.genres as string[]) ?? [],
+      bio: (m.bio as string) ?? "",
+      gear: (m.gear as string[]) ?? [],
+      neighborhood: (m.neighborhood as string) ?? "",
+      distanceMiles: Number(m.distance_miles ?? 0),
+      rate: { min: (m.rate_min as number) ?? 0, max: (m.rate_max as number) ?? 0 },
+      availableTonight: Boolean(m.available_tonight),
+      availability: (m.availability as string[]) ?? [],
+      responseMins: (m.response_mins as number) ?? 0,
+      gigsPlayed: (m.gigs_played as number) ?? 0,
+      verified: Boolean(m.verified),
+      reels: (m.reels as Player["reels"]) ?? undefined,
+      videos: (vidsBy.get(m.id as string) ?? []).map((v) => ({
+        id: v.id as string,
+        title: v.title as string,
+        durationSec: (v.duration_sec as number) ?? 0,
+        plays: (v.plays as number) ?? 0,
+        likes: (v.likes as number) ?? 0,
+        palette: [v.palette_from as string, v.palette_to as string] as [string, string],
+        tags: (v.tags as string[]) ?? [],
+      })),
+      reviews: (revsBy.get(m.id as string) ?? []).map((r) => ({
+        id: r.id as string,
+        author: r.author as string,
+        role: (r.role as string) ?? "",
+        rating: (r.rating as number) ?? 5,
+        text: (r.body as string) ?? "",
+        date: (r.review_date as string) ?? "",
+      })),
+      bandIds: (memberBands.get(m.id as string) ?? []).map((b) => b.band_id as string),
+      links: (m.links as Player["links"]) ?? undefined,
+      seed: (m.seed as number) ?? 1,
+    }));
+
+    const catalogBands: Band[] = ((bands.data ?? []) as Row[]).map((b) => ({
+      id: b.id as string,
+      name: b.name as string,
+      genres: (b.genres as string[]) ?? [],
+      bio: (b.bio as string) ?? "",
+      neighborhood: (b.neighborhood as string) ?? "",
+      members: (membersBy.get(b.id as string) ?? []).map((mm) => ({
+        playerId: mm.musician_id as string,
+        role: (mm.role as string) ?? "",
+        admin: Boolean(mm.admin) || undefined,
+        performing: (mm.performing as boolean | null) ?? undefined,
+      })),
+      openSlots: (slotsBy.get(b.id as string) ?? []).map((s) => ({
+        instrument: s.instrument as InstrumentId,
+        note: (s.note as string) ?? "",
+      })),
+      followers: (b.followers as number) ?? 0,
+      eventIds: gigRows.filter((g) => g.band_id === b.id).map((g) => g.id as string),
+      links: (b.links as Band["links"]) ?? undefined,
+      kind: (b.kind as Band["kind"]) ?? undefined,
+      ownerId: (b.owner_id as string) ?? undefined,
+      seed: (b.seed as number) ?? 1,
+    }));
+
+    const catalogVenues: Venue[] = ((venues.data ?? []) as Row[]).map((v) => ({
+      id: v.id as string,
+      name: v.name as string,
+      neighborhood: (v.neighborhood as string) ?? "",
+      capacity: (v.capacity as number) ?? 0,
+      followers: (v.followers as number) ?? 0,
+      vibe: (v.vibe as string) ?? "",
+      backline: (v.backline as string[]) ?? undefined,
+      hiring: (v.hiring as Venue["hiring"]) ?? undefined,
+      managers: (v.managers as string[]) ?? undefined,
+      links: (v.links as Venue["links"]) ?? undefined,
+      seed: (v.seed as number) ?? 1,
+    }));
+
+    const events: Event[] = gigRows.map((g) => ({
+      id: g.id as string,
+      title: g.title as string,
+      venueId: (g.venue_id as string) ?? "",
+      bandId: (g.band_id as string) ?? undefined,
+      bandIds: (g.band_ids as string[]) ?? undefined,
+      playerIds: (g.player_ids as string[]) ?? undefined,
+      description: (g.description as string) ?? undefined,
+      date: (g.date as string) ?? "",
+      time: (g.time as string) ?? "",
+      payout: (g.payout as number) ?? undefined,
+      ticket: (g.ticket as string) ?? undefined,
+      ticketUrl: (g.ticket_url as string) ?? undefined,
+      subNeeded: (g.sub_needed as Event["subNeeded"]) ?? undefined,
+      links: (g.links as Event["links"]) ?? undefined,
+      source: (g.source as Event["source"]) ?? undefined,
+      externalUrl: (g.external_url as string) ?? undefined,
+    }));
+
+    const feedPosts: FeedPost[] = ((posts.data ?? []) as Row[]).map((p) => ({
+      id: p.id as string,
+      kind: p.kind as FeedPost["kind"],
+      author: { type: p.author_type as FeedPost["author"]["type"], id: p.author_id as string },
+      text: (p.text as string) ?? "",
+      ago: (p.ago as string) ?? "",
+      likes: (p.likes as number) ?? 0,
+      comments: (p.comments as number) ?? 0,
+      eventId: (p.gig_id as string) ?? undefined,
+      video: (p.video as FeedPost["video"]) ?? undefined,
+      videoOwnerId: (p.video_owner_id as string) ?? undefined,
+      subFor: (p.sub_for as FeedPost["subFor"]) ?? undefined,
+    }));
+
+    return { players, bands: catalogBands, venues: catalogVenues, events, feedPosts };
+  },
+
   async load(user): Promise<PersistedData> {
     const empty: PersistedData = {
       user: null,
@@ -102,7 +267,7 @@ export const supabaseBackend: Backend = {
     };
     if (!user) return empty;
 
-    const [profileRes, followsRes, bookingsRes, convosRes, messagesRes, likesRes, subsRes, openingsRes] =
+    const [profileRes, followsRes, bookingsRes, convosRes, messagesRes, likesRes, subsRes, openingsRes, projectsRes, groupsRes] =
       await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase.from("follows").select("target_id").eq("user_id", user.id),
@@ -116,6 +281,8 @@ export const supabaseBackend: Backend = {
         supabase.from("liked_posts").select("post_id").eq("user_id", user.id),
         supabase.from("responded_sub_posts").select("post_id").eq("user_id", user.id),
         supabase.from("openings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("user_projects").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+        supabase.from("group_conversations").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
       ]);
 
     fail("load profile", profileRes.error);
@@ -126,6 +293,8 @@ export const supabaseBackend: Backend = {
     fail("load likes", likesRes.error);
     fail("load sub-responses", subsRes.error);
     fail("load openings", openingsRes.error);
+    fail("load projects", projectsRes.error);
+    fail("load group chats", groupsRes.error);
 
     const p = profileRes.data as Record<string, unknown> | null;
     // A profile row is created by a DB trigger at sign-up with no handle yet;
@@ -175,12 +344,18 @@ export const supabaseBackend: Backend = {
       amount: (b.amount as number) ?? 0,
       // legacy escrow rename: rows written before held/released say "paid"
       status: (b.status === "paid" ? "held" : b.status) as BookingStatus,
+      openingId: (b.opening_id as string) ?? undefined,
     }));
+
+    // group chats are stored as whole documents; they join the DM list
+    const groupConversations = ((groupsRes.data ?? []) as Record<string, unknown>[]).map(
+      (g) => g.data as Conversation,
+    );
 
     return {
       user: profile,
       following: ((followsRes.data ?? []) as { target_id: string }[]).map((f) => f.target_id),
-      conversations,
+      conversations: [...groupConversations, ...conversations],
       bookings,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
@@ -199,8 +374,9 @@ export const supabaseBackend: Backend = {
         status: (o.status as Opening["status"]) ?? "open",
         ago: agoLabel(o.created_at as string),
       })),
-      // no cloud tables yet for projects/group chats — demo-grade in cloud mode
-      projects: [],
+      projects: ((projectsRes.data ?? []) as Record<string, unknown>[]).map(
+        (p) => p.data as Band,
+      ),
     };
   },
 
@@ -296,6 +472,7 @@ export const supabaseBackend: Backend = {
       time: booking.time,
       amount: booking.amount,
       status: booking.status,
+      opening_id: booking.openingId ?? null,
     });
     fail("add booking", error);
   },
@@ -335,13 +512,26 @@ export const supabaseBackend: Backend = {
     fail("set opening status", error);
   },
 
-  async upsertProject() {
-    // TODO: needs a projects/user_bands table — lands with the catalog work.
+  async upsertProject(user, project) {
+    const { error } = await supabase.from("user_projects").upsert({
+      id: project.id,
+      user_id: user.id,
+      data: project,
+      updated_at: new Date().toISOString(),
+    });
+    fail("upsert project", error);
   },
 
-  async upsertConversation() {
-    // TODO: cloud conversations are 1:1 (musician_id-keyed); group chats need
-    // a schema extension. Lands with the catalog work.
+  async upsertConversation(user, conversation) {
+    // whole-document write, matching the store's upsert seam. DMs never take
+    // this path (they persist row-by-row via addMessage/markRead).
+    const { error } = await supabase.from("group_conversations").upsert({
+      id: conversation.id,
+      user_id: user.id,
+      data: conversation,
+      updated_at: new Date().toISOString(),
+    });
+    fail("upsert group chat", error);
   },
 
   async setLike(user, postId, liked) {

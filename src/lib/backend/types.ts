@@ -14,6 +14,7 @@ import type {
   Message,
   Opening,
 } from "../types";
+import type { Catalog } from "../data";
 
 /** The per-user slice of state that gets persisted (catalog lives in data.ts). */
 export interface PersistedData {
@@ -56,6 +57,12 @@ export interface Backend {
   resetPassword(email: string): Promise<AuthResult>;
 
   // --- data ---
+  /**
+   * load the shared catalog (players/bands/venues/events/feed). Returns null
+   * to keep the built-in demo catalog (local mode, or an unseeded cloud
+   * project) — the app must never boot empty.
+   */
+  loadCatalog(): Promise<Catalog | null>;
   /** load everything persisted for `user` (or the demo default when local) */
   load(user: AuthUser | null): Promise<PersistedData>;
 

@@ -18,18 +18,23 @@ mobile.
   RLS (owner-scoped, tested), a `handle_new_user` trigger that auto-creates a
   profile, catalog seed, and a working `supabase.ts` that persists auth,
   onboarding, and all user data through the seam.
-- **Phase 0 in progress:** CI (typecheck + build), Sentry/PostHog observability
-  (dormant until keyed), an RLS cross-user isolation test suite, and password
-  reset — all landed. Remaining: point the app's catalog reads at Postgres.
+- **Phase 0 COMPLETE:** CI (typecheck + build), Sentry/PostHog observability
+  (dormant until keyed), the RLS isolation test suite, password reset, and —
+  the last piece — **the catalog is DB-backed in cloud mode**:
+  `backend.loadCatalog()` serves players/bands/venues/events/feed from
+  Postgres, installed over the static arrays at boot (`installCatalog()` in
+  `data.ts`), which stays the demo/unseeded fallback. Openings, pickup
+  projects, and group chats persist in cloud mode too (`openings`,
+  `user_projects`, `group_conversations` tables, owner-only RLS).
 
 **Mocked / not yet real (the gap):**
-- Catalog (musicians, bands, venues, gigs, feed) is static data in `data.ts`.
 - Messaging replies are simulated `setTimeout`s; booking acceptance is faked.
-- Payments are a **UI mock** (`PaymentSheet` "Hold $X" — no real money).
+- Payments are a **UI mock** — the held/released escrow lifecycle is modeled,
+  but Stripe isn't wired (no real money).
 - Reels are **generative gradient placeholders** (`video.tsx`) — no real video.
 - Ratings are **session-only** (`state.ratingsGiven`, not persisted).
-- SOS matching is client-side over the mock array; "near me" isn't geographic.
-- No notifications, no native app, no CI/CD or observability.
+- SOS matching is client-side; "near me" isn't geographic.
+- No notifications, no native app.
 
 ## Guiding principles
 
@@ -63,8 +68,13 @@ mobile.
 This is the spine. Phases 0 → 3 get one real musician paid for one real gig.
 Everything after is scale and network effects.
 
-### Phase 0 — Make the backend real (foundation hardening)
+### Phase 0 — Make the backend real (foundation hardening) ✅ DONE
 **Goal:** cloud mode fully replaces demo for accounts, profiles, and catalog.
+*(Shipped: migrations incl. escrow states + openings + catalog parity +
+project/group-chat tables; DB-backed catalog behind `loadCatalog()`; RLS suite
+covers isolation, fee privacy, and catalog parity. Remaining Phase 0 exit step
+that only you can do: stand up the Supabase project per `DEPLOYMENT.md` and run
+the suite green.)*
 - Stand up a real Supabase project; run migrations; verify **RLS** actually
   isolates per-user data (write tests that try to read/write across users).
 - Real **auth**: email+password and magic link; create a `profile` row on

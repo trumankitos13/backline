@@ -27,7 +27,7 @@ import type {
   Message,
   Opening,
 } from "./types";
-import { getPlayer } from "./data";
+import { getPlayer, installCatalog } from "./data";
 import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
@@ -320,8 +320,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let sawInitial = false;
 
     async function hydrateFor(user: AuthUser | null) {
-      const data = await backend.load(user);
+      // catalog + user slice in parallel; the DB catalog (cloud mode) is
+      // installed before hydrate renders anything. loadCatalog() returns null
+      // in demo mode or on an unseeded project → the built-in catalog stays.
+      const [catalog, data] = await Promise.all([
+        backend.loadCatalog().catch((e) => {
+          console.error("[backline] catalog load failed — using demo catalog", e);
+          return null;
+        }),
+        backend.load(user),
+      ]);
       if (cancelled) return;
+      if (catalog) installCatalog(catalog);
       dispatch({ type: "HYDRATE", data });
     }
 
@@ -803,9 +813,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markRead(conversationId) {
         const conv = stateRef.current.conversations.find((c) => c.id === conversationId);
         dispatch({ type: "MARK_READ", conversationId });
-        // DMs persist by playerId; group chats by conversation id
-        const key = conv?.kind === "group" ? conv.id : conv?.playerId;
-        if (key) persist((u) => backend.markRead(u, key));
+        if (!conv) return;
+        // group chats persist as whole documents; DMs by playerId row
+        if (conv.kind === "group") {
+          persist((u) => backend.upsertConversation(u, { ...conv, unread: 0 }));
+        } else if (conv.playerId) {
+          const key = conv.playerId;
+          persist((u) => backend.markRead(u, key));
+        }
       },
       setUser(user) {
         dispatch({ type: "SET_USER", user });
