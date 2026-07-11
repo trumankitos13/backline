@@ -794,11 +794,40 @@ export const SEED_CONVERSATIONS: Conversation[] = [
 ];
 
 // ------------------------------------------------------------------ lookups
+// The catalog is served from the arrays above. Demo mode uses the static seed
+// as-is; cloud mode swaps in Postgres rows at boot via installCatalog()
+// (Phase 0). Contents are replaced IN PLACE so every existing
+// `import { PLAYERS } from "./data"` keeps working unchanged.
 
-const musicianById = new Map(PLAYERS.map((m) => [m.id, m]));
-const bandById = new Map(BANDS.map((b) => [b.id, b]));
-const venueById = new Map(VENUES.map((v) => [v.id, v]));
-const eventById = new Map(EVENTS.map((g) => [g.id, g]));
+export interface Catalog {
+  players: Player[];
+  bands: Band[];
+  venues: Venue[];
+  events: Event[];
+  feedPosts: FeedPost[];
+}
+
+let musicianById = new Map(PLAYERS.map((m) => [m.id, m]));
+let bandById = new Map(BANDS.map((b) => [b.id, b]));
+let venueById = new Map(VENUES.map((v) => [v.id, v]));
+let eventById = new Map(EVENTS.map((g) => [g.id, g]));
+
+function rebuildIndexes(): void {
+  musicianById = new Map(PLAYERS.map((m) => [m.id, m]));
+  bandById = new Map(BANDS.map((b) => [b.id, b]));
+  venueById = new Map(VENUES.map((v) => [v.id, v]));
+  eventById = new Map(EVENTS.map((g) => [g.id, g]));
+}
+
+/** replace the active catalog (cloud mode, at boot) — demo seed stays the fallback. */
+export function installCatalog(c: Catalog): void {
+  PLAYERS.splice(0, PLAYERS.length, ...c.players);
+  BANDS.splice(0, BANDS.length, ...c.bands);
+  VENUES.splice(0, VENUES.length, ...c.venues);
+  EVENTS.splice(0, EVENTS.length, ...c.events);
+  FEED_POSTS.splice(0, FEED_POSTS.length, ...c.feedPosts);
+  rebuildIndexes();
+}
 
 export function getPlayer(id: string): Player | undefined {
   return musicianById.get(id);

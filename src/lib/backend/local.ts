@@ -78,6 +78,11 @@ export const localBackend: Backend = {
     return { error: "Accounts require Supabase — this build is in demo mode." };
   },
 
+  async loadCatalog() {
+    // demo mode: the static Austin catalog in data.ts is already active
+    return null;
+  },
+
   async load() {
     return read();
   },
