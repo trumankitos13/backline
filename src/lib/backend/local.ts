@@ -4,7 +4,7 @@
 // up. Behavior matches the original SitIn prototype.
 
 import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, Opening } from "../types";
-import { SEED_CONVERSATIONS } from "../data";
+import { demoCatalogForScene, SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
 
@@ -78,9 +78,8 @@ export const localBackend: Backend = {
     return { error: "Accounts require Supabase — this build is in demo mode." };
   },
 
-  async loadCatalog(_scene) {
-    // demo mode: the static Austin catalog in data.ts is already active
-    return null;
+  async loadCatalog(scene) {
+    return demoCatalogForScene(scene);
   },
 
   async load() {

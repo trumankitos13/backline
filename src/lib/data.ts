@@ -9,6 +9,7 @@ import type {
   Player,
   Venue,
 } from "./types";
+import type { SceneId } from "./scenes";
 
 // ---------------------------------------------------------------- musicians
 
@@ -971,6 +972,28 @@ export interface Catalog {
   venues: Venue[];
   events: Event[];
   feedPosts: FeedPost[];
+}
+
+// Keep an immutable-by-convention snapshot of the complete demo dataset. The
+// live arrays below are replaced when a scene catalog is installed, so they
+// cannot themselves be the source for a later scene switch.
+const DEMO_CATALOG: Catalog = {
+  players: [...PLAYERS],
+  bands: [...BANDS],
+  venues: [...VENUES],
+  events: [...EVENTS],
+  feedPosts: [...FEED_POSTS],
+};
+
+/** Return a fresh view of the built-in catalog for one scene. */
+export function demoCatalogForScene(scene: SceneId): Catalog {
+  return {
+    players: DEMO_CATALOG.players.filter((player) => player.scene === scene),
+    bands: DEMO_CATALOG.bands.filter((band) => band.scene === scene),
+    venues: DEMO_CATALOG.venues.filter((venue) => venue.scene === scene),
+    events: DEMO_CATALOG.events.filter((event) => event.scene === scene),
+    feedPosts: DEMO_CATALOG.feedPosts.filter((post) => post.scene === scene),
+  };
 }
 
 let musicianById = new Map(PLAYERS.map((m) => [m.id, m]));

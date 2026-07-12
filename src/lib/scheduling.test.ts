@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { isSelectableGigDate, scheduleOpening } from "./scheduling";
 import { filterCatalogRoots } from "./backend/supabase";
+import { localBackend } from "./backend/local";
+import { installCatalog } from "./data";
 
 describe("filterCatalogRoots", () => {
   it("keeps only records belonging to the selected scene", () => {
@@ -13,6 +15,21 @@ describe("filterCatalogRoots", () => {
         "nashville",
       ),
     ).toEqual([{ id: "n", scene: "nashville" }]);
+  });
+});
+
+describe("local catalog loading", () => {
+  it("returns a catalog scoped to the requested scene", async () => {
+    const austinCatalog = await localBackend.loadCatalog("austin");
+    installCatalog(austinCatalog!);
+    const catalog = await localBackend.loadCatalog("nashville");
+
+    expect(catalog?.players).not.toHaveLength(0);
+    expect(catalog?.players.every((player) => player.scene === "nashville")).toBe(true);
+    expect(catalog?.bands.every((band) => band.scene === "nashville")).toBe(true);
+    expect(catalog?.venues.every((venue) => venue.scene === "nashville")).toBe(true);
+    expect(catalog?.events.every((event) => event.scene === "nashville")).toBe(true);
+    expect(catalog?.feedPosts.every((post) => post.scene === "nashville")).toBe(true);
   });
 });
 

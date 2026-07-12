@@ -59,9 +59,9 @@ export interface Backend {
 
   // --- data ---
   /**
-   * load the shared catalog (players/bands/venues/events/feed). Returns null
-   * to keep the built-in demo catalog (local mode, or an unseeded cloud
-   * project) — the app must never boot empty.
+   * Load the shared catalog (players/bands/venues/events/feed) for one scene.
+   * Returns null only for an unseeded cloud project, so the app can keep its
+   * built-in demo catalog rather than booting empty.
    */
   loadCatalog(scene: SceneId): Promise<Catalog | null>;
   /** load everything persisted for `user` (or the demo default when local) */

@@ -844,7 +844,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });
-        persist((u) => backend.updateUser(u, patch));
+        const user = authUserRef.current;
+        if (!user) return;
+        backend.updateUser(user, patch)
+          .then(() => {
+            if (patch.scene !== undefined) reload();
+          })
+          .catch((e) => console.error("[backline] persist failed", e));
       },
       reset() {
         const user = authUserRef.current;
