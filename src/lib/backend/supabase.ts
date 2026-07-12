@@ -307,6 +307,7 @@ export const supabaseBackend: Backend = {
           instruments: ((p.instruments as InstrumentId[]) ?? []),
           neighborhood: (p.neighborhood as string) ?? "",
           availableTonight: Boolean(p.available_tonight),
+          scene: "austin",
         }
       : null;
 

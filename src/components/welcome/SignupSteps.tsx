@@ -136,6 +136,7 @@ export function SignupSteps() {
       instruments,
       neighborhood,
       availableTonight,
+      scene: "austin",
     });
     navigate("/");
   };

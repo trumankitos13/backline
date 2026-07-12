@@ -67,6 +67,7 @@ export default function Welcome() {
       instruments: ["guitar"],
       neighborhood: "East Austin",
       availableTonight: false,
+      scene: "austin",
     });
     navigate("/");
   };

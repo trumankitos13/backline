@@ -1,5 +1,7 @@
 // Domain model for the Backline prototype. All data is mock/local — see data.ts.
 
+import type { SceneId } from "./scenes";
+
 export type InstrumentId =
   | "guitar"
   | "bass"
@@ -218,6 +220,8 @@ export interface Opening {
   eventId?: string;
   /** display date, e.g. "Tonight" or "Fri Jul 10". */
   when: string;
+  /** canonical ISO instant for newly scheduled openings; `when` remains for legacy display. */
+  gigAt?: string;
   /** held on accept — private to the offer thread. */
   fee: number;
   note?: string;
@@ -292,4 +296,6 @@ export interface CurrentUser {
   instruments: InstrumentId[];
   neighborhood: string;
   availableTonight: boolean;
+  /** scene selected during onboarding; scopes local discovery and posting. */
+  scene: SceneId;
 }
