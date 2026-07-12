@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { isSelectableGigDate, scheduleOpening } from "./scheduling";
+import { filterCatalogRoots } from "./backend/supabase";
+
+describe("filterCatalogRoots", () => {
+  it("keeps only records belonging to the selected scene", () => {
+    expect(
+      filterCatalogRoots(
+        [
+          { id: "a", scene: "austin" },
+          { id: "n", scene: "nashville" },
+        ],
+        "nashville",
+      ),
+    ).toEqual([{ id: "n", scene: "nashville" }]);
+  });
+});
 
 describe("scheduleOpening", () => {
   it("turns a Central date and time into an ISO instant and display label", () => {

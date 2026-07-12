@@ -235,6 +235,8 @@ interface OpeningInput {
   /** the "acting as" context (self / band you admin / venue you manage) */
   postedBy: Opening["postedBy"];
   when: string;
+  /** canonical show time for persistence; the label remains the display fallback. */
+  gigAt?: string;
   fee: number;
   note?: string;
   urgent?: boolean;
@@ -323,13 +325,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // catalog + user slice in parallel; the DB catalog (cloud mode) is
       // installed before hydrate renders anything. loadCatalog() returns null
       // in demo mode or on an unseeded project → the built-in catalog stays.
-      const [catalog, data] = await Promise.all([
-        backend.loadCatalog().catch((e) => {
+      const [guestCatalog, data] = await Promise.all([
+        // Profiles load separately, so guest sessions must have a stable
+        // default catalog until their saved scene is known.
+        backend.loadCatalog("austin").catch((e) => {
           console.error("[backline] catalog load failed — using demo catalog", e);
           return null;
         }),
         backend.load(user),
       ]);
+      if (cancelled) return;
+      const catalog = data.user?.scene && data.user.scene !== "austin"
+        ? await backend.loadCatalog(data.user.scene).catch((e) => {
+            console.error("[backline] scene catalog load failed — using Austin catalog", e);
+            return guestCatalog;
+          })
+        : guestCatalog;
       if (cancelled) return;
       if (catalog) installCatalog(catalog);
       dispatch({ type: "HYDRATE", data });
@@ -380,9 +391,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     function reload() {
       const user = authUserRef.current;
-      backend
-        .load(user)
-        .then((data) => dispatch({ type: "HYDRATE", data }))
+      backend.load(user)
+        .then(async (data) => {
+          const catalog = await backend.loadCatalog(data.user?.scene ?? "austin");
+          if (catalog) installCatalog(catalog);
+          dispatch({ type: "HYDRATE", data });
+        })
         .catch((e) => console.error("[backline] reload failed", e));
     }
 
@@ -467,6 +481,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           instrument: input.instrument,
           postedBy: input.postedBy,
           when: input.when,
+          gigAt: input.gigAt,
           fee: input.fee,
           note: input.note,
           urgent: input.urgent,
