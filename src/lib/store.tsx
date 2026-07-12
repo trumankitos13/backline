@@ -27,7 +27,7 @@ import type {
   Message,
   Opening,
 } from "./types";
-import { getPlayer, installCatalog } from "./data";
+import { getPlayer, installCatalog, loadAndInstallCatalog } from "./data";
 import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
@@ -844,6 +844,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });
+        if (patch.scene !== undefined) {
+          // Start the catalog swap before persistence so scene-scoped lists
+          // update even when the write is slow or temporarily unavailable.
+          loadAndInstallCatalog(patch.scene, backend.loadCatalog.bind(backend))
+            .catch((e) => console.error("[backline] scene catalog load failed", e));
+        }
         const user = authUserRef.current;
         if (!user) return;
         backend.updateUser(user, patch)

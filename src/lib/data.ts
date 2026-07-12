@@ -1018,6 +1018,16 @@ export function installCatalog(c: Catalog): void {
   rebuildIndexes();
 }
 
+/** Begin fetching a scene catalog now, then make it the active catalog when ready. */
+export function loadAndInstallCatalog(
+  scene: SceneId,
+  loadCatalog: (scene: SceneId) => Promise<Catalog | null>,
+): Promise<void> {
+  return loadCatalog(scene).then((catalog) => {
+    if (catalog) installCatalog(catalog);
+  });
+}
+
 export function getPlayer(id: string): Player | undefined {
   return musicianById.get(id);
 }

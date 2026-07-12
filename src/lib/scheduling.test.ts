@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isSelectableGigDate, scheduleOpening } from "./scheduling";
 import { filterCatalogRoots } from "./backend/supabase";
 import { localBackend } from "./backend/local";
-import { installCatalog } from "./data";
+import { installCatalog, loadAndInstallCatalog, PLAYERS } from "./data";
 
 describe("filterCatalogRoots", () => {
   it("keeps only records belonging to the selected scene", () => {
@@ -30,6 +30,32 @@ describe("local catalog loading", () => {
     expect(catalog?.venues.every((venue) => venue.scene === "nashville")).toBe(true);
     expect(catalog?.events.every((event) => event.scene === "nashville")).toBe(true);
     expect(catalog?.feedPosts.every((post) => post.scene === "nashville")).toBe(true);
+  });
+
+  it("starts loading the selected catalog immediately and installs it when ready", async () => {
+    const austinCatalog = await localBackend.loadCatalog("austin");
+    let requestedScene: string | undefined;
+    let resolveCatalog: ((catalog: Awaited<ReturnType<typeof localBackend.loadCatalog>>) => void) | undefined;
+    const catalogPromise = new Promise<Awaited<ReturnType<typeof localBackend.loadCatalog>>>(
+      (resolve) => {
+        resolveCatalog = resolve;
+      },
+    );
+
+    try {
+      const installing = loadAndInstallCatalog("nashville", (scene) => {
+        requestedScene = scene;
+        return catalogPromise;
+      });
+
+      expect(requestedScene).toBe("nashville");
+      resolveCatalog!(await localBackend.loadCatalog("nashville"));
+      await installing;
+
+      expect(PLAYERS.every((player) => player.scene === "nashville")).toBe(true);
+    } finally {
+      installCatalog(austinCatalog!);
+    }
   });
 });
 
