@@ -491,6 +491,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           : { playerId: "me", role: "Organizer", admin: true, performing: false };
         const project: Band = {
           id: projectId,
+          scene: stateRef.current.user?.scene ?? "austin",
           name: input.name,
           genres: [],
           bio: "",

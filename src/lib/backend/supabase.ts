@@ -7,6 +7,7 @@
 // the first message. Bookings and messages carry client-generated text ids.
 
 import { supabase } from "../supabase";
+import type { SceneId } from "../scenes";
 import type { Catalog } from "../data";
 import type {
   Booking,
@@ -139,6 +140,7 @@ export const supabaseBackend: Backend = {
 
     const players: Player[] = musRows.map((m) => ({
       id: m.id as string,
+      scene: m.scene as SceneId,
       name: m.name as string,
       handle: m.handle as string,
       instruments: (instsBy.get(m.id as string) ?? []).map((i) => ({
@@ -182,6 +184,7 @@ export const supabaseBackend: Backend = {
 
     const catalogBands: Band[] = ((bands.data ?? []) as Row[]).map((b) => ({
       id: b.id as string,
+      scene: b.scene as SceneId,
       name: b.name as string,
       genres: (b.genres as string[]) ?? [],
       bio: (b.bio as string) ?? "",
@@ -206,6 +209,7 @@ export const supabaseBackend: Backend = {
 
     const catalogVenues: Venue[] = ((venues.data ?? []) as Row[]).map((v) => ({
       id: v.id as string,
+      scene: v.scene as SceneId,
       name: v.name as string,
       neighborhood: (v.neighborhood as string) ?? "",
       capacity: (v.capacity as number) ?? 0,
@@ -220,6 +224,7 @@ export const supabaseBackend: Backend = {
 
     const events: Event[] = gigRows.map((g) => ({
       id: g.id as string,
+      scene: g.scene as SceneId,
       title: g.title as string,
       venueId: (g.venue_id as string) ?? "",
       bandId: (g.band_id as string) ?? undefined,
@@ -239,6 +244,7 @@ export const supabaseBackend: Backend = {
 
     const feedPosts: FeedPost[] = ((posts.data ?? []) as Row[]).map((p) => ({
       id: p.id as string,
+      scene: p.scene as SceneId,
       kind: p.kind as FeedPost["kind"],
       author: { type: p.author_type as FeedPost["author"]["type"], id: p.author_id as string },
       text: (p.text as string) ?? "",
