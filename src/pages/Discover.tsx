@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Page } from "../components/shell";
 import { useApp } from "../lib/store";
+import { SCENES } from "../lib/scenes";
 import { BANDS, PLAYERS, bandsNeeding } from "../lib/data";
 import { instrument, instrumentLabel } from "../lib/instruments";
 import type { Band, InstrumentId, Player } from "../lib/types";
@@ -45,6 +46,8 @@ function isInstrumentId(v: string | null): v is InstrumentId {
 }
 
 export default function Discover() {
+  const { state } = useApp();
+  const sceneLabel = SCENES.find((scene) => scene.id === state.user?.scene)?.label ?? "Austin, TX";
   const [searchParams, setSearchParams] = useSearchParams();
   const sosOpen = searchParams.get("sos") === "open";
   const postOpen = searchParams.get("post") === "open";
@@ -165,7 +168,7 @@ export default function Discover() {
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-text-hi">Reels near you</h1>
         <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-text-mid">
           <MapPinIcon size={14} className="text-amber-500" />
-          Austin, TX — tap a reel to watch, tap a name to book
+          {sceneLabel} — tap a reel to watch, tap a name to book
         </p>
       </header>
 
@@ -262,7 +265,7 @@ export default function Discover() {
           <EmptyState
             icon={<SearchIcon size={30} />}
             title="No reels match those filters"
-            body="Try clearing an instrument, widening the distance, or turning off free-tonight — the Austin scene runs deeper than it looks."
+            body={`Try clearing an instrument, widening the distance, or turning off free-tonight — the ${sceneLabel} scene runs deeper than it looks.`}
             action={
               <Button variant="secondary" size="sm" onClick={clearFilters}>
                 Clear filters

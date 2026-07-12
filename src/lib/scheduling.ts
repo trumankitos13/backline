@@ -1,5 +1,31 @@
 const CENTRAL_TIMEZONE = "America/Chicago";
 
+function centralDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CENTRAL_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+/** ISO calendar day in the scenes' shared Central timezone. */
+export function todayIso() {
+  return centralDateParts(new Date());
+}
+
+export function tomorrowIso() {
+  const tomorrow = new Date();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return centralDateParts(tomorrow);
+}
+
 function parseDateAndTime(date: string, time: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   const timeMatch = /^(\d{2}):(\d{2})$/.exec(time);

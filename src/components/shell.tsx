@@ -12,6 +12,7 @@ import {
   UsersIcon,
 } from "./icons";
 import { useApp, useUnreadCount } from "../lib/store";
+import { SCENES } from "../lib/scenes";
 import { Avatar, Wordmark } from "./ui";
 
 const NAV = [
@@ -37,6 +38,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const unread = useUnreadCount();
   const location = useLocation();
   const navigate = useNavigate();
+  const sceneLabel = SCENES.find((scene) => scene.id === state.user?.scene)?.label ?? "Austin, TX";
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -100,7 +102,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <p className="mono mt-3 px-2 text-[9px] leading-relaxed text-text-faint">
             Prototype · mock data
             <br />
-            Austin, TX
+            {sceneLabel}
           </p>
         </div>
       </aside>

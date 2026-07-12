@@ -9,6 +9,7 @@ import { PulseIcon } from "../components/icons";
 import { FEED_POSTS } from "../lib/data";
 import { instrumentLabel } from "../lib/instruments";
 import type { SceneId } from "../lib/scenes";
+import { SCENES } from "../lib/scenes";
 import type { FeedPost, Opening } from "../lib/types";
 import { useApp } from "../lib/store";
 import { PostCard } from "../components/feed/PostCard";
@@ -45,6 +46,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Feed() {
   const { state } = useApp();
+  const sceneLabel = SCENES.find((scene) => scene.id === state.user?.scene)?.label ?? "Austin, TX";
   const [tab, setTab] = useState<Tab>("following");
 
   // your posted openings lead the feed on both tabs (they're yours);
@@ -66,7 +68,7 @@ export default function Feed() {
   const posts = [...openingPosts, ...catalogPosts];
 
   return (
-    <Page wide title="Your scene" subtitle={<Mono className="text-text-lo">Austin, TX</Mono>}>
+    <Page wide title="Your scene" subtitle={<Mono className="text-text-lo">{sceneLabel}</Mono>}>
       <div className="grid gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
         {/* main column */}
         <div className="min-w-0">
@@ -115,7 +117,7 @@ export default function Feed() {
             <EmptyState
               icon={<PulseIcon size={30} />}
               title="Your feed is quiet"
-              body="Follow a few venues and bands to get the scene pulse — or flip over to Everyone to see what all of Austin is up to."
+              body={`Follow a few venues and bands to get the scene pulse — or flip over to Everyone to see what all of ${sceneLabel} is up to.`}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setTab("everyone")}>
                   Browse Everyone

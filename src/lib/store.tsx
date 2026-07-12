@@ -200,6 +200,7 @@ interface BookingOfferInput {
 interface CreateProjectInput {
   name: string;
   when: string;
+  gigAt?: string;
   /** null = organizer only (writer/producer); else the creator takes a seat */
   playing: { instrument: InstrumentId } | null;
   /** one opening is posted per seat */
@@ -529,6 +530,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             instrument: seat,
             postedBy: { kind: "band", id: projectId },
             when: input.when,
+            gigAt: input.gigAt,
             fee: input.feePerSeat,
             note: input.note,
             status: "open",
