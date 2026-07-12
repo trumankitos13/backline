@@ -30,10 +30,12 @@ interface SlotEntry {
   slot: Band["openSlots"][number];
 }
 
-// every open slot across the scene, urgent SOS notes first
-const OPEN_SLOTS: SlotEntry[] = BANDS.flatMap((band) =>
-  band.openSlots.map((slot) => ({ band, slot })),
-).sort((a, b) => Number(isUrgent(b.slot.note)) - Number(isUrgent(a.slot.note)));
+// Derived at render time because installCatalog mutates the exported catalog arrays.
+export function getOpenSlots(): SlotEntry[] {
+  return BANDS.flatMap((band) =>
+    band.openSlots.map((slot) => ({ band, slot })),
+  ).sort((a, b) => Number(isUrgent(b.slot.note)) - Number(isUrgent(a.slot.note)));
+}
 
 function OpenSlotCard({ band, slot }: SlotEntry) {
   const navigate = useNavigate();
@@ -145,6 +147,7 @@ function BandCard({ band }: { band: Band }) {
 export default function Bands() {
   const { state } = useApp();
   const sceneName = SCENES.find((scene) => scene.id === state.user?.scene)?.label.split(",")[0] ?? "your scene";
+  const openSlots = getOpenSlots();
 
   return (
     <Page
@@ -157,12 +160,12 @@ export default function Bands() {
         className="mb-3"
         action={
           <Mono className="text-[10px] text-text-lo">
-            {OPEN_SLOTS.length} across the scene
+            {openSlots.length} across the scene
           </Mono>
         }
       />
       <div className="flex flex-col gap-3">
-        {OPEN_SLOTS.map(({ band, slot }) => (
+        {openSlots.map(({ band, slot }) => (
           <OpenSlotCard key={`${band.id}-${slot.instrument}`} band={band} slot={slot} />
         ))}
       </div>

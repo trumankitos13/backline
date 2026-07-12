@@ -6,6 +6,7 @@
 import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, Opening } from "../types";
 import { demoCatalogForScene, SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
+import { normalizePersistedData } from "../sceneScope";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
 
 const STORAGE_KEY = "backline-state-v1";
@@ -37,7 +38,7 @@ function read(): PersistedData {
     if (!raw) return demoDefault();
     const parsed = JSON.parse(raw) as Partial<PersistedData>;
     const merged = { ...demoDefault(), ...parsed };
-    return { ...merged, bookings: merged.bookings.map(migrateBooking) };
+    return normalizePersistedData({ ...merged, bookings: merged.bookings.map(migrateBooking) });
   } catch {
     return demoDefault();
   }

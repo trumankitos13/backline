@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { isSelectableGigDate, scheduleOpening } from "./scheduling";
 import { filterCatalogRoots } from "./backend/supabase";
 import { localBackend } from "./backend/local";
+import { scopePersistedData } from "./sceneScope";
+import type { PersistedData } from "./backend/types";
 import {
   installCatalog,
   loadAndInstallCatalog,
@@ -120,5 +122,53 @@ describe("isSelectableGigDate", () => {
 
   it("keeps today selectable", () => {
     expect(isSelectableGigDate("2026-07-12", "2026-07-12")).toBe(true);
+  });
+});
+
+describe("scopePersistedData", () => {
+  it("keeps only openings and projects in the user's current scene", () => {
+    const data = {
+      user: {
+        name: "Test Player",
+        handle: "testplayer",
+        instruments: ["guitar"],
+        neighborhood: "East Austin",
+        availableTonight: false,
+        scene: "nashville",
+      },
+      openings: [
+        { id: "op-austin", scene: "austin" },
+        { id: "op-nashville", scene: "nashville" },
+      ],
+      projects: [
+        { id: "project-austin", scene: "austin" },
+        { id: "project-nashville", scene: "nashville" },
+      ],
+    } as unknown as PersistedData;
+
+    const scoped = scopePersistedData(data);
+
+    expect(scoped.openings.map((opening) => opening.id)).toEqual(["op-nashville"]);
+    expect(scoped.projects.map((project) => project.id)).toEqual(["project-nashville"]);
+  });
+
+  it("treats legacy scene-less user content as Austin", () => {
+    const data = {
+      user: {
+        name: "Test Player",
+        handle: "testplayer",
+        instruments: ["guitar"],
+        neighborhood: "East Austin",
+        availableTonight: false,
+        scene: "austin",
+      },
+      openings: [{ id: "legacy-opening" }],
+      projects: [{ id: "legacy-project" }],
+    } as unknown as PersistedData;
+
+    const scoped = scopePersistedData(data);
+
+    expect(scoped.openings[0]).toMatchObject({ id: "legacy-opening", scene: "austin" });
+    expect(scoped.projects[0]).toMatchObject({ id: "legacy-project", scene: "austin" });
   });
 });

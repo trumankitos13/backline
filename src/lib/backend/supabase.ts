@@ -8,6 +8,7 @@
 
 import { supabase } from "../supabase";
 import type { SceneId } from "../scenes";
+import { normalizeOpeningScene, normalizeProjectScene } from "../sceneScope";
 import type { Catalog } from "../data";
 import type {
   Booking,
@@ -399,7 +400,7 @@ export const supabaseBackend: Backend = {
       bookings,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
-      openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => ({
+      openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => normalizeOpeningScene({
         id: o.id as string,
         instrument: o.instrument as Opening["instrument"],
         postedBy: {
@@ -414,9 +415,9 @@ export const supabaseBackend: Backend = {
         urgent: Boolean(o.urgent),
         status: (o.status as Opening["status"]) ?? "open",
         ago: agoLabel(o.created_at as string),
-      })),
+      } as Omit<Opening, "scene">)),
       projects: ((projectsRes.data ?? []) as Record<string, unknown>[]).map(
-        (p) => p.data as Band,
+        (p) => normalizeProjectScene(p.data as Omit<Band, "scene">),
       ),
     };
   },
@@ -533,6 +534,7 @@ export const supabaseBackend: Backend = {
     const { error } = await supabase.from("openings").insert({
       id: opening.id,
       user_id: user.id,
+      scene: opening.scene,
       instrument: opening.instrument,
       posted_by_kind: opening.postedBy.kind,
       posted_by_id: opening.postedBy.id,

@@ -53,7 +53,7 @@ export default function Feed() {
   // filled/closed seats stop advertising
   const openingPosts = useMemo(
     () => state.openings
-      .filter((o) => o.status === "open")
+      .filter((o) => o.status === "open" && o.scene === (state.user?.scene ?? "austin"))
       .map((opening) => openingToPost(opening, state.user?.scene ?? "austin")),
     [state.openings, state.user?.scene],
   );

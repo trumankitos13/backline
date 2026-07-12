@@ -218,6 +218,8 @@ export type OpeningStatus = "open" | "filled" | "closed";
 
 export interface Opening {
   id: string;
+  /** scene selected when the opening was posted; user-created content never crosses cities. */
+  scene: SceneId;
   instrument: InstrumentId;
   /** the "acting as" context: yourself, a band you admin, or a venue you manage. */
   postedBy: { kind: "player" | "band" | "venue"; id: string };

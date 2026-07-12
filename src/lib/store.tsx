@@ -30,6 +30,7 @@ import type {
 import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAndReload } from "./data";
 import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
+import { scopePersistedData } from "./sceneScope";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
 import type { AuthResult } from "./backend/types";
 
@@ -83,12 +84,12 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "HYDRATE":
-      return { ...EMPTY_STATE, ...action.data };
+      return { ...EMPTY_STATE, ...scopePersistedData(action.data) };
     case "SET_USER":
       return { ...state, user: action.user };
     case "UPDATE_USER":
       return state.user
-        ? { ...state, user: { ...state.user, ...action.patch } }
+        ? scopePersistedData({ ...state, user: { ...state.user, ...action.patch } })
         : state;
     case "TOGGLE_FOLLOW":
       return {
@@ -479,6 +480,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const id = uid("op");
         const opening: Opening = {
           id,
+          scene: stateRef.current.user?.scene ?? "austin",
           instrument: input.instrument,
           postedBy: input.postedBy,
           when: input.when,
@@ -527,6 +529,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         for (const seat of input.seats) {
           const opening: Opening = {
             id: uid("op"),
+            scene: project.scene,
             instrument: seat,
             postedBy: { kind: "band", id: projectId },
             when: input.when,
