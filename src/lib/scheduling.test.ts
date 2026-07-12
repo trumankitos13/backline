@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { isSelectableGigDate, scheduleOpening } from "./scheduling";
 import { filterCatalogRoots } from "./backend/supabase";
 import { localBackend } from "./backend/local";
-import { installCatalog, loadAndInstallCatalog, PLAYERS } from "./data";
+import {
+  installCatalog,
+  loadAndInstallCatalog,
+  loadCatalogPersistAndReload,
+  PLAYERS,
+} from "./data";
 
 describe("filterCatalogRoots", () => {
   it("keeps only records belonging to the selected scene", () => {
@@ -53,6 +58,46 @@ describe("local catalog loading", () => {
       await installing;
 
       expect(PLAYERS.every((player) => player.scene === "nashville")).toBe(true);
+    } finally {
+      installCatalog(austinCatalog!);
+    }
+  });
+
+  it("waits to persist a scene change until its catalog is installed", async () => {
+    const austinCatalog = await localBackend.loadCatalog("austin");
+    const nashvilleCatalog = await localBackend.loadCatalog("nashville");
+    let resolveCatalog: ((catalog: NonNullable<typeof nashvilleCatalog>) => void) | undefined;
+    const catalogPromise = new Promise<NonNullable<typeof nashvilleCatalog>>((resolve) => {
+      resolveCatalog = resolve;
+    });
+    let persisted = false;
+    let catalogInstalledWhenPersisted = false;
+    let reloaded = false;
+
+    try {
+      const updating = loadCatalogPersistAndReload({
+        scene: "nashville",
+        loadCatalog: () => catalogPromise,
+        persist: async () => {
+          persisted = true;
+          catalogInstalledWhenPersisted = PLAYERS.every((player) => player.scene === "nashville");
+        },
+        reload: async () => {
+          reloaded = true;
+        },
+      });
+
+      await Promise.resolve();
+      expect(persisted).toBe(false);
+      expect(reloaded).toBe(false);
+
+      resolveCatalog!(nashvilleCatalog!);
+      await updating;
+
+      expect(PLAYERS.every((player) => player.scene === "nashville")).toBe(true);
+      expect(persisted).toBe(true);
+      expect(catalogInstalledWhenPersisted).toBe(true);
+      expect(reloaded).toBe(true);
     } finally {
       installCatalog(austinCatalog!);
     }

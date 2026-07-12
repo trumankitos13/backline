@@ -1028,6 +1028,23 @@ export function loadAndInstallCatalog(
   });
 }
 
+/** Installs the new scene before persisting its selection, then rehydrates state. */
+export async function loadCatalogPersistAndReload({
+  scene,
+  loadCatalog,
+  persist,
+  reload,
+}: {
+  scene: SceneId;
+  loadCatalog: (scene: SceneId) => Promise<Catalog | null>;
+  persist: () => Promise<void>;
+  reload: () => Promise<void>;
+}): Promise<void> {
+  await loadAndInstallCatalog(scene, loadCatalog);
+  await persist();
+  await reload();
+}
+
 export function getPlayer(id: string): Player | undefined {
   return musicianById.get(id);
 }

@@ -27,7 +27,7 @@ import type {
   Message,
   Opening,
 } from "./types";
-import { getPlayer, installCatalog, loadAndInstallCatalog } from "./data";
+import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAndReload } from "./data";
 import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
@@ -389,9 +389,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       run(user).catch((e) => console.error("[backline] persist failed", e));
     }
 
-    function reload() {
+    function reload(): Promise<void> {
       const user = authUserRef.current;
-      backend.load(user)
+      return backend.load(user)
         .then(async (data) => {
           const catalog = await backend.loadCatalog(data.user?.scene ?? "austin");
           if (catalog) installCatalog(catalog);
@@ -844,18 +844,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });
-        if (patch.scene !== undefined) {
-          // Start the catalog swap before persistence so scene-scoped lists
-          // update even when the write is slow or temporarily unavailable.
-          loadAndInstallCatalog(patch.scene, backend.loadCatalog.bind(backend))
-            .catch((e) => console.error("[backline] scene catalog load failed", e));
-        }
         const user = authUserRef.current;
+        if (patch.scene !== undefined) {
+          if (!user) {
+            loadAndInstallCatalog(patch.scene, backend.loadCatalog.bind(backend))
+              .catch((e) => console.error("[backline] scene catalog load failed", e));
+            return;
+          }
+          loadCatalogPersistAndReload({
+            scene: patch.scene,
+            loadCatalog: backend.loadCatalog.bind(backend),
+            persist: () => backend.updateUser(user, patch),
+            reload,
+          })
+            .catch((e) => console.error("[backline] scene catalog load failed", e));
+          return;
+        }
         if (!user) return;
         backend.updateUser(user, patch)
-          .then(() => {
-            if (patch.scene !== undefined) reload();
-          })
           .catch((e) => console.error("[backline] persist failed", e));
       },
       reset() {
