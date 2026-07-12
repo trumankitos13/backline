@@ -66,6 +66,12 @@ async function main() {
   }
   const musicianId = musicians[0].id;
 
+  const { data: scenes, error: scenesErr } = await admin
+    .from("musicians")
+    .select("scene")
+    .in("scene", ["austin", "nashville"]);
+  check("catalog contains Austin and Nashville", !scenesErr && new Set(scenes.map((row) => row.scene)).size === 2);
+
   console.log("catalog (anon / signed-out):");
   check("anon CAN read catalog (musicians)", musicians.length > 0);
   const anonWrite = await anon.from("musicians").insert({ id: `hack-${Date.now()}`, name: "x", handle: `h${Date.now()}` });

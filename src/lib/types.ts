@@ -77,6 +77,7 @@ export interface Review {
 
 export interface Player {
   id: string;
+  scene?: SceneId;
   name: string;
   handle: string;
   instruments: { id: InstrumentId; level: SkillLevel; years: number }[];
@@ -105,6 +106,7 @@ export interface Player {
 
 export interface Band {
   id: string;
+  scene?: SceneId;
   name: string;
   genres: string[];
   bio: string;
@@ -137,6 +139,7 @@ export interface Band {
 
 export interface Venue {
   id: string;
+  scene?: SceneId;
   name: string;
   neighborhood: string;
   capacity: number;
@@ -157,6 +160,7 @@ export type EventSource = "backline" | "bandsintown" | "ticketmaster" | "seatgee
 /** A show — a first-class object with its own page (/e/:id). */
 export interface Event {
   id: string;
+  scene?: SceneId;
   title: string;
   venueId: string;
   /** headliner / primary act */
@@ -183,6 +187,7 @@ export type PostKind = "gig" | "need-sub" | "video" | "open-mic" | "news";
 
 export interface FeedPost {
   id: string;
+  scene?: SceneId;
   kind: PostKind;
   author: { type: "band" | "venue" | "player"; id: string };
   text: string;
