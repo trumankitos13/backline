@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { PLAYERS } from "../../lib/data";
 import { INSTRUMENTS, instrument } from "../../lib/instruments";
 import { ratingSummary } from "../../lib/ratings";
+import { SCENES } from "../../lib/scenes";
 import { useApp } from "../../lib/store";
 import type { InstrumentId, Player } from "../../lib/types";
 import {
@@ -24,7 +25,6 @@ import { VideoTile, ReelViewer } from "../video";
 type Phase = "config" | "searching" | "results" | "sent";
 type WhenKey = "tonight" | "tomorrow" | "weekend";
 
-const CITY = "Austin";
 const SEARCH_MS = 2100;
 
 const WHEN_OPTIONS: { value: WhenKey; label: string }[] = [
@@ -63,21 +63,24 @@ function etaLabel(distanceMiles: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
-const TICKS = [
-  "PINGING EAST AUSTIN",
+function tickerMessages(city: string) {
+  return [
+  `PINGING ${city.toUpperCase()}`,
   "CHECKING WHO'S AWAKE",
   "260 PLAYERS IN RANGE",
   "SORTING BY ETA",
   "RINGING FASTEST REPLIERS",
-];
+  ];
+}
 
-function Ticker() {
+function Ticker({ city }: { city: string }) {
   const [i, setI] = useState(0);
+  const ticks = tickerMessages(city);
   useEffect(() => {
-    const t = window.setInterval(() => setI((n) => (n + 1) % TICKS.length), 520);
+    const t = window.setInterval(() => setI((n) => (n + 1) % ticks.length), 520);
     return () => window.clearInterval(t);
-  }, []);
-  return <Mono className="text-[11px] text-cyan-300">{TICKS[i]}…</Mono>;
+  }, [ticks.length]);
+  return <Mono className="text-[11px] text-cyan-300">{ticks[i]}…</Mono>;
 }
 
 export function SosFlow({
@@ -95,6 +98,7 @@ export function SosFlow({
 }) {
   const navigate = useNavigate();
   const { state } = useApp();
+  const city = SCENES.find((scene) => scene.id === state.user?.scene)?.label.split(",")[0] ?? "your scene";
 
   const [phase, setPhase] = useState<Phase>("config");
   const [bailed, setBailed] = useState<InstrumentId | null>(initialRole ?? "drums");
@@ -271,9 +275,9 @@ export function SosFlow({
                   <BoltIcon size={26} />
                 </span>
               </div>
-              <p className="mt-5 font-semibold text-text-hi">Searching {CITY}…</p>
+              <p className="mt-5 font-semibold text-text-hi">Searching {city}…</p>
               <div className="mt-1.5">
-                <Ticker />
+                <Ticker city={city} />
               </div>
 
               {/* skeleton rows */}

@@ -21,6 +21,8 @@ import {
 import { FollowButton, isUrgent, slotNoteText } from "../components/bands/shared";
 import { BANDS, VENUES, getPlayer } from "../lib/data";
 import { instrumentLabel } from "../lib/instruments";
+import { SCENES } from "../lib/scenes";
+import { useApp } from "../lib/store";
 import type { Band, Player } from "../lib/types";
 
 interface SlotEntry {
@@ -141,6 +143,9 @@ function BandCard({ band }: { band: Band }) {
 }
 
 export default function Bands() {
+  const { state } = useApp();
+  const sceneName = SCENES.find((scene) => scene.id === state.user?.scene)?.label.split(",")[0] ?? "your scene";
+
   return (
     <Page
       title="Bands & groups"
@@ -166,7 +171,7 @@ export default function Bands() {
       <SectionHeader
         title="All bands"
         className="mt-8 mb-3"
-        action={<Mono className="text-[10px] text-text-lo">{BANDS.length} in Austin</Mono>}
+        action={<Mono className="text-[10px] text-text-lo">{BANDS.length} in {sceneName}</Mono>}
       />
       <div className="grid gap-3 sm:grid-cols-2">
         {BANDS.map((band) => (

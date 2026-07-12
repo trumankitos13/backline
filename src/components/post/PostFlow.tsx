@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { INSTRUMENTS, instrumentLabel } from "../../lib/instruments";
 import { myActingContexts, type ActingContext } from "../../lib/actingAs";
 import { useApp } from "../../lib/store";
-import { scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
+import { isSelectableGigDate, scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
 import type { InstrumentId } from "../../lib/types";
 import { Avatar, Button, Chip, Mono, SuccessCheck, Toggle } from "../ui";
 import { BoltIcon, CheckIcon, CloseIcon, InstrumentIcon, LockIcon, PlusIcon } from "../icons";
@@ -76,13 +76,14 @@ export function PostFlow({
 
   if (!open) return null;
 
-  const canPost = role !== null && Number(fee) > 0 && date !== "" && time !== "";
+  const selectableDate = date !== "" && isSelectableGigDate(date, todayIso());
+  const canPost = role !== null && Number(fee) > 0 && selectableDate && time !== "";
   const multiContext = contexts.length > 1;
   const asPlayer = ctx.kind === "player";
-  const scheduled = date && time ? scheduleOpening(date, time) : null;
+  const scheduled = selectableDate && time ? scheduleOpening(date, time) : null;
 
   function submit() {
-    if (!canPost || role === null || !scheduled) return;
+    if (!canPost || role === null || !scheduled || !isSelectableGigDate(date, todayIso())) return;
     api.postOpening({
       instrument: role,
       postedBy: { kind: ctx.kind, id: ctx.id },

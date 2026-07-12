@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { INSTRUMENTS, instrument as instrumentInfo } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
-import { scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
+import { isSelectableGigDate, scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
 import type { InstrumentId } from "../../lib/types";
 import { Avatar, Button, Chip, Mono, SuccessCheck } from "../ui";
 import { CloseIcon, InstrumentIcon, LockIcon, UsersIcon } from "../icons";
@@ -40,7 +40,8 @@ export function AssembleFlow({
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   const firstName = state.user?.name.split(" ")[0] ?? "Your";
-  const scheduled = date && time ? scheduleOpening(date, time) : null;
+  const selectableDate = date !== "" && isSelectableGigDate(date, todayIso());
+  const scheduled = selectableDate && time ? scheduleOpening(date, time) : null;
   const autoName = useMemo(
     () => `${firstName}'s Pickup · ${scheduled?.label ?? "Schedule TBD"}`,
     [firstName, scheduled?.label],
@@ -77,14 +78,14 @@ export function AssembleFlow({
   if (!open) return null;
 
   const finalName = (nameTouched && name.trim()) || autoName;
-  const canCreate = seats.length > 0 && Number(fee) > 0 && scheduled !== null;
+  const canCreate = seats.length > 0 && Number(fee) > 0 && selectableDate && scheduled !== null;
 
   function toggleSeat(id: InstrumentId) {
     setSeats((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   }
 
   function create() {
-    if (!canCreate || !scheduled) return;
+    if (!canCreate || !scheduled || !isSelectableGigDate(date, todayIso())) return;
     const id = api.createProject({
       name: finalName,
       when: scheduled.label,
