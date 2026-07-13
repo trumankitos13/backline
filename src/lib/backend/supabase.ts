@@ -402,6 +402,7 @@ export const supabaseBackend: Backend = {
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
       openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => normalizeOpeningScene({
         id: o.id as string,
+        scene: o.scene as SceneId,
         instrument: o.instrument as Opening["instrument"],
         postedBy: {
           kind: o.posted_by_kind as Opening["postedBy"]["kind"],
