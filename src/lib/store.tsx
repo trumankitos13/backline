@@ -27,9 +27,10 @@ import type {
   Message,
   Opening,
 } from "./types";
-import { getPlayer, installCatalog } from "./data";
+import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAndReload } from "./data";
 import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
+import { scopePersistedData } from "./sceneScope";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
 import type { AuthResult } from "./backend/types";
 
@@ -83,12 +84,12 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "HYDRATE":
-      return { ...EMPTY_STATE, ...action.data };
+      return { ...EMPTY_STATE, ...scopePersistedData(action.data) };
     case "SET_USER":
       return { ...state, user: action.user };
     case "UPDATE_USER":
       return state.user
-        ? { ...state, user: { ...state.user, ...action.patch } }
+        ? scopePersistedData({ ...state, user: { ...state.user, ...action.patch } })
         : state;
     case "TOGGLE_FOLLOW":
       return {
@@ -200,6 +201,7 @@ interface BookingOfferInput {
 interface CreateProjectInput {
   name: string;
   when: string;
+  gigAt?: string;
   /** null = organizer only (writer/producer); else the creator takes a seat */
   playing: { instrument: InstrumentId } | null;
   /** one opening is posted per seat */
@@ -235,6 +237,8 @@ interface OpeningInput {
   /** the "acting as" context (self / band you admin / venue you manage) */
   postedBy: Opening["postedBy"];
   when: string;
+  /** canonical show time for persistence; the label remains the display fallback. */
+  gigAt?: string;
   fee: number;
   note?: string;
   urgent?: boolean;
@@ -323,13 +327,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // catalog + user slice in parallel; the DB catalog (cloud mode) is
       // installed before hydrate renders anything. loadCatalog() returns null
       // in demo mode or on an unseeded project → the built-in catalog stays.
-      const [catalog, data] = await Promise.all([
-        backend.loadCatalog().catch((e) => {
+      const [guestCatalog, data] = await Promise.all([
+        // Profiles load separately, so guest sessions must have a stable
+        // default catalog until their saved scene is known.
+        backend.loadCatalog("austin").catch((e) => {
           console.error("[backline] catalog load failed — using demo catalog", e);
           return null;
         }),
         backend.load(user),
       ]);
+      if (cancelled) return;
+      const catalog = data.user?.scene && data.user.scene !== "austin"
+        ? await backend.loadCatalog(data.user.scene).catch((e) => {
+            console.error("[backline] scene catalog load failed — using Austin catalog", e);
+            return guestCatalog;
+          })
+        : guestCatalog;
       if (cancelled) return;
       if (catalog) installCatalog(catalog);
       dispatch({ type: "HYDRATE", data });
@@ -378,11 +391,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       run(user).catch((e) => console.error("[backline] persist failed", e));
     }
 
-    function reload() {
+    function reload(): Promise<void> {
       const user = authUserRef.current;
-      backend
-        .load(user)
-        .then((data) => dispatch({ type: "HYDRATE", data }))
+      return backend.load(user)
+        .then(async (data) => {
+          const catalog = await backend.loadCatalog(data.user?.scene ?? "austin");
+          if (catalog) installCatalog(catalog);
+          dispatch({ type: "HYDRATE", data });
+        })
         .catch((e) => console.error("[backline] reload failed", e));
     }
 
@@ -464,9 +480,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const id = uid("op");
         const opening: Opening = {
           id,
+          scene: stateRef.current.user?.scene ?? "austin",
           instrument: input.instrument,
           postedBy: input.postedBy,
           when: input.when,
+          gigAt: input.gigAt,
           fee: input.fee,
           note: input.note,
           urgent: input.urgent,
@@ -491,6 +509,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           : { playerId: "me", role: "Organizer", admin: true, performing: false };
         const project: Band = {
           id: projectId,
+          scene: stateRef.current.user?.scene ?? "austin",
           name: input.name,
           genres: [],
           bio: "",
@@ -510,9 +529,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         for (const seat of input.seats) {
           const opening: Opening = {
             id: uid("op"),
+            scene: project.scene,
             instrument: seat,
             postedBy: { kind: "band", id: projectId },
             when: input.when,
+            gigAt: input.gigAt,
             fee: input.feePerSeat,
             note: input.note,
             status: "open",
@@ -828,7 +849,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });
-        persist((u) => backend.updateUser(u, patch));
+        const user = authUserRef.current;
+        if (patch.scene !== undefined) {
+          if (!user) {
+            loadAndInstallCatalog(patch.scene, backend.loadCatalog.bind(backend))
+              .catch((e) => console.error("[backline] scene catalog load failed", e));
+            return;
+          }
+          loadCatalogPersistAndReload({
+            scene: patch.scene,
+            loadCatalog: backend.loadCatalog.bind(backend),
+            persist: () => backend.updateUser(user, patch),
+            reload,
+          })
+            .catch((e) => console.error("[backline] scene catalog load failed", e));
+          return;
+        }
+        if (!user) return;
+        backend.updateUser(user, patch)
+          .catch((e) => console.error("[backline] persist failed", e));
       },
       reset() {
         const user = authUserRef.current;

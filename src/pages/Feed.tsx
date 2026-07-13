@@ -8,15 +8,18 @@ import { Button, EmptyState, Mono } from "../components/ui";
 import { PulseIcon } from "../components/icons";
 import { FEED_POSTS } from "../lib/data";
 import { instrumentLabel } from "../lib/instruments";
+import type { SceneId } from "../lib/scenes";
+import { SCENES } from "../lib/scenes";
 import type { FeedPost, Opening } from "../lib/types";
 import { useApp } from "../lib/store";
 import { PostCard } from "../components/feed/PostCard";
 import { TonightInTown, WhoToFollow } from "../components/feed/FeedRail";
 
 /** a posted Opening rendered through the existing need-sub card. */
-function openingToPost(op: Opening): FeedPost {
+function openingToPost(op: Opening, scene: SceneId): FeedPost {
   return {
     id: `p-${op.id}`,
+    scene,
     kind: "need-sub",
     author:
       op.postedBy.kind === "player"
@@ -43,13 +46,16 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function Feed() {
   const { state } = useApp();
+  const sceneLabel = SCENES.find((scene) => scene.id === state.user?.scene)?.label ?? "Austin, TX";
   const [tab, setTab] = useState<Tab>("following");
 
   // your posted openings lead the feed on both tabs (they're yours);
   // filled/closed seats stop advertising
   const openingPosts = useMemo(
-    () => state.openings.filter((o) => o.status === "open").map(openingToPost),
-    [state.openings],
+    () => state.openings
+      .filter((o) => o.status === "open" && o.scene === (state.user?.scene ?? "austin"))
+      .map((opening) => openingToPost(opening, state.user?.scene ?? "austin")),
+    [state.openings, state.user?.scene],
   );
 
   // players are treated as always-followed; bands/venues gate on follows
@@ -62,7 +68,7 @@ export default function Feed() {
   const posts = [...openingPosts, ...catalogPosts];
 
   return (
-    <Page wide title="Your scene" subtitle={<Mono className="text-text-lo">Austin, TX</Mono>}>
+    <Page wide title="Your scene" subtitle={<Mono className="text-text-lo">{sceneLabel}</Mono>}>
       <div className="grid gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
         {/* main column */}
         <div className="min-w-0">
@@ -111,7 +117,7 @@ export default function Feed() {
             <EmptyState
               icon={<PulseIcon size={30} />}
               title="Your feed is quiet"
-              body="Follow a few venues and bands to get the scene pulse — or flip over to Everyone to see what all of Austin is up to."
+              body={`Follow a few venues and bands to get the scene pulse — or flip over to Everyone to see what all of ${sceneLabel} is up to.`}
               action={
                 <Button variant="secondary" size="sm" onClick={() => setTab("everyone")}>
                   Browse Everyone

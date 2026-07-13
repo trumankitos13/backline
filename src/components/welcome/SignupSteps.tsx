@@ -4,6 +4,7 @@
 import { useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import type { InstrumentId } from "../../lib/types";
+import { SCENES, type SceneId } from "../../lib/scenes";
 import { INSTRUMENTS } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
 import { Button, Card, Mono, Toggle } from "../ui";
@@ -13,22 +14,8 @@ import {
   CheckIcon,
   ChevronRightIcon,
   InstrumentIcon,
-  MapPinIcon,
 } from "../icons";
 import { INPUT_CLASS } from "./shared";
-
-const NEIGHBORHOODS = [
-  "East Austin",
-  "South Congress",
-  "Hyde Park",
-  "Zilker",
-  "Bouldin Creek",
-  "Mueller",
-  "Downtown",
-  "North Loop",
-  "Riverside",
-  "Cherrywood",
-];
 
 /** "Ray Delgado Jr." → "raydelgadojr" */
 function suggestHandle(name: string): string {
@@ -48,8 +35,8 @@ const STEP_META = [
     sub: "Multi-select — the more you list, the more searches you turn up in.",
   },
   {
-    title: "Where's home base?",
-    sub: "Backline is neighborhood-first: the closer you are, the sooner you get the call.",
+    title: "Choose your scene",
+    sub: "Your catalog, feed, and local players start here. You can switch scenes later in Settings.",
   },
 ] as const;
 
@@ -91,14 +78,14 @@ export function SignupSteps() {
   // step 2 — instruments
   const [instruments, setInstruments] = useState<InstrumentId[]>([]);
 
-  // step 3 — home base
-  const [neighborhood, setNeighborhood] = useState("");
+  // step 3 — scene
+  const [scene, setScene] = useState<SceneId | null>(null);
   const [availableTonight, setAvailableTonight] = useState(false);
 
   const stepValid = [
     name.trim().length >= 2 && handle.length >= 2,
     instruments.length >= 1,
-    neighborhood !== "",
+    scene !== null,
   ][step];
 
   const onNameChange = (value: string) => {
@@ -134,8 +121,9 @@ export function SignupSteps() {
       name: name.trim(),
       handle,
       instruments,
-      neighborhood,
+      neighborhood: scene === "nashville" ? "Nashville" : "Austin",
       availableTonight,
+      scene: scene!,
     });
     navigate("/");
   };
@@ -238,35 +226,30 @@ export function SignupSteps() {
 
         {step === 2 && (
           <div className="mt-5 flex flex-col gap-4">
-            <label className="flex flex-col gap-1.5">
-              <FieldLabel>Neighborhood</FieldLabel>
-              <div className="relative">
-                <MapPinIcon
-                  size={16}
-                  className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-text-lo"
-                />
-                <select
-                  value={neighborhood}
-                  onChange={(e) => setNeighborhood(e.target.value)}
-                  className={`${INPUT_CLASS} appearance-none pr-10 pl-10 ${
-                    neighborhood === "" ? "text-text-lo" : ""
-                  }`}
-                >
-                  <option value="" disabled>
-                    Choose your neighborhood
-                  </option>
-                  {NEIGHBORHOODS.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-                <ChevronRightIcon
-                  size={16}
-                  className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 rotate-90 text-text-lo"
-                />
+            <div>
+              <FieldLabel>Local scene</FieldLabel>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {SCENES.map((option) => {
+                  const selected = scene === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setScene(option.id)}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        selected
+                          ? "border-amber-500/70 bg-amber-500/10 ring-2 ring-amber-500/40"
+                          : "border-hairline-subtle bg-surface-800 hover:border-hairline-strong"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-text-hi">{option.label}</p>
+                      <Mono className="mt-1 block text-[10px] text-text-lo">Local catalog</Mono>
+                    </button>
+                  );
+                })}
               </div>
-            </label>
+            </div>
 
             <div
               className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${

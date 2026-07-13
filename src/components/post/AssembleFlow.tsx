@@ -8,13 +8,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { INSTRUMENTS, instrument as instrumentInfo } from "../../lib/instruments";
 import { useApp } from "../../lib/store";
+import { isSelectableGigDate, scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
 import type { InstrumentId } from "../../lib/types";
 import { Avatar, Button, Chip, Mono, SuccessCheck } from "../ui";
 import { CloseIcon, InstrumentIcon, LockIcon, UsersIcon } from "../icons";
 
 type Phase = "form" | "sent";
-
-const WHEN_QUICK = ["Tonight", "Tomorrow", "This weekend"];
 
 export function AssembleFlow({
   open,
@@ -27,7 +26,8 @@ export function AssembleFlow({
   const { state, api } = useApp();
 
   const [phase, setPhase] = useState<Phase>("form");
-  const [when, setWhen] = useState("Tonight");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [playing, setPlaying] = useState(true);
@@ -40,16 +40,19 @@ export function AssembleFlow({
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   const firstName = state.user?.name.split(" ")[0] ?? "Your";
+  const selectableDate = date !== "" && isSelectableGigDate(date, todayIso());
+  const scheduled = selectableDate && time ? scheduleOpening(date, time) : null;
   const autoName = useMemo(
-    () => `${firstName}'s Pickup · ${when.trim() || "Tonight"}`,
-    [firstName, when],
+    () => `${firstName}'s Pickup · ${scheduled?.label ?? "Schedule TBD"}`,
+    [firstName, scheduled?.label],
   );
 
   // fresh form each open
   useEffect(() => {
     if (!open) return;
     setPhase("form");
-    setWhen("Tonight");
+    setDate("");
+    setTime("");
     setName("");
     setNameTouched(false);
     setPlaying(true);
@@ -75,17 +78,18 @@ export function AssembleFlow({
   if (!open) return null;
 
   const finalName = (nameTouched && name.trim()) || autoName;
-  const canCreate = seats.length > 0 && Number(fee) > 0;
+  const canCreate = seats.length > 0 && Number(fee) > 0 && selectableDate && scheduled !== null;
 
   function toggleSeat(id: InstrumentId) {
     setSeats((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   }
 
   function create() {
-    if (!canCreate) return;
+    if (!canCreate || !scheduled || !isSelectableGigDate(date, todayIso())) return;
     const id = api.createProject({
       name: finalName,
-      when: when.trim() || "Tonight",
+      when: scheduled.label,
+      gigAt: scheduled.gigAt,
       playing: playing ? { instrument: myInstrument } : null,
       seats,
       feePerSeat: Number(fee),
@@ -139,15 +143,16 @@ export function AssembleFlow({
         {/* ------------------------------------------------------------ form */}
         {phase === "form" && (
           <div className="mt-5 space-y-5">
-            {/* when */}
+            {/* schedule */}
             <div>
               <Mono className="text-[11px] text-text-lo">When&apos;s the gig?</Mono>
               <div className="mt-2 flex flex-wrap gap-2">
-                {WHEN_QUICK.map((w) => (
-                  <Chip key={w} active={when === w} onClick={() => setWhen(w)}>
-                    {w}
-                  </Chip>
-                ))}
+                <Chip active={date === todayIso()} onClick={() => setDate(todayIso())}>Today</Chip>
+                <Chip active={date === tomorrowIso()} onClick={() => setDate(tomorrowIso())}>Tomorrow</Chip>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input aria-label="Gig date" type="date" min={todayIso()} value={date} onChange={(event) => setDate(event.currentTarget.value)} className="w-full rounded-xl border border-hairline-strong bg-surface-900 px-3 py-2.5 text-sm text-text-hi focus:border-amber-500 focus:outline-none" />
+                <input aria-label="Gig time" type="time" value={time} onChange={(event) => setTime(event.currentTarget.value)} className="w-full rounded-xl border border-hairline-strong bg-surface-900 px-3 py-2.5 text-sm text-text-hi focus:border-amber-500 focus:outline-none" />
               </div>
             </div>
 
@@ -280,7 +285,9 @@ export function AssembleFlow({
                 ? `Assemble — post ${seats.length} ${seats.length === 1 ? "seat" : "seats"}`
                 : seats.length === 0
                   ? "Pick the seats you need"
-                  : "Add a fee per seat"}
+                  : !scheduled
+                    ? "Add a date and time"
+                    : "Add a fee per seat"}
             </Button>
           </div>
         )}
@@ -308,7 +315,7 @@ export function AssembleFlow({
                       ? `You're on ${instrumentInfo(myInstrument).label.toLowerCase()}`
                       : "You're organizing"}
                     {" · "}
-                    {when}
+                    {scheduled?.label}
                   </Mono>
                 </div>
               </div>

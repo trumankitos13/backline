@@ -1,5 +1,7 @@
 // Domain model for the Backline prototype. All data is mock/local — see data.ts.
 
+import type { SceneId } from "./scenes";
+
 export type InstrumentId =
   | "guitar"
   | "bass"
@@ -75,6 +77,7 @@ export interface Review {
 
 export interface Player {
   id: string;
+  scene: SceneId;
   name: string;
   handle: string;
   instruments: { id: InstrumentId; level: SkillLevel; years: number }[];
@@ -103,6 +106,7 @@ export interface Player {
 
 export interface Band {
   id: string;
+  scene: SceneId;
   name: string;
   genres: string[];
   bio: string;
@@ -135,6 +139,7 @@ export interface Band {
 
 export interface Venue {
   id: string;
+  scene: SceneId;
   name: string;
   neighborhood: string;
   capacity: number;
@@ -155,6 +160,7 @@ export type EventSource = "backline" | "bandsintown" | "ticketmaster" | "seatgee
 /** A show — a first-class object with its own page (/e/:id). */
 export interface Event {
   id: string;
+  scene: SceneId;
   title: string;
   venueId: string;
   /** headliner / primary act */
@@ -181,6 +187,7 @@ export type PostKind = "gig" | "need-sub" | "video" | "open-mic" | "news";
 
 export interface FeedPost {
   id: string;
+  scene: SceneId;
   kind: PostKind;
   author: { type: "band" | "venue" | "player"; id: string };
   text: string;
@@ -211,6 +218,8 @@ export type OpeningStatus = "open" | "filled" | "closed";
 
 export interface Opening {
   id: string;
+  /** scene selected when the opening was posted; user-created content never crosses cities. */
+  scene: SceneId;
   instrument: InstrumentId;
   /** the "acting as" context: yourself, a band you admin, or a venue you manage. */
   postedBy: { kind: "player" | "band" | "venue"; id: string };
@@ -218,6 +227,8 @@ export interface Opening {
   eventId?: string;
   /** display date, e.g. "Tonight" or "Fri Jul 10". */
   when: string;
+  /** canonical ISO instant for newly scheduled openings; `when` remains for legacy display. */
+  gigAt?: string;
   /** held on accept — private to the offer thread. */
   fee: number;
   note?: string;
@@ -292,4 +303,6 @@ export interface CurrentUser {
   instruments: InstrumentId[];
   neighborhood: string;
   availableTonight: boolean;
+  /** scene selected during onboarding; scopes local discovery and posting. */
+  scene: SceneId;
 }

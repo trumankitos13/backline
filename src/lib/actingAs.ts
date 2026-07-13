@@ -73,6 +73,7 @@ export function myActingContexts(
 ): ActingContext[] {
   const contexts: ActingContext[] = [meContext(user)];
   for (const p of projects) {
+    if (p.scene !== (user?.scene ?? "austin")) continue;
     if (p.archived) continue;
     contexts.push({
       kind: "band",

@@ -10,13 +10,12 @@ import { useNavigate } from "react-router-dom";
 import { INSTRUMENTS, instrumentLabel } from "../../lib/instruments";
 import { myActingContexts, type ActingContext } from "../../lib/actingAs";
 import { useApp } from "../../lib/store";
+import { isSelectableGigDate, scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
 import type { InstrumentId } from "../../lib/types";
 import { Avatar, Button, Chip, Mono, SuccessCheck, Toggle } from "../ui";
 import { BoltIcon, CheckIcon, CloseIcon, InstrumentIcon, LockIcon, PlusIcon } from "../icons";
 
 type Phase = "form" | "sent";
-
-const WHEN_QUICK = ["Tonight", "Tomorrow", "This weekend"];
 
 export function PostFlow({
   open,
@@ -42,7 +41,8 @@ export function PostFlow({
   const [ctx, setCtx] = useState<ActingContext>(contexts[0]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [role, setRole] = useState<InstrumentId | null>(initialRole);
-  const [when, setWhen] = useState("Tonight");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [fee, setFee] = useState("");
   const [note, setNote] = useState("");
   const [urgent, setUrgent] = useState(false);
@@ -55,7 +55,8 @@ export function PostFlow({
     setPickerOpen(false);
     setCtx(all.find((c) => c.id === initialContextId) ?? all[0]);
     setRole(initialRole);
-    setWhen("Tonight");
+    setDate("");
+    setTime("");
     setFee("");
     setNote("");
     setUrgent(false);
@@ -75,16 +76,19 @@ export function PostFlow({
 
   if (!open) return null;
 
-  const canPost = role !== null && Number(fee) > 0;
+  const selectableDate = date !== "" && isSelectableGigDate(date, todayIso());
+  const canPost = role !== null && Number(fee) > 0 && selectableDate && time !== "";
   const multiContext = contexts.length > 1;
   const asPlayer = ctx.kind === "player";
+  const scheduled = selectableDate && time ? scheduleOpening(date, time) : null;
 
   function submit() {
-    if (!canPost || role === null) return;
+    if (!canPost || role === null || !scheduled || !isSelectableGigDate(date, todayIso())) return;
     api.postOpening({
       instrument: role,
       postedBy: { kind: ctx.kind, id: ctx.id },
-      when: when.trim() || "Tonight",
+      when: scheduled.label,
+      gigAt: scheduled.gigAt,
       fee: Number(fee),
       note: note.trim() || undefined,
       urgent,
@@ -236,24 +240,17 @@ export function PostFlow({
               </div>
             </div>
 
-            {/* when */}
+            {/* schedule */}
             <div>
               <Mono className="text-[11px] text-text-lo">When&apos;s the gig?</Mono>
               <div className="mt-2 flex flex-wrap gap-2">
-                {WHEN_QUICK.map((w) => (
-                  <Chip key={w} active={when === w} onClick={() => setWhen(w)}>
-                    {w}
-                  </Chip>
-                ))}
+                <Chip active={date === todayIso()} onClick={() => setDate(todayIso())}>Today</Chip>
+                <Chip active={date === tomorrowIso()} onClick={() => setDate(tomorrowIso())}>Tomorrow</Chip>
               </div>
-              <input
-                type="text"
-                value={when}
-                onChange={(e) => setWhen(e.target.value)}
-                placeholder="Tonight, or a date"
-                aria-label="When's the gig?"
-                className="mt-2 w-full rounded-xl border border-hairline-strong bg-surface-900 px-3 py-2.5 text-sm text-text-hi transition-colors placeholder:text-text-lo focus:border-amber-500 focus:outline-none"
-              />
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input aria-label="Gig date" type="date" min={todayIso()} value={date} onChange={(event) => setDate(event.currentTarget.value)} className="w-full rounded-xl border border-hairline-strong bg-surface-900 px-3 py-2.5 text-sm text-text-hi focus:border-amber-500 focus:outline-none" />
+                <input aria-label="Gig time" type="time" value={time} onChange={(event) => setTime(event.currentTarget.value)} className="w-full rounded-xl border border-hairline-strong bg-surface-900 px-3 py-2.5 text-sm text-text-hi focus:border-amber-500 focus:outline-none" />
+              </div>
             </div>
 
             {/* fee — private */}
@@ -332,7 +329,9 @@ export function PostFlow({
                 ? `Post ${instrumentLabel(role!)} opening`
                 : role === null
                   ? "Pick an instrument"
-                  : "Add a fee to post"}
+                  : date === "" || time === ""
+                    ? "Add a date and time"
+                    : "Add a fee to post"}
             </Button>
           </div>
         )}
@@ -373,7 +372,7 @@ export function PostFlow({
                   <p className="text-sm font-semibold text-text-hi">
                     {instrumentLabel(role!)}
                   </p>
-                  <Mono className="text-[10px] text-text-lo">{when}</Mono>
+                  <Mono className="text-[10px] text-text-lo">{scheduled?.label}</Mono>
                 </div>
                 <div className="text-right">
                   <Mono className="text-sm font-bold text-amber-300">${Number(fee)}</Mono>

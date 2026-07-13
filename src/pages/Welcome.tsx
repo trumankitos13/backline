@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../lib/store";
 import { isCloudBackend } from "../lib/backend";
 import { PLAYERS } from "../lib/data";
+import { SCENES } from "../lib/scenes";
 import { Avatar, Button, Card, Mono, Wordmark } from "../components/ui";
 import { BoltIcon, DollarIcon, PlayIcon, type IconProps } from "../components/icons";
 import { SignupSteps } from "../components/welcome/SignupSteps";
@@ -24,7 +25,7 @@ const FEATURES: {
     iconClass: "border-amber-500/30 bg-amber-500/10 text-amber-300",
     kicker: "Sub in",
     title: "Find a sub in minutes",
-    body: "Filter by instrument, neighborhood, and who's free right now. The fastest hands in Austin answer in under 15 minutes — not next week.",
+    body: "Filter by instrument, neighborhood, and who's free right now. The fastest hands nearby answer in under 15 minutes — not next week.",
   },
   {
     icon: PlayIcon,
@@ -51,6 +52,7 @@ export default function Welcome() {
   const signupRef = useRef<HTMLDivElement>(null);
 
   const tonight = PLAYERS.filter((m) => m.availableTonight);
+  const sceneName = SCENES.find((scene) => scene.id === state.user?.scene)?.label.split(",")[0] ?? "your scene";
 
   const openSignup = () => {
     setSignupOpen(true);
@@ -67,6 +69,7 @@ export default function Welcome() {
       instruments: ["guitar"],
       neighborhood: "East Austin",
       availableTonight: false,
+      scene: "austin",
     });
     navigate("/");
   };
@@ -172,7 +175,7 @@ export default function Welcome() {
                 <Mono className="text-[10px] font-bold text-text-mid">
                   {tonight.length} on call
                 </Mono>{" "}
-                in Austin tonight — {tonight[0].name.split(" ")[0]},{" "}
+                in {sceneName} tonight — {tonight[0].name.split(" ")[0]},{" "}
                 {tonight[1].name.split(" ")[0]} &amp;{" "}
                 {Math.max(tonight.length - 2, 0)} more have the switch on.
               </p>

@@ -28,6 +28,7 @@ import { isCloudBackend } from "../lib/backend";
 import { getBand, getPlayer, getVenue } from "../lib/data";
 import { resolveActingContext } from "../lib/actingAs";
 import { instrumentLabel } from "../lib/instruments";
+import { SCENES, type SceneId } from "../lib/scenes";
 import {
   BookingStatusBadge,
   InstrumentChips,
@@ -132,6 +133,23 @@ export default function MyProfile() {
           onChange={(next) => api.updateUser({ availableTonight: next })}
           label="Available tonight"
         />
+      </Card>
+
+      <Card className="mt-4 p-4">
+        <p className="text-sm font-semibold text-text-hi">Settings</p>
+        <label className="mt-3 flex items-center justify-between gap-4 text-sm text-text-mid">
+          <span>Scene</span>
+          <select
+            aria-label="Scene"
+            value={user.scene}
+            onChange={(event) => api.updateUser({ scene: event.currentTarget.value as SceneId })}
+            className="rounded-lg border border-hairline-strong bg-surface-900 px-2.5 py-2 text-sm text-text-hi focus:border-amber-500 focus:outline-none"
+          >
+            {SCENES.map((scene) => (
+              <option key={scene.id} value={scene.id}>{scene.label}</option>
+            ))}
+          </select>
+        </label>
       </Card>
 
       {/* ------------------------------------- post an opening / assemble */}

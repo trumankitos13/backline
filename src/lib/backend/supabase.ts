@@ -7,6 +7,8 @@
 // the first message. Bookings and messages carry client-generated text ids.
 
 import { supabase } from "../supabase";
+import type { SceneId } from "../scenes";
+import { normalizeOpeningScene, normalizeProjectScene } from "../sceneScope";
 import type { Catalog } from "../data";
 import type {
   Booking,
@@ -53,6 +55,11 @@ function fail(context: string, error: { message: string } | null): void {
   if (error) throw new Error(`${context}: ${error.message}`);
 }
 
+/** Keep catalog roots within the active scene before their dependents are loaded. */
+export function filterCatalogRoots<T extends Record<string, unknown>>(rows: T[], scene: SceneId): T[] {
+  return rows.filter((row) => row.scene === scene);
+}
+
 export const supabaseBackend: Backend = {
   mode: "supabase",
 
@@ -95,29 +102,43 @@ export const supabaseBackend: Backend = {
     return { error: error ? error.message : null };
   },
 
-  async loadCatalog(): Promise<Catalog | null> {
+  async loadCatalog(scene: SceneId): Promise<Catalog | null> {
     // Phase 0: the catalog is served from Postgres in cloud mode. Ten
     // public-read tables, assembled into the app's four objects + feed.
     // An unseeded project (no musicians) returns null → demo catalog stays.
     type Row = Record<string, unknown>;
-    const [mus, insts, vids, revs, bands, members, slots, venues, gigs, posts] =
+    const [mus, bands, venues, gigs, posts] =
       await Promise.all([
-        supabase.from("musicians").select("*").order("created_at"),
-        supabase.from("musician_instruments").select("*"),
-        supabase.from("videos").select("*"),
-        supabase.from("reviews").select("*"),
-        supabase.from("bands").select("*").order("created_at"),
-        supabase.from("band_members").select("*"),
-        supabase.from("band_open_slots").select("*"),
-        supabase.from("venues").select("*").order("created_at"),
-        supabase.from("gigs").select("*").order("created_at"),
-        supabase.from("feed_posts").select("*").order("created_at"),
+        supabase.from("musicians").select("*").eq("scene", scene).order("created_at"),
+        supabase.from("bands").select("*").eq("scene", scene).order("created_at"),
+        supabase.from("venues").select("*").eq("scene", scene).order("created_at"),
+        supabase.from("gigs").select("*").eq("scene", scene).order("created_at"),
+        supabase.from("feed_posts").select("*").eq("scene", scene).order("created_at"),
       ]);
-    for (const [what, res] of Object.entries({ mus, insts, vids, revs, bands, members, slots, venues, gigs, posts })) {
+    for (const [what, res] of Object.entries({ mus, bands, venues, gigs, posts })) {
       fail(`load catalog ${what}`, res.error);
     }
-    const musRows = (mus.data ?? []) as Row[];
-    if (musRows.length === 0) return null; // not seeded — keep the demo catalog
+    const musRows = filterCatalogRoots((mus.data ?? []) as Row[], scene);
+    const bandRows = filterCatalogRoots((bands.data ?? []) as Row[], scene);
+    const venueRows = filterCatalogRoots((venues.data ?? []) as Row[], scene);
+    const gigRows = filterCatalogRoots((gigs.data ?? []) as Row[], scene);
+    const postRows = filterCatalogRoots((posts.data ?? []) as Row[], scene);
+    if (musRows.length + bandRows.length + venueRows.length + gigRows.length + postRows.length === 0) {
+      return null; // not seeded — keep the demo catalog
+    }
+
+    const musicianIds = musRows.map((m) => m.id as string);
+    const bandIds = bandRows.map((b) => b.id as string);
+    const [insts, vids, revs, members, slots] = await Promise.all([
+      supabase.from("musician_instruments").select("*").in("musician_id", musicianIds),
+      supabase.from("videos").select("*").in("musician_id", musicianIds),
+      supabase.from("reviews").select("*").in("musician_id", musicianIds),
+      supabase.from("band_members").select("*").in("band_id", bandIds),
+      supabase.from("band_open_slots").select("*").in("band_id", bandIds),
+    ]);
+    for (const [what, res] of Object.entries({ insts, vids, revs, members, slots })) {
+      fail(`load catalog ${what}`, res.error);
+    }
 
     const by = <T extends Row>(rows: T[] | null | undefined, key: string) => {
       const m = new Map<string, T[]>();
@@ -135,10 +156,14 @@ export const supabaseBackend: Backend = {
     const membersBy = by((members.data ?? []) as Row[], "band_id");
     const slotsBy = by((slots.data ?? []) as Row[], "band_id");
     const memberBands = by((members.data ?? []) as Row[], "musician_id");
-    const gigRows = (gigs.data ?? []) as Row[];
+    const musicianIdSet = new Set(musicianIds);
+    const bandIdSet = new Set(bandIds);
+    const venueIdSet = new Set(venueRows.map((v) => v.id as string));
+    const gigIdSet = new Set(gigRows.map((g) => g.id as string));
 
     const players: Player[] = musRows.map((m) => ({
       id: m.id as string,
+      scene: m.scene as SceneId,
       name: m.name as string,
       handle: m.handle as string,
       instruments: (instsBy.get(m.id as string) ?? []).map((i) => ({
@@ -175,23 +200,28 @@ export const supabaseBackend: Backend = {
         text: (r.body as string) ?? "",
         date: (r.review_date as string) ?? "",
       })),
-      bandIds: (memberBands.get(m.id as string) ?? []).map((b) => b.band_id as string),
+      bandIds: (memberBands.get(m.id as string) ?? [])
+        .map((b) => b.band_id as string)
+        .filter((id) => bandIdSet.has(id)),
       links: (m.links as Player["links"]) ?? undefined,
       seed: (m.seed as number) ?? 1,
     }));
 
-    const catalogBands: Band[] = ((bands.data ?? []) as Row[]).map((b) => ({
+    const catalogBands: Band[] = bandRows.map((b) => ({
       id: b.id as string,
+      scene: b.scene as SceneId,
       name: b.name as string,
       genres: (b.genres as string[]) ?? [],
       bio: (b.bio as string) ?? "",
       neighborhood: (b.neighborhood as string) ?? "",
-      members: (membersBy.get(b.id as string) ?? []).map((mm) => ({
-        playerId: mm.musician_id as string,
-        role: (mm.role as string) ?? "",
-        admin: Boolean(mm.admin) || undefined,
-        performing: (mm.performing as boolean | null) ?? undefined,
-      })),
+      members: (membersBy.get(b.id as string) ?? [])
+        .filter((mm) => musicianIdSet.has(mm.musician_id as string))
+        .map((mm) => ({
+          playerId: mm.musician_id as string,
+          role: (mm.role as string) ?? "",
+          admin: Boolean(mm.admin) || undefined,
+          performing: (mm.performing as boolean | null) ?? undefined,
+        })),
       openSlots: (slotsBy.get(b.id as string) ?? []).map((s) => ({
         instrument: s.instrument as InstrumentId,
         note: (s.note as string) ?? "",
@@ -204,8 +234,9 @@ export const supabaseBackend: Backend = {
       seed: (b.seed as number) ?? 1,
     }));
 
-    const catalogVenues: Venue[] = ((venues.data ?? []) as Row[]).map((v) => ({
+    const catalogVenues: Venue[] = venueRows.map((v) => ({
       id: v.id as string,
+      scene: v.scene as SceneId,
       name: v.name as string,
       neighborhood: (v.neighborhood as string) ?? "",
       capacity: (v.capacity as number) ?? 0,
@@ -213,18 +244,19 @@ export const supabaseBackend: Backend = {
       vibe: (v.vibe as string) ?? "",
       backline: (v.backline as string[]) ?? undefined,
       hiring: (v.hiring as Venue["hiring"]) ?? undefined,
-      managers: (v.managers as string[]) ?? undefined,
+      managers: (v.managers as string[] | null)?.filter((id) => musicianIdSet.has(id)) ?? undefined,
       links: (v.links as Venue["links"]) ?? undefined,
       seed: (v.seed as number) ?? 1,
     }));
 
     const events: Event[] = gigRows.map((g) => ({
       id: g.id as string,
+      scene: g.scene as SceneId,
       title: g.title as string,
-      venueId: (g.venue_id as string) ?? "",
-      bandId: (g.band_id as string) ?? undefined,
-      bandIds: (g.band_ids as string[]) ?? undefined,
-      playerIds: (g.player_ids as string[]) ?? undefined,
+      venueId: venueIdSet.has(g.venue_id as string) ? (g.venue_id as string) : "",
+      bandId: bandIdSet.has(g.band_id as string) ? (g.band_id as string) : undefined,
+      bandIds: (g.band_ids as string[] | null)?.filter((id) => bandIdSet.has(id)) ?? undefined,
+      playerIds: (g.player_ids as string[] | null)?.filter((id) => musicianIdSet.has(id)) ?? undefined,
       description: (g.description as string) ?? undefined,
       date: (g.date as string) ?? "",
       time: (g.time as string) ?? "",
@@ -237,17 +269,25 @@ export const supabaseBackend: Backend = {
       externalUrl: (g.external_url as string) ?? undefined,
     }));
 
-    const feedPosts: FeedPost[] = ((posts.data ?? []) as Row[]).map((p) => ({
+    const feedPosts: FeedPost[] = postRows.filter((p) => {
+      const authorId = p.author_id as string;
+      if (p.author_type === "player") return musicianIdSet.has(authorId);
+      if (p.author_type === "band") return bandIdSet.has(authorId);
+      return venueIdSet.has(authorId);
+    }).map((p) => ({
       id: p.id as string,
+      scene: p.scene as SceneId,
       kind: p.kind as FeedPost["kind"],
       author: { type: p.author_type as FeedPost["author"]["type"], id: p.author_id as string },
       text: (p.text as string) ?? "",
       ago: (p.ago as string) ?? "",
       likes: (p.likes as number) ?? 0,
       comments: (p.comments as number) ?? 0,
-      eventId: (p.gig_id as string) ?? undefined,
+      eventId: gigIdSet.has(p.gig_id as string) ? (p.gig_id as string) : undefined,
       video: (p.video as FeedPost["video"]) ?? undefined,
-      videoOwnerId: (p.video_owner_id as string) ?? undefined,
+      videoOwnerId: musicianIdSet.has(p.video_owner_id as string)
+        ? (p.video_owner_id as string)
+        : undefined,
       subFor: (p.sub_for as FeedPost["subFor"]) ?? undefined,
     }));
 
@@ -307,6 +347,7 @@ export const supabaseBackend: Backend = {
           instruments: ((p.instruments as InstrumentId[]) ?? []),
           neighborhood: (p.neighborhood as string) ?? "",
           availableTonight: Boolean(p.available_tonight),
+          scene: (p.scene as SceneId) ?? "austin",
         }
       : null;
 
@@ -359,23 +400,25 @@ export const supabaseBackend: Backend = {
       bookings,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
-      openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => ({
+      openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => normalizeOpeningScene({
         id: o.id as string,
+        scene: o.scene as SceneId,
         instrument: o.instrument as Opening["instrument"],
         postedBy: {
           kind: o.posted_by_kind as Opening["postedBy"]["kind"],
           id: o.posted_by_id as string,
         },
         eventId: (o.event_id as string) ?? undefined,
+        gigAt: (o.gig_at as string) ?? undefined,
         when: o.when_label as string,
         fee: (o.fee as number) ?? 0,
         note: (o.note as string) ?? undefined,
         urgent: Boolean(o.urgent),
         status: (o.status as Opening["status"]) ?? "open",
         ago: agoLabel(o.created_at as string),
-      })),
+      } as Omit<Opening, "scene">)),
       projects: ((projectsRes.data ?? []) as Record<string, unknown>[]).map(
-        (p) => p.data as Band,
+        (p) => normalizeProjectScene(p.data as Omit<Band, "scene">),
       ),
     };
   },
@@ -388,6 +431,7 @@ export const supabaseBackend: Backend = {
       neighborhood: profile.neighborhood,
       available_tonight: profile.availableTonight,
       instruments: profile.instruments,
+      scene: profile.scene,
       updated_at: new Date().toISOString(),
     });
     fail("save profile", error);
@@ -400,6 +444,7 @@ export const supabaseBackend: Backend = {
     if (patch.neighborhood !== undefined) row.neighborhood = patch.neighborhood;
     if (patch.availableTonight !== undefined) row.available_tonight = patch.availableTonight;
     if (patch.instruments !== undefined) row.instruments = patch.instruments;
+    if (patch.scene !== undefined) row.scene = patch.scene;
     const { error } = await supabase.from("profiles").update(row).eq("id", user.id);
     fail("update profile", error);
   },
@@ -490,10 +535,12 @@ export const supabaseBackend: Backend = {
     const { error } = await supabase.from("openings").insert({
       id: opening.id,
       user_id: user.id,
+      scene: opening.scene,
       instrument: opening.instrument,
       posted_by_kind: opening.postedBy.kind,
       posted_by_id: opening.postedBy.id,
       event_id: opening.eventId ?? null,
+      gig_at: opening.gigAt ?? null,
       when_label: opening.when,
       fee: opening.fee,
       note: opening.note ?? null,

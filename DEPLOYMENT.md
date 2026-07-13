@@ -70,8 +70,8 @@ on a subdomain (e.g. `app.kitesink.com`):
   parity (links/reels/backline/hiring/event fields the 4-object refactor
   added) + `user_projects` and `group_conversations` (whole-document jsonb,
   owner-only RLS) + `bookings.opening_id`.
-- `supabase/seed.sql` — the Austin demo catalog (players, bands, venues, events,
-  feed), **generated** from `src/lib/data.ts` via
+- `supabase/seed.sql` — the Austin and Nashville demo catalog (players, bands,
+  venues, events, feed), **generated** from `src/lib/data.ts` via
   `node --experimental-strip-types scripts/gen-seed.ts > supabase/seed.sql`.
 - `supabase/tests/rls.test.mjs` — the RLS isolation test suite (see below),
   including openings fee-privacy checks.
@@ -166,9 +166,12 @@ For a real, deployed backend.
    npx supabase db push
    ```
    (Or paste each file in `supabase/migrations/` into the dashboard SQL editor,
-   in filename order.)
-4. **Seed the catalog.** `db push` does *not* run `seed.sql` against a remote —
-   paste `supabase/seed.sql` into the dashboard **SQL editor** and run it.
+   in filename order.) `db push` applies pending migrations; it does **not**
+   reset user data.
+4. **Add the regenerated catalog seed.** `db push` does *not* run `seed.sql`
+   against a remote. Run the regenerated `supabase/seed.sql` in the dashboard
+   **SQL editor**. It adds the Nashville catalog records alongside the existing
+   catalog; it does not reset user data.
 5. **Auth settings.** Cloud projects **require email confirmation by default**.
    For real use, keep it on (the app handles the "check your email" state). For
    quick testing, **Authentication → Providers → Email** → temporarily disable
@@ -190,10 +193,37 @@ For a real, deployed backend.
    export SUPABASE_SERVICE_ROLE_KEY=<service_role>
    node supabase/tests/rls.test.mjs
    ```
+   Run the Supabase RLS suite only with **disposable project credentials** —
+   never production credentials, because the suite creates and deletes users.
    To run these in CI, add repo secrets `SUPABASE_TEST_URL`,
    `SUPABASE_TEST_ANON_KEY`, `SUPABASE_TEST_SERVICE_ROLE_KEY` (pointing at the
    disposable project); `.github/workflows/ci.yml` runs them on push and skips
    cleanly when absent.
+8. **Verify the application before release:**
+   ```bash
+   npm test
+   npm run build
+   ```
+
+### Additive cloud rollout checklist
+
+For an existing cloud project, use this order:
+
+```bash
+npx supabase db push
+```
+
+Then run the regenerated `supabase/seed.sql` in the Supabase **SQL editor**,
+followed by:
+
+```bash
+npm test
+npm run build
+```
+
+`db push` does not reset user data. The catalog seed is additive and adds the
+Nashville records. If you run `supabase/tests/rls.test.mjs`, use disposable
+project credentials only—not production.
 
 ---
 
@@ -236,6 +266,8 @@ Add the same vars in Vercel for the deployed app.
 | Start local backend | `npx supabase start` → `npx supabase db reset` |
 | Local keys | `npx supabase status` |
 | Apply migrations to cloud | `npx supabase link` → `npx supabase db push` |
+| Add regenerated cloud catalog | Run `supabase/seed.sql` in the Supabase SQL editor |
+| Release verification | `npm test` → `npm run build` |
 | Run RLS tests | `node supabase/tests/rls.test.mjs` (with `SUPABASE_*` env) |
 | Trigger a deploy | `git push` to the production branch |
 | Env vars (deployed) | Vercel → Settings → Environment Variables |

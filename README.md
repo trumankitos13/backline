@@ -48,6 +48,27 @@ npm run dev       # → http://localhost:5173
 
 `npm run build` typechecks and produces a static bundle in `dist/`.
 
+## Additive Supabase rollout
+
+For an existing Supabase project, apply the release in this order:
+
+```bash
+npx supabase db push
+```
+
+Then run the regenerated `supabase/seed.sql` in the Supabase dashboard's **SQL
+editor**, then verify the app:
+
+```bash
+npm test
+npm run build
+```
+
+`db push` does not reset user data. The catalog seed is additive and adds the
+Nashville records. Run the Supabase RLS suite only against disposable project
+credentials—never production—because it creates and deletes test users. See
+[`DEPLOYMENT.md`](DEPLOYMENT.md) for setup and RLS-test details.
+
 ## Stack & architecture
 
 Vite + React 19 + TypeScript + Tailwind v4, `react-router` for navigation.

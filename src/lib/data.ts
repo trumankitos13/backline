@@ -9,12 +9,14 @@ import type {
   Player,
   Venue,
 } from "./types";
+import type { SceneId } from "./scenes";
 
 // ---------------------------------------------------------------- musicians
 
 export const PLAYERS: Player[] = [
   {
     id: "m-dre",
+    scene: "austin",
     name: "Dre Okafor",
     handle: "dreonthedrums",
     instruments: [{ id: "drums", level: "pro", years: 12 }],
@@ -48,6 +50,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-sam",
+    scene: "austin",
     name: "Sam Reyes",
     handle: "samreyespercussion",
     instruments: [
@@ -77,6 +80,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-katie",
+    scene: "austin",
     name: "Katie Lindqvist",
     handle: "katiehitsthings",
     instruments: [{ id: "drums", level: "semi-pro", years: 6 }],
@@ -102,6 +106,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-jbird",
+    scene: "austin",
     name: "J-Bird Tolliver",
     handle: "jbirdbass",
     instruments: [{ id: "bass", level: "pro", years: 15 }],
@@ -128,6 +133,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-nina",
+    scene: "austin",
     name: "Nina Vo",
     handle: "ninavobass",
     instruments: [
@@ -154,6 +160,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-marcus",
+    scene: "austin",
     name: "Marcus Dell",
     handle: "marcusdellblues",
     instruments: [{ id: "guitar", level: "pro", years: 20 }],
@@ -180,6 +187,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-luz",
+    scene: "austin",
     name: "Luz Herrera",
     handle: "luzsteel",
     instruments: [
@@ -208,6 +216,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-theo",
+    scene: "austin",
     name: "Theo Park",
     handle: "theoparkkeys",
     instruments: [{ id: "keys", level: "pro", years: 14 }],
@@ -234,6 +243,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-ada",
+    scene: "austin",
     name: "Ada Osei",
     handle: "adaosei",
     instruments: [
@@ -266,6 +276,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-cass",
+    scene: "austin",
     name: "Cass Monroe",
     handle: "cassmonroe",
     instruments: [{ id: "vocals", level: "pro", years: 10 }],
@@ -289,6 +300,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-ray",
+    scene: "austin",
     name: "Ray Delgado",
     handle: "raydelgadosax",
     instruments: [{ id: "sax", level: "pro", years: 18 }],
@@ -312,6 +324,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-belle",
+    scene: "austin",
     name: "Belle Tran",
     handle: "belletran",
     instruments: [{ id: "trumpet", level: "semi-pro", years: 8 }],
@@ -335,6 +348,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-ivy",
+    scene: "austin",
     name: "Ivy Nakamura",
     handle: "ivyfiddle",
     instruments: [{ id: "violin", level: "pro", years: 13 }],
@@ -360,6 +374,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-kilo",
+    scene: "austin",
     name: "DJ Kilowatt",
     handle: "djkilowatt",
     instruments: [{ id: "dj", level: "pro", years: 10 }],
@@ -388,6 +403,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-gus",
+    scene: "austin",
     name: "Gus Ferreira",
     handle: "gusfoh",
     instruments: [{ id: "sound-tech", level: "pro", years: 17 }],
@@ -413,6 +429,7 @@ export const PLAYERS: Player[] = [
   },
   {
     id: "m-pri",
+    scene: "austin",
     name: "Priya Anand",
     handle: "priyalights",
     instruments: [{ id: "lighting-tech", level: "semi-pro", years: 5 }],
@@ -434,6 +451,72 @@ export const PLAYERS: Player[] = [
     bandIds: ["b-nightmarket"],
     seed: 16,
   },
+  {
+    id: "m-nash-ivy",
+    scene: "nashville",
+    name: "Ivy Brooks",
+    handle: "ivybrooksguitar",
+    instruments: [{ id: "guitar", level: "pro", years: 11 }],
+    genres: ["Americana", "Country", "Folk"],
+    bio: "Nashville guitarist and harmony singer with a soft spot for concise songs and loud choruses.",
+    gear: ["Telecaster", "Deluxe Reverb", "Nashville tuning kit"],
+    neighborhood: "East Nashville",
+    distanceMiles: 1.8,
+    rate: { min: 140, max: 220 },
+    availableTonight: true,
+    availability: ["Thu", "Fri", "Sat"],
+    responseMins: 14,
+    gigsPlayed: 191,
+    verified: true,
+    videos: [{ id: "v-nash-ivy-1", title: "East Side chorus guitar", durationSec: 36, plays: 7200, likes: 860, palette: ["#b45309", "#172554"], tags: ["americana", "guitar"] }],
+    reviews: [],
+    bandIds: ["b-nash-riverstone"],
+    seed: 41,
+  },
+  {
+    id: "m-nash-miles",
+    scene: "nashville",
+    name: "Miles Carter",
+    handle: "milescarterbass",
+    instruments: [{ id: "bass", level: "pro", years: 13 }],
+    genres: ["Soul", "Americana", "Rock"],
+    bio: "Pocket-minded bassist for writers' rounds, soul revues, and late-night East Side sets.",
+    gear: ["P-Bass", "Ampeg PF-50T", "Upright bass"],
+    neighborhood: "Germantown",
+    distanceMiles: 2.9,
+    rate: { min: 130, max: 210 },
+    availableTonight: true,
+    availability: ["Wed", "Fri", "Sat", "Sun"],
+    responseMins: 19,
+    gigsPlayed: 248,
+    verified: true,
+    videos: [],
+    reviews: [],
+    bandIds: ["b-nash-riverstone"],
+    seed: 42,
+  },
+  {
+    id: "m-nash-june",
+    scene: "nashville",
+    name: "June Holloway",
+    handle: "junehollowaydrums",
+    instruments: [{ id: "drums", level: "pro", years: 10 }],
+    genres: ["Indie", "Country", "Pop"],
+    bio: "Drummer who can make a writer's round breathe or turn a chorus into a room-sized moment.",
+    gear: ["Ludwig Classic Maple", "Brushes", "SPD-SX"],
+    neighborhood: "Wedgewood-Houston",
+    distanceMiles: 3.6,
+    rate: { min: 125, max: 200 },
+    availableTonight: false,
+    availability: ["Thu", "Sat", "Sun"],
+    responseMins: 22,
+    gigsPlayed: 176,
+    verified: true,
+    videos: [],
+    reviews: [],
+    bandIds: ["b-nash-riverstone"],
+    seed: 43,
+  },
 ];
 
 // -------------------------------------------------------------------- bands
@@ -441,6 +524,7 @@ export const PLAYERS: Player[] = [
 export const BANDS: Band[] = [
   {
     id: "b-moontower",
+    scene: "austin",
     name: "Moontower Revival",
     genres: ["Indie Rock", "Garage"],
     bio: "Four-piece indie rock. Loud guitars, louder feelings. Debut EP 'Porch Light' out now — recorded live in a garage in Hyde Park, and it sounds like it (on purpose).",
@@ -462,6 +546,7 @@ export const BANDS: Band[] = [
   },
   {
     id: "b-brasshouse",
+    scene: "austin",
     name: "Brass House ATX",
     genres: ["Funk", "Soul", "Brass"],
     bio: "Nine-piece horn-driven funk machine, MD'd by Ada Osei. We play weddings that want to feel like block parties and block parties that want to feel like weddings.",
@@ -484,6 +569,7 @@ export const BANDS: Band[] = [
   },
   {
     id: "b-cedarrye",
+    scene: "austin",
     name: "Cedar & Rye",
     genres: ["Country", "Americana"],
     bio: "Honky-tonk with a songwriter's heart. Wednesday residency at the Rattlesnake Room. Bring your boots, or don't, we're not the dress code police.",
@@ -506,6 +592,7 @@ export const BANDS: Band[] = [
   },
   {
     id: "b-velvet",
+    scene: "austin",
     name: "Velvet Hour",
     genres: ["Jazz", "Soul"],
     bio: "Late-night jazz for people who talk quietly in bars. Cass Monroe on vocals, Theo Park on keys. Thursdays at the Rattlesnake Room, occasionally somewhere fancier.",
@@ -525,6 +612,7 @@ export const BANDS: Band[] = [
   },
   {
     id: "b-nightmarket",
+    scene: "austin",
     name: "Night Market",
     genres: ["Electronic", "Live House"],
     bio: "DJ Kilowatt + live drums + lights by Priya. Half DJ set, half live band, all sweat. If the floor isn't shaking we issue refunds (we have never issued a refund).",
@@ -542,11 +630,29 @@ export const BANDS: Band[] = [
     ],
     seed: 25,
   },
+  {
+    id: "b-nash-riverstone",
+    scene: "nashville",
+    name: "Riverstone Parade",
+    genres: ["Americana", "Indie Folk", "Soul"],
+    bio: "Three Nashville friends making sharp songs with open-road guitars, patient grooves, and full-room harmonies.",
+    neighborhood: "East Nashville",
+    members: [
+      { playerId: "m-nash-ivy", role: "Guitar / Vocals", admin: true },
+      { playerId: "m-nash-miles", role: "Bass" },
+      { playerId: "m-nash-june", role: "Drums" },
+    ],
+    openSlots: [{ instrument: "keys", note: "Keys player for a Lantern Room residency; organ and harmony vocals welcome." }],
+    followers: 2860,
+    eventIds: ["g-nash-riverstone-lantern"],
+    links: [{ kind: "instagram", url: "https://instagram.com/riverstoneparade", label: "@riverstoneparade" }],
+    seed: 51,
+  },
 ];
 
 // ------------------------------------------------------------------- venues
 
-export const VENUES: Venue[] = [
+const AUSTIN_VENUES: Omit<Venue, "scene">[] = [
   { id: "v-armadillo", name: "The Blue Armadillo", neighborhood: "East Austin", capacity: 250, followers: 5200, vibe: "Sticky floors, perfect sound, the best Tuesday crowd in town.", backline: ["House drum kit (Gretsch 4-pc)", "Full PA + monitors", "Two guitar amps + bass rig", "Backline mics + DIs"], hiring: { role: "sound-tech", note: "Tuesday house FOH — weekly, reliable pay." }, links: [{ kind: "website", url: "https://bluearmadillo.com" }, { kind: "instagram", url: "https://instagram.com/bluearmadilloatx", label: "@bluearmadilloatx" }], seed: 31 },
   { id: "v-rattlesnake", name: "Rattlesnake Room", neighborhood: "Downtown", capacity: 180, followers: 3900, vibe: "Honky-tonk Wednesdays, jazz Thursdays, chaos Fridays.", backline: ["House upright piano", "PA + 4 monitor mixes", "Guitar + bass amps on request"], links: [{ kind: "website", url: "https://rattlesnakeroom.com" }, { kind: "bandsintown", url: "https://bandsintown.com/v/rattlesnake-room" }], seed: 32 },
   { id: "v-sunset", name: "Sunset Ballroom", neighborhood: "South Congress", capacity: 900, followers: 12400, vibe: "The mid-size room every touring band remembers.", backline: ["Line-array PA + in-ear support", "Full backline (drums, amps, keys stand)", "House lighting rig + LD available"], hiring: { role: "lighting-tech", note: "Sub lighting techs for touring dates — union-friendly." }, links: [{ kind: "website", url: "https://sunsetballroom.com" }, { kind: "instagram", url: "https://instagram.com/sunsetballroom", label: "@sunsetballroom" }], seed: 33 },
@@ -554,11 +660,29 @@ export const VENUES: Venue[] = [
   { id: "v-warehouse", name: "Warehouse 512", neighborhood: "Riverside", capacity: 1200, followers: 8800, vibe: "Big room, big system, late nights.", backline: ["Massive PA + subs", "DJ booth (Pioneer CDJs + mixer)", "Full backline + risers"], hiring: { role: "sound-tech", note: "Weekend club-night monitor engineers." }, links: [{ kind: "instagram", url: "https://instagram.com/warehouse512", label: "@warehouse512" }], seed: 35 },
 ];
 
+export const VENUES: Venue[] = [
+  ...AUSTIN_VENUES.map((venue) => ({ ...venue, scene: "austin" as const })),
+  {
+    id: "v-nash-lantern",
+    scene: "nashville",
+    name: "The Lantern Room",
+    neighborhood: "East Nashville",
+    capacity: 220,
+    followers: 4600,
+    vibe: "Warm wood, tuned piano, and an attentive room for songs with something to say.",
+    backline: ["Yamaha house kit", "Fender bass rig", "Stage piano", "Six monitor mixes"],
+    hiring: { role: "sound-tech", note: "Friday monitor engineer for songwriter and full-band nights." },
+    links: [{ kind: "website", url: "https://example.com/lantern-room" }],
+    seed: 61,
+  },
+];
+
 // --------------------------------------------------------------------- gigs
 
 export const EVENTS: Event[] = [
   {
     id: "e-cedarrye-rattlesnake",
+    scene: "austin",
     title: "Cedar & Rye — Honky-Tonk Night",
     venueId: "v-rattlesnake",
     bandId: "b-cedarrye",
@@ -575,6 +699,7 @@ export const EVENTS: Event[] = [
   },
   {
     id: "e-moontower-armadillo",
+    scene: "austin",
     title: "Moontower Revival — 'Porch Light' EP Release",
     venueId: "v-armadillo",
     bandId: "b-moontower",
@@ -589,6 +714,7 @@ export const EVENTS: Event[] = [
   },
   {
     id: "e-brasshouse-sunset",
+    scene: "austin",
     title: "Brass House ATX + guests",
     venueId: "v-sunset",
     bandId: "b-brasshouse",
@@ -604,6 +730,7 @@ export const EVENTS: Event[] = [
   },
   {
     id: "e-velvet-prickly",
+    scene: "austin",
     title: "Velvet Hour: Standards & Stories",
     venueId: "v-prickly",
     bandId: "b-velvet",
@@ -618,6 +745,7 @@ export const EVENTS: Event[] = [
   },
   {
     id: "e-nightmarket-warehouse",
+    scene: "austin",
     title: "Night Market — All Night Long",
     venueId: "v-warehouse",
     bandId: "b-nightmarket",
@@ -632,12 +760,28 @@ export const EVENTS: Event[] = [
   },
   {
     id: "e-openmic-armadillo",
+    scene: "austin",
     title: "Tuesday Open Mic",
     venueId: "v-armadillo",
     description:
       "Sign-ups at 6, music at 7. Backline provided (real amps, we fixed the broken one). Three songs a slot.",
     date: "Tue Jul 7",
     time: "7:00 PM",
+    source: "backline",
+  },
+  {
+    id: "g-nash-riverstone-lantern",
+    scene: "nashville",
+    title: "Riverstone Parade — Lantern Room Residency",
+    venueId: "v-nash-lantern",
+    bandId: "b-nash-riverstone",
+    playerIds: ["m-nash-ivy", "m-nash-miles", "m-nash-june"],
+    description: "A Friday East Nashville residency: new songs, a guest writer, and the long way home after last call.",
+    date: "Fri Jul 17",
+    time: "8:00 PM",
+    payout: 225,
+    ticket: "$14",
+    ticketUrl: "https://example.com/tix/riverstone-lantern",
     source: "backline",
   },
 ];
@@ -647,6 +791,7 @@ export const EVENTS: Event[] = [
 export const FEED_POSTS: FeedPost[] = [
   {
     id: "p-1",
+    scene: "austin",
     kind: "need-sub",
     author: { type: "band", id: "b-cedarrye" },
     text: "SOS, Austin. Our drummer's van gave out in Waco and tonight's residency is NOT cancelling. Need a country-comfortable drummer, brushes a plus. Charts ready, soundcheck 7:30.",
@@ -658,6 +803,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-2",
+    scene: "austin",
     kind: "gig",
     author: { type: "band", id: "b-moontower" },
     text: "EP RELEASE FRIDAY 🌙 'Porch Light' gets loud at the Blue Armadillo. First 50 through the door get a screen-printed poster Nina made in her kitchen.",
@@ -668,6 +814,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-3",
+    scene: "austin",
     kind: "video",
     author: { type: "player", id: "m-dre" },
     text: "New reel: half-time shuffle breakdown. This one took 30 takes and one noise complaint.",
@@ -679,6 +826,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-4",
+    scene: "austin",
     kind: "open-mic",
     author: { type: "venue", id: "v-armadillo" },
     text: "Tuesday Open Mic sign-ups open at 6, music at 7. Backline provided (yes, real amps, no, not the broken one from last month — we fixed it).",
@@ -689,6 +837,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-5",
+    scene: "austin",
     kind: "gig",
     author: { type: "venue", id: "v-sunset" },
     text: "SATURDAY: Brass House ATX turns our ballroom into a block party. Nine musicians, four horns, zero chill. A few tickets left.",
@@ -699,6 +848,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-6",
+    scene: "austin",
     kind: "news",
     author: { type: "venue", id: "v-rattlesnake" },
     text: "We're opening the back room for rehearsal rentals — $15/hr for Backline members, backline included. Weekday afternoons only for now.",
@@ -708,6 +858,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-7",
+    scene: "austin",
     kind: "video",
     author: { type: "player", id: "m-ada" },
     text: "Someone asked how the run in the bridge works. Slowed it down. You're welcome and I'm sorry.",
@@ -719,6 +870,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-8",
+    scene: "austin",
     kind: "need-sub",
     author: { type: "band", id: "b-velvet" },
     text: "Velvet Hour needs an upright bassist for Thursday at Prickly Pear. Standards set — if you know 'Autumn Leaves' in two keys you're 80% there.",
@@ -730,6 +882,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-9",
+    scene: "austin",
     kind: "gig",
     author: { type: "band", id: "b-nightmarket" },
     text: "Saturday. Warehouse 512. New live set with real drums this time. Priya built a lighting rig that has its own weather system.",
@@ -740,6 +893,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-10",
+    scene: "austin",
     kind: "news",
     author: { type: "venue", id: "v-prickly" },
     text: "Reminder: we pay every artist a guarantee, every night, no 'exposure' math. Booking November now — send your reel through your Backline profile.",
@@ -749,6 +903,7 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-11",
+    scene: "austin",
     kind: "video",
     author: { type: "player", id: "m-pri" },
     text: "Before/after from Friday's bar gig. Same stage, same band, $90 of haze and intention.",
@@ -760,12 +915,24 @@ export const FEED_POSTS: FeedPost[] = [
   },
   {
     id: "p-12",
+    scene: "austin",
     kind: "news",
     author: { type: "band", id: "b-brasshouse" },
     text: "We're looking for a regular FOH engineer — 2-3 gigs a month, real budget. Details on our open slots. Tell your favorite sound person.",
     ago: "3d",
     likes: 67,
     comments: 12,
+  },
+  {
+    id: "p-nash-riverstone-1",
+    scene: "nashville",
+    kind: "gig",
+    author: { type: "band", id: "b-nash-riverstone" },
+    text: "Nashville: first Friday residency at the Lantern Room. New songs, familiar friends, and a guest writer after the set.",
+    ago: "3h",
+    likes: 96,
+    comments: 18,
+    eventId: "g-nash-riverstone-lantern",
   },
 ];
 
@@ -807,6 +974,28 @@ export interface Catalog {
   feedPosts: FeedPost[];
 }
 
+// Keep an immutable-by-convention snapshot of the complete demo dataset. The
+// live arrays below are replaced when a scene catalog is installed, so they
+// cannot themselves be the source for a later scene switch.
+const DEMO_CATALOG: Catalog = {
+  players: [...PLAYERS],
+  bands: [...BANDS],
+  venues: [...VENUES],
+  events: [...EVENTS],
+  feedPosts: [...FEED_POSTS],
+};
+
+/** Return a fresh view of the built-in catalog for one scene. */
+export function demoCatalogForScene(scene: SceneId): Catalog {
+  return {
+    players: DEMO_CATALOG.players.filter((player) => player.scene === scene),
+    bands: DEMO_CATALOG.bands.filter((band) => band.scene === scene),
+    venues: DEMO_CATALOG.venues.filter((venue) => venue.scene === scene),
+    events: DEMO_CATALOG.events.filter((event) => event.scene === scene),
+    feedPosts: DEMO_CATALOG.feedPosts.filter((post) => post.scene === scene),
+  };
+}
+
 let musicianById = new Map(PLAYERS.map((m) => [m.id, m]));
 let bandById = new Map(BANDS.map((b) => [b.id, b]));
 let venueById = new Map(VENUES.map((v) => [v.id, v]));
@@ -827,6 +1016,33 @@ export function installCatalog(c: Catalog): void {
   EVENTS.splice(0, EVENTS.length, ...c.events);
   FEED_POSTS.splice(0, FEED_POSTS.length, ...c.feedPosts);
   rebuildIndexes();
+}
+
+/** Begin fetching a scene catalog now, then make it the active catalog when ready. */
+export function loadAndInstallCatalog(
+  scene: SceneId,
+  loadCatalog: (scene: SceneId) => Promise<Catalog | null>,
+): Promise<void> {
+  return loadCatalog(scene).then((catalog) => {
+    if (catalog) installCatalog(catalog);
+  });
+}
+
+/** Installs the new scene before persisting its selection, then rehydrates state. */
+export async function loadCatalogPersistAndReload({
+  scene,
+  loadCatalog,
+  persist,
+  reload,
+}: {
+  scene: SceneId;
+  loadCatalog: (scene: SceneId) => Promise<Catalog | null>;
+  persist: () => Promise<void>;
+  reload: () => Promise<void>;
+}): Promise<void> {
+  await loadAndInstallCatalog(scene, loadCatalog);
+  await persist();
+  await reload();
 }
 
 export function getPlayer(id: string): Player | undefined {

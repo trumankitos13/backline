@@ -4,8 +4,9 @@
 // up. Behavior matches the original SitIn prototype.
 
 import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, Opening } from "../types";
-import { SEED_CONVERSATIONS } from "../data";
+import { demoCatalogForScene, SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
+import { normalizePersistedData } from "../sceneScope";
 import type { AuthResult, AuthUser, Backend, PersistedData } from "./types";
 
 const STORAGE_KEY = "backline-state-v1";
@@ -37,7 +38,7 @@ function read(): PersistedData {
     if (!raw) return demoDefault();
     const parsed = JSON.parse(raw) as Partial<PersistedData>;
     const merged = { ...demoDefault(), ...parsed };
-    return { ...merged, bookings: merged.bookings.map(migrateBooking) };
+    return normalizePersistedData({ ...merged, bookings: merged.bookings.map(migrateBooking) });
   } catch {
     return demoDefault();
   }
@@ -78,9 +79,8 @@ export const localBackend: Backend = {
     return { error: "Accounts require Supabase — this build is in demo mode." };
   },
 
-  async loadCatalog() {
-    // demo mode: the static Austin catalog in data.ts is already active
-    return null;
+  async loadCatalog(scene) {
+    return demoCatalogForScene(scene);
   },
 
   async load() {
