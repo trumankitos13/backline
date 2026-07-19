@@ -28,8 +28,9 @@ mobile.
   `user_projects`, `group_conversations` tables, owner-only RLS).
 
 **Mocked / not yet real (the gap):**
-- Cloud DMs and offer responses are real; group-chat replies remain simulated
-  and Phase 2 notifications are not wired yet.
+- Cloud DMs, offer responses, booking cancellation, durable in-app alerts, and
+  browser-push delivery are implemented; group-chat replies remain simulated,
+  and the Phase 2 migrations/function still need deployment verification.
 - Payments are a **UI mock** — the held/released escrow lifecycle is modeled,
   but Stripe isn't wired (no real money).
 - Public TikTok/YouTube reels are real provider embeds; generative gradients
@@ -40,8 +41,9 @@ mobile.
 
 ## Guiding principles
 
-1. **One city first (Austin).** Marketplaces die of empty supply, not missing
-   features. Optimize for liquidity in one scene before breadth.
+1. **Two launch scenes, kept distinct (Austin + Nashville).** Marketplaces die
+   of empty supply, not missing features. Seed each city deliberately before
+   adding more markets or intra-city scene fragmentation.
 2. **Ship the critical path before breadth:** *find a sub → book → get paid.*
    SOS broadcast, feed, and native can follow.
 3. **Keep demo mode working** the whole way — it's our dev velocity and our
@@ -101,22 +103,24 @@ the suite green.)*
 - **Exit:** edit a profile and add a reel on one device, then discover and play
   both from another account/device.
 
-### Phase 2 — Messaging + booking (realtime, real state machine) 🚧 IN PROGRESS
+### Phase 2 — Messaging + booking (realtime, real state machine) ✅ CODE COMPLETE
 **Goal:** two real users message and move a booking through its lifecycle.
 - ✅ Account-to-account DMs use participant-scoped tables and **Supabase
   Realtime** subscriptions; cloud replies persist and sync live, while demo
   mode alone retains canned replies.
 - ✅ **Booking state machine in Postgres:** `offer → accepted | declined → paid
   → completed | cancelled`, with server-owned timestamps and transition guards
-  (only the invited musician can accept or decline).
-- 🚧 **Notifications:** durable, deduplicated in-app alerts and cross-device
-  read state are implemented; owner-scoped Web Push subscriptions and the
-  push-delivery Edge Function are implemented for urgent offer/cancellation
-  alerts. Remaining: deploy/configure VAPID + webhook, preference/quiet-hours
-  UI, group/SOS/payment triggers, and delivery verification. Per the newer V1
-  spec, general email notifications remain deferred.
-- **Exit:** a booking goes offer → accept → (ready to pay) with live chat and
-  notifications, no fakery.
+  (only the invited musician can accept or decline); valid pre-payment
+  cancellation actions are exposed in the thread UI.
+- ✅ **Notifications:** durable, deduplicated in-app alerts, cross-device read
+  state, browser-push subscriptions, preference controls, hard mute, and quiet
+  hours are implemented. The push-delivery Edge Function handles urgent booking
+  alerts and optional message pushes. Group, SOS, and payment notifications land
+  with the normalized group/SOS models and real payments in Phases 3–4. Per the
+  newer V1 spec, general email notifications remain deferred.
+- **Operational exit (pending):** deploy migrations and the Edge Function,
+  configure VAPID + the database webhook, then verify two accounts can move a
+  booking offer → accepted/cancelled with live chat and cross-device alerts.
 
 ### Phase 3 — Payments (real money) ⚠️ hardest, regulated
 **Goal:** money moves booker → escrow → musician's bank, minus platform fee.
@@ -159,9 +163,10 @@ the suite green.)*
   parity on the core flow. (The mobile-first web layout was built for exactly
   this port.)
 
-### Phase 7 — Launch & growth (one city, then many)
-- **Closed beta in Austin:** hand-seed supply (recruit real musicians, venues,
-  bands), invites/referrals, waitlist, white-glove onboarding, support.
+### Phase 7 — Launch & growth (two scenes, then many)
+- **Closed beta in Austin and Nashville:** hand-seed supply independently in
+  both scenes (recruit real musicians, venues, and bands), invites/referrals,
+  waitlist, white-glove onboarding, and support.
 - Instrument the **marketplace metrics** that matter: fill rate, time-to-fill an
   SOS, GMV, take rate, repeat-booking rate, supply/demand balance.
 - Then a repeatable **multi-city playbook**.
