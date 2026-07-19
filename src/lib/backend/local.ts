@@ -93,6 +93,14 @@ export const localBackend: Backend = {
   async updateUser(_user: AuthUser, patch: Partial<CurrentUser>) {
     mutate((d) => (d.user ? { ...d, user: { ...d.user, ...patch } } : d));
   },
+  async uploadAvatar(_user: AuthUser, file: File) {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read that image."));
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsDataURL(file);
+    });
+  },
   async setFollow(_user: AuthUser, targetId: string, following: boolean) {
     mutate((d) => ({
       ...d,

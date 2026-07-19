@@ -22,7 +22,7 @@ import {
   SearchIcon,
   VerifiedIcon,
 } from "../components/icons";
-import { ReelViewer } from "../components/video";
+import { EmbeddedReelViewer, ReelViewer } from "../components/video";
 import { SosBanner } from "../components/discover/SosBanner";
 import { SosFlow } from "../components/discover/SosFlow";
 import { PostFlow } from "../components/post/PostFlow";
@@ -100,6 +100,7 @@ export default function Discover() {
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     return PLAYERS.filter((p) => {
+      if ((p.reels?.length ?? 0) === 0 && p.videos.length === 0) return false;
       if (tonightOnly && !p.availableTonight) return false;
       if (verifiedOnly && !p.verified) return false;
       if (near3 && p.distanceMiles >= 3) return false;
@@ -285,12 +286,21 @@ export default function Discover() {
       </div>
 
       {reel && (
-        <ReelViewer
-          clips={reel.videos}
-          startIndex={0}
-          ownerName={reel.name}
-          onClose={() => setReel(null)}
-        />
+        (reel.reels ?? []).length > 0 ? (
+          <EmbeddedReelViewer
+            reels={reel.reels ?? []}
+            startIndex={0}
+            ownerName={reel.name}
+            onClose={() => setReel(null)}
+          />
+        ) : (
+          <ReelViewer
+            clips={reel.videos}
+            startIndex={0}
+            ownerName={reel.name}
+            onClose={() => setReel(null)}
+          />
+        )
       )}
 
       <SosFlow

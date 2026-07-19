@@ -55,6 +55,17 @@ function fail(context: string, error: { message: string } | null): void {
   if (error) throw new Error(`${context}: ${error.message}`);
 }
 
+function avatarUrl(path: unknown): string | undefined {
+  if (typeof path !== "string" || !path) return undefined;
+  return supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+}
+
+function profileSeed(id: string): number {
+  let value = 0;
+  for (const char of id) value = (value * 31 + char.charCodeAt(0)) % 10_000;
+  return value || 1;
+}
+
 /** Keep catalog roots within the active scene before their dependents are loaded. */
 export function filterCatalogRoots<T extends Record<string, unknown>>(rows: T[], scene: SceneId): T[] {
   return rows.filter((row) => row.scene === scene);
@@ -107,23 +118,25 @@ export const supabaseBackend: Backend = {
     // public-read tables, assembled into the app's four objects + feed.
     // An unseeded project (no musicians) returns null → demo catalog stays.
     type Row = Record<string, unknown>;
-    const [mus, bands, venues, gigs, posts] =
+    const [mus, profiles, bands, venues, gigs, posts] =
       await Promise.all([
         supabase.from("musicians").select("*").eq("scene", scene).order("created_at"),
+        supabase.from("profiles").select("*").eq("scene", scene).not("handle", "is", null).order("created_at"),
         supabase.from("bands").select("*").eq("scene", scene).order("created_at"),
         supabase.from("venues").select("*").eq("scene", scene).order("created_at"),
         supabase.from("gigs").select("*").eq("scene", scene).order("created_at"),
         supabase.from("feed_posts").select("*").eq("scene", scene).order("created_at"),
       ]);
-    for (const [what, res] of Object.entries({ mus, bands, venues, gigs, posts })) {
+    for (const [what, res] of Object.entries({ mus, profiles, bands, venues, gigs, posts })) {
       fail(`load catalog ${what}`, res.error);
     }
     const musRows = filterCatalogRoots((mus.data ?? []) as Row[], scene);
+    const profileRows = filterCatalogRoots((profiles.data ?? []) as Row[], scene);
     const bandRows = filterCatalogRoots((bands.data ?? []) as Row[], scene);
     const venueRows = filterCatalogRoots((venues.data ?? []) as Row[], scene);
     const gigRows = filterCatalogRoots((gigs.data ?? []) as Row[], scene);
     const postRows = filterCatalogRoots((posts.data ?? []) as Row[], scene);
-    if (musRows.length + bandRows.length + venueRows.length + gigRows.length + postRows.length === 0) {
+    if (musRows.length + profileRows.length + bandRows.length + venueRows.length + gigRows.length + postRows.length === 0) {
       return null; // not seeded — keep the demo catalog
     }
 
@@ -205,6 +218,38 @@ export const supabaseBackend: Backend = {
         .filter((id) => bandIdSet.has(id)),
       links: (m.links as Player["links"]) ?? undefined,
       seed: (m.seed as number) ?? 1,
+    }));
+
+    const profilePlayers: Player[] = profileRows.map((p) => ({
+      id: p.id as string,
+      scene: p.scene as SceneId,
+      name: (p.name as string) ?? "Player",
+      handle: p.handle as string,
+      instruments: ((p.instruments as InstrumentId[]) ?? []).map((id) => ({
+        id,
+        level: "semi-pro" as const,
+        years: 0,
+      })),
+      genres: (p.genres as string[]) ?? [],
+      bio: (p.bio as string) ?? "",
+      gear: (p.gear as string[]) ?? [],
+      neighborhood: (p.neighborhood as string) ?? "",
+      distanceMiles: 0,
+      rate: {
+        min: (p.rate_min as number) ?? 0,
+        max: (p.rate_max as number) ?? 0,
+      },
+      availableTonight: Boolean(p.available_tonight),
+      availability: (p.availability as string[]) ?? [],
+      responseMins: 0,
+      gigsPlayed: 0,
+      verified: false,
+      reels: Array.isArray(p.reels) ? p.reels as Player["reels"] : [],
+      videos: [],
+      reviews: [],
+      bandIds: [],
+      seed: profileSeed(p.id as string),
+      avatarUrl: avatarUrl(p.avatar_path),
     }));
 
     const catalogBands: Band[] = bandRows.map((b) => ({
@@ -291,7 +336,13 @@ export const supabaseBackend: Backend = {
       subFor: (p.sub_for as FeedPost["subFor"]) ?? undefined,
     }));
 
-    return { players, bands: catalogBands, venues: catalogVenues, events, feedPosts };
+    return {
+      players: [...players, ...profilePlayers],
+      bands: catalogBands,
+      venues: catalogVenues,
+      events,
+      feedPosts,
+    };
   },
 
   async load(user): Promise<PersistedData> {
@@ -342,12 +393,23 @@ export const supabaseBackend: Backend = {
     // have picked a handle.
     const profile: CurrentUser | null = p && p.handle
       ? {
+          id: user.id,
           name: (p.name as string) ?? "",
           handle: (p.handle as string) ?? "",
           instruments: ((p.instruments as InstrumentId[]) ?? []),
           neighborhood: (p.neighborhood as string) ?? "",
           availableTonight: Boolean(p.available_tonight),
           scene: (p.scene as SceneId) ?? "austin",
+          bio: (p.bio as string) ?? "",
+          genres: (p.genres as string[]) ?? [],
+          gear: (p.gear as string[]) ?? [],
+          availability: (p.availability as string[]) ?? [],
+          rate: {
+            min: (p.rate_min as number) ?? 0,
+            max: (p.rate_max as number) ?? 0,
+          },
+          reels: Array.isArray(p.reels) ? p.reels as CurrentUser["reels"] : [],
+          avatarUrl: avatarUrl(p.avatar_path),
         }
       : null;
 
@@ -432,6 +494,13 @@ export const supabaseBackend: Backend = {
       available_tonight: profile.availableTonight,
       instruments: profile.instruments,
       scene: profile.scene,
+      bio: profile.bio ?? "",
+      genres: profile.genres ?? [],
+      gear: profile.gear ?? [],
+      availability: profile.availability ?? [],
+      rate_min: profile.rate?.min ?? null,
+      rate_max: profile.rate?.max ?? null,
+      reels: profile.reels ?? [],
       updated_at: new Date().toISOString(),
     });
     fail("save profile", error);
@@ -445,8 +514,54 @@ export const supabaseBackend: Backend = {
     if (patch.availableTonight !== undefined) row.available_tonight = patch.availableTonight;
     if (patch.instruments !== undefined) row.instruments = patch.instruments;
     if (patch.scene !== undefined) row.scene = patch.scene;
+    if (patch.bio !== undefined) row.bio = patch.bio;
+    if (patch.genres !== undefined) row.genres = patch.genres;
+    if (patch.gear !== undefined) row.gear = patch.gear;
+    if (patch.availability !== undefined) row.availability = patch.availability;
+    if (patch.rate !== undefined) {
+      row.rate_min = patch.rate.min;
+      row.rate_max = patch.rate.max;
+    }
+    if (patch.reels !== undefined) row.reels = patch.reels;
     const { error } = await supabase.from("profiles").update(row).eq("id", user.id);
     fail("update profile", error);
+  },
+
+  async uploadAvatar(user, file) {
+    const extension = file.type === "image/png"
+      ? "png"
+      : file.type === "image/webp"
+        ? "webp"
+        : "jpg";
+    const path = `${user.id}/avatar-${Date.now()}.${extension}`;
+    const existing = await supabase
+      .from("profiles")
+      .select("avatar_path")
+      .eq("id", user.id)
+      .maybeSingle();
+    fail("load current avatar", existing.error);
+
+    const uploaded = await supabase.storage.from("avatars").upload(path, file, {
+      cacheControl: "31536000",
+      contentType: file.type,
+      upsert: false,
+    });
+    fail("upload avatar", uploaded.error);
+
+    const saved = await supabase
+      .from("profiles")
+      .update({ avatar_path: path, updated_at: new Date().toISOString() })
+      .eq("id", user.id);
+    if (saved.error) {
+      await supabase.storage.from("avatars").remove([path]);
+      fail("save avatar", saved.error);
+    }
+
+    const oldPath = (existing.data as { avatar_path?: string | null } | null)?.avatar_path;
+    if (oldPath && oldPath !== path) {
+      await supabase.storage.from("avatars").remove([oldPath]);
+    }
+    return avatarUrl(path)!;
   },
 
   async setFollow(user, targetId, following) {

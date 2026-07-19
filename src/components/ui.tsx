@@ -75,12 +75,14 @@ export function initials(name: string): string {
 export function Avatar({
   name,
   seed,
+  src,
   size = 44,
   square: _square = false,
   className = "",
 }: {
   name: string;
   seed: number;
+  src?: string;
   size?: number;
   square?: boolean;
   className?: string;
@@ -94,8 +96,15 @@ export function Avatar({
       style={{ width: size, height: size, borderRadius: radius, background: fp.background }}
       aria-hidden="true"
     >
-      <span className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
-      {showInitials && (
+      {src && (
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      <span className={`absolute inset-0 bg-gradient-to-t from-black/35 to-transparent ${src ? "opacity-45" : ""}`} />
+      {showInitials && !src && (
         <span
           className="mono absolute right-1 bottom-0.5 font-bold text-white/90"
           style={{ fontSize: Math.max(8, size * 0.2), letterSpacing: "0.02em" }}

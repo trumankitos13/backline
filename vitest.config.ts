@@ -6,6 +6,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
-    exclude: [...configDefaults.exclude, "supabase/tests/**"],
+    exclude: [...configDefaults.exclude, ".worktrees/**", "supabase/tests/**"],
   },
 });

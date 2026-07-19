@@ -69,6 +69,8 @@ export interface Backend {
 
   saveUser(user: AuthUser, profile: CurrentUser): Promise<void>;
   updateUser(user: AuthUser, patch: Partial<CurrentUser>): Promise<void>;
+  /** upload and persist the current user's avatar, returning its display URL */
+  uploadAvatar(user: AuthUser, file: File): Promise<string>;
   setFollow(user: AuthUser, targetId: string, following: boolean): Promise<void>;
   addMessage(user: AuthUser, playerId: string, message: Message): Promise<void>;
   markRead(user: AuthUser, playerId: string): Promise<void>;

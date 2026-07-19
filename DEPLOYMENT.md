@@ -70,6 +70,10 @@ on a subdomain (e.g. `app.kitesink.com`):
   parity (links/reels/backline/hiring/event fields the 4-object refactor
   added) + `user_projects` and `group_conversations` (whole-document jsonb,
   owner-only RLS) + `bookings.opening_id`.
+- `supabase/migrations/*_harden_database_and_add_profiles.sql` — records the
+  `author_type = 'player'` hotfix, locks down the auth trigger, adds public
+  player-profile fields, creates the owner-scoped avatar bucket, and applies
+  advisor-recommended indexes/RLS optimizations.
 - `supabase/seed.sql` — the Austin and Nashville demo catalog (players, bands,
   venues, events, feed), **generated** from `src/lib/data.ts` via
   `node --experimental-strip-types scripts/gen-seed.ts > supabase/seed.sql`.
@@ -134,6 +138,9 @@ dependency (`npx supabase`).
      pickup band adds rows in `user_projects` + `group_conversations`.
    - **Prove the catalog is DB-backed:** in Studio, edit a musician's name in
      the `musicians` table → reload the app → the new name shows everywhere.
+   - Open **You → Edit player profile** → save a bio/rate, upload an avatar,
+     and add a public TikTok or YouTube reel. Open **View public profile** and
+     confirm the provider player loads.
    - Sign out and back in → your data is still there (persistence works).
 
 6. **Run the RLS isolation tests** against local:
@@ -224,6 +231,11 @@ npm run build
 `db push` does not reset user data. The catalog seed is additive and adds the
 Nashville records. If you run `supabase/tests/rls.test.mjs`, use disposable
 project credentials only—not production.
+
+For the Phase 1 profile release, apply migrations **before** Vercel deploys the
+new client. The new client reads the added profile columns during catalog boot.
+After deployment, edit a profile, reload in a private window, and confirm the
+avatar and reel remain visible.
 
 ---
 

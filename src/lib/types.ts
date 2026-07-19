@@ -102,6 +102,8 @@ export interface Player {
   links?: ExternalLink[];
   /** avatar gradient seed */
   seed: number;
+  /** uploaded profile photo; the fingerprint remains the fallback */
+  avatarUrl?: string;
 }
 
 export interface Band {
@@ -305,4 +307,13 @@ export interface CurrentUser {
   availableTonight: boolean;
   /** scene selected during onboarding; scopes local discovery and posting. */
   scene: SceneId;
+  /** public Player profile fields, added progressively after onboarding */
+  bio?: string;
+  genres?: string[];
+  gear?: string[];
+  availability?: string[];
+  rate?: { min: number; max: number };
+  reels?: Reel[];
+  /** uploaded profile photo; the fingerprint remains the fallback */
+  avatarUrl?: string;
 }

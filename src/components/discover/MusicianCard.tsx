@@ -61,7 +61,7 @@ export function MusicianCard({
           {/* identity + rating */}
           <div className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar name={m.name} seed={m.seed} size={44} />
+              <Avatar name={m.name} seed={m.seed} src={m.avatarUrl} size={44} />
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5">
                   <span className="truncate font-semibold text-text-hi">{m.name}</span>

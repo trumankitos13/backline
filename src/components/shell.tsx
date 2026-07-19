@@ -92,7 +92,7 @@ export function Shell({ children }: { children: ReactNode }) {
               to="/profile"
               className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-900"
             >
-              <Avatar name={state.user.name} seed={99} size={36} />
+              <Avatar name={state.user.name} seed={99} src={state.user.avatarUrl} size={36} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{state.user.name}</p>
                 <p className="mono truncate text-[10px] text-text-lo">@{state.user.handle}</p>

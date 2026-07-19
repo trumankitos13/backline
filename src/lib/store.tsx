@@ -269,7 +269,8 @@ export interface AppApi {
   respondToSubPost(postId: string, bandName: string): void;
   markRead(conversationId: string): void;
   setUser(user: CurrentUser): void;
-  updateUser(patch: Partial<CurrentUser>): void;
+  updateUser(patch: Partial<CurrentUser>): Promise<void>;
+  uploadAvatar(file: File): Promise<string>;
   reset(): void;
   // auth (cloud mode)
   signIn(email: string, password: string): Promise<AuthResult>;
@@ -847,27 +848,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "SET_USER", user });
         persist((u) => backend.saveUser(u, user));
       },
-      updateUser(patch) {
+      async updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });
         const user = authUserRef.current;
         if (patch.scene !== undefined) {
           if (!user) {
-            loadAndInstallCatalog(patch.scene, backend.loadCatalog.bind(backend))
-              .catch((e) => console.error("[backline] scene catalog load failed", e));
+            await loadAndInstallCatalog(patch.scene, backend.loadCatalog.bind(backend));
             return;
           }
-          loadCatalogPersistAndReload({
+          await loadCatalogPersistAndReload({
             scene: patch.scene,
             loadCatalog: backend.loadCatalog.bind(backend),
             persist: () => backend.updateUser(user, patch),
             reload,
-          })
-            .catch((e) => console.error("[backline] scene catalog load failed", e));
+          });
           return;
         }
         if (!user) return;
-        backend.updateUser(user, patch)
-          .catch((e) => console.error("[backline] persist failed", e));
+        await backend.updateUser(user, patch);
+        if (
+          patch.name !== undefined ||
+          patch.handle !== undefined ||
+          patch.neighborhood !== undefined ||
+          patch.availableTonight !== undefined ||
+          patch.instruments !== undefined ||
+          patch.bio !== undefined ||
+          patch.genres !== undefined ||
+          patch.gear !== undefined ||
+          patch.availability !== undefined ||
+          patch.rate !== undefined ||
+          patch.reels !== undefined
+        ) {
+          const scene = stateRef.current.user?.scene ?? "austin";
+          await loadAndInstallCatalog(scene, backend.loadCatalog.bind(backend));
+        }
+      },
+      async uploadAvatar(file) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before uploading an avatar.");
+        const avatarUrl = await backend.uploadAvatar(user, file);
+        dispatch({ type: "UPDATE_USER", patch: { avatarUrl } });
+        const scene = stateRef.current.user?.scene ?? "austin";
+        await loadAndInstallCatalog(scene, backend.loadCatalog.bind(backend));
+        return avatarUrl;
       },
       reset() {
         const user = authUserRef.current;

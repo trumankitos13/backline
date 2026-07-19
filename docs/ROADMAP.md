@@ -88,14 +88,16 @@ the suite green.)*
   pipeline green.
 
 ### Phase 1 — Real profiles + reels
-**Goal:** a musician creates a profile and uploads a reel that actually plays.
-- Profile **editing** for your own musician page (instruments, rate, gear,
+**Goal:** a player creates a public profile and features a reel that actually plays.
+- Profile **editing** for your own player page (instruments, rate, gear,
   availability, neighborhood, bio) — writing through the backend.
-- **Media pipeline** (the biggest lift): record/upload a short vertical video →
-  Mux/Cloudflare Stream → thumbnail + HLS playback. Swap `VideoTile`/`ReelViewer`
-  from gradient placeholders to real `<video>`/HLS. Keep the generative gel as
-  the loading/empty state. Add avatar upload (fingerprint stays as fallback).
-- **Exit:** upload a reel on one device, watch it back on another.
+- **Avatar storage:** upload a JPG/PNG/WebP to the owner-scoped Supabase
+  `avatars` bucket; keep the generative fingerprint as the fallback.
+- **Reels follow the newer V1 spec:** persist public TikTok/YouTube links and
+  play them through the providers' official embed players. Backline does not
+  store or transcode copied social video.
+- **Exit:** edit a profile and add a reel on one device, then discover and play
+  both from another account/device.
 
 ### Phase 2 — Messaging + booking (realtime, real state machine)
 **Goal:** two real users message and move a booking through its lifecycle.
