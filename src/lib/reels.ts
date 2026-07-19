@@ -51,4 +51,3 @@ export function parseReelUrl(input: string): ParsedReelUrl | null {
 export function reelEmbedUrl(reel: Reel): string | null {
   return parseReelUrl(reel.url)?.embedUrl ?? null;
 }
-

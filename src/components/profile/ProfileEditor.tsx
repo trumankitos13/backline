@@ -9,8 +9,13 @@ const INPUT = "w-full rounded-xl border border-hairline-strong bg-surface-800 px
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function splitList(value: string, limit: number): string[] {
-  return Array.from(new Set(value.split(/[\n,]/).map((item) => item.trim()).filter(Boolean))).slice(0, limit);
+function splitList(value: string, limit: number, itemLength: number): string[] {
+  return Array.from(new Set(
+    value
+      .split(/[\n,]/)
+      .map((item) => item.trim().slice(0, itemLength))
+      .filter(Boolean),
+  )).slice(0, limit);
 }
 
 export function ProfileEditor({
@@ -136,8 +141,8 @@ export function ProfileEditor({
         handle: cleanHandle,
         neighborhood: neighborhood.trim(),
         bio: bio.trim(),
-        genres: splitList(genres, 8),
-        gear: splitList(gear, 12),
+        genres: splitList(genres, 8, 40),
+        gear: splitList(gear, 12, 120),
         rate: { min: Math.round(min), max: Math.round(max) },
         instruments,
         availability,
@@ -236,21 +241,21 @@ export function ProfileEditor({
         <section className="grid gap-4 sm:grid-cols-2">
           <label className="text-xs text-text-mid">
             Genres <span className="text-text-faint">· comma separated</span>
-            <input value={genres} onChange={(event) => setGenres(event.target.value)} placeholder="Country, Soul, Indie" className={`${INPUT} mt-1.5`} />
+            <input value={genres} onChange={(event) => setGenres(event.target.value)} maxLength={400} placeholder="Country, Soul, Indie" className={`${INPUT} mt-1.5`} />
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-text-mid">
               Rate from
-              <input type="number" min="0" inputMode="numeric" value={rateMin} onChange={(event) => setRateMin(event.target.value)} className={`${INPUT} mt-1.5`} />
+              <input type="number" min="0" max="100000" inputMode="numeric" value={rateMin} onChange={(event) => setRateMin(event.target.value)} className={`${INPUT} mt-1.5`} />
             </label>
             <label className="text-xs text-text-mid">
               Rate to
-              <input type="number" min="0" inputMode="numeric" value={rateMax} onChange={(event) => setRateMax(event.target.value)} className={`${INPUT} mt-1.5`} />
+              <input type="number" min="0" max="100000" inputMode="numeric" value={rateMax} onChange={(event) => setRateMax(event.target.value)} className={`${INPUT} mt-1.5`} />
             </label>
           </div>
           <label className="text-xs text-text-mid sm:col-span-2">
             Gear <span className="text-text-faint">· one item per line</span>
-            <textarea value={gear} onChange={(event) => setGear(event.target.value)} rows={3} placeholder={"Fender Deluxe Reverb\nGretsch kit\nIn-ear rig"} className={`${INPUT} mt-1.5 resize-none`} />
+            <textarea value={gear} onChange={(event) => setGear(event.target.value)} maxLength={1500} rows={3} placeholder={"Fender Deluxe Reverb\nGretsch kit\nIn-ear rig"} className={`${INPUT} mt-1.5 resize-none`} />
           </label>
         </section>
 

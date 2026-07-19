@@ -19,12 +19,36 @@ alter table public.profiles
   add column if not exists reels jsonb not null default '[]'::jsonb;
 
 alter table public.profiles
+  add constraint profiles_name_length check (
+    handle is null or char_length(btrim(name)) between 2 and 60
+  ),
+  add constraint profiles_handle_format check (
+    handle is null or handle ~ '^[a-z0-9_]{3,30}$'
+  ),
+  add constraint profiles_neighborhood_length check (
+    neighborhood is null or char_length(neighborhood) <= 80
+  ),
+  add constraint profiles_bio_length check (char_length(bio) <= 500),
+  add constraint profiles_genres_limit check (cardinality(genres) <= 8),
+  add constraint profiles_gear_limit check (cardinality(gear) <= 12),
+  add constraint profiles_availability_limit check (cardinality(availability) <= 7),
+  add constraint profiles_instruments_limit check (
+    handle is null or cardinality(instruments) between 1 and 12
+  ),
   add constraint profiles_rate_min_nonnegative check (rate_min is null or rate_min >= 0),
   add constraint profiles_rate_max_nonnegative check (rate_max is null or rate_max >= 0),
+  add constraint profiles_rate_maximum check (
+    (rate_min is null or rate_min <= 100000)
+    and (rate_max is null or rate_max <= 100000)
+  ),
   add constraint profiles_rate_order check (
     rate_min is null or rate_max is null or rate_max >= rate_min
   ),
-  add constraint profiles_reels_array check (jsonb_typeof(reels) = 'array');
+  add constraint profiles_reels_array check (jsonb_typeof(reels) = 'array'),
+  add constraint profiles_reels_limit check (jsonb_array_length(reels) <= 6),
+  add constraint profiles_avatar_owner_path check (
+    avatar_path is null or avatar_path like id::text || '/%'
+  );
 
 -- Completed profiles are discoverable. The owner-only select policy remains so
 -- a newly-created account can read its row before onboarding chooses a handle.
