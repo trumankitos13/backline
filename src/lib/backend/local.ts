@@ -20,6 +20,7 @@ function demoDefault(): PersistedData {
     following: ["v-armadillo", "v-rattlesnake", "b-moontower", "b-brasshouse"],
     conversations: SEED_CONVERSATIONS,
     bookings: [],
+    notifications: [],
     likedPosts: [],
     respondedSubPosts: [],
     openings: [],
@@ -143,6 +144,26 @@ export const localBackend: Backend = {
       ...d,
       bookings: d.bookings.map((b) => (b.id === bookingId ? { ...b, status } : b)),
     }));
+  },
+  async markNotificationRead(_user: AuthUser, notificationId: string) {
+    mutate((d) => ({
+      ...d,
+      notifications: d.notifications.map((notification) =>
+        notification.id === notificationId ? { ...notification, read: true } : notification,
+      ),
+    }));
+  },
+  async markAllNotificationsRead() {
+    mutate((d) => ({
+      ...d,
+      notifications: d.notifications.map((notification) => ({ ...notification, read: true })),
+    }));
+  },
+  async savePushSubscription() {
+    // Push delivery is cloud-only.
+  },
+  async removePushSubscription() {
+    // Push delivery is cloud-only.
   },
   async addOpening(_user: AuthUser, opening: Opening) {
     mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));

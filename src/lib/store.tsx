@@ -25,6 +25,7 @@ import type {
   CurrentUser,
   InstrumentId,
   Message,
+  NotificationItem,
   Opening,
 } from "./types";
 import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAndReload } from "./data";
@@ -33,6 +34,10 @@ import { upsertMessage } from "./conversations";
 import { scopePersistedData } from "./sceneScope";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
 import type { AuthResult } from "./backend/types";
+import {
+  getBrowserPushSubscription,
+  subscribeBrowserToPush,
+} from "./push";
 
 export interface AppState {
   user: CurrentUser | null;
@@ -40,6 +45,7 @@ export interface AppState {
   following: string[];
   conversations: Conversation[];
   bookings: Booking[];
+  notifications: NotificationItem[];
   likedPosts: string[];
   /** feed "need-sub" posts the user raised a hand on */
   respondedSubPosts: string[];
@@ -56,6 +62,7 @@ const EMPTY_STATE: AppState = {
   following: [],
   conversations: [],
   bookings: [],
+  notifications: [],
   likedPosts: [],
   respondedSubPosts: [],
   ratingsGiven: {},
@@ -73,6 +80,8 @@ type Action =
   | { type: "MARK_READ"; conversationId: string }
   | { type: "ADD_BOOKING"; booking: Booking }
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
+  | { type: "MARK_NOTIFICATION_READ"; notificationId: string }
+  | { type: "MARK_ALL_NOTIFICATIONS_READ" }
   | { type: "TOGGLE_LIKE"; postId: string }
   | { type: "RESPOND_SUB"; postId: string }
   | { type: "RATE_MUSICIAN"; playerId: string; stars: number }
@@ -133,6 +142,23 @@ function reducer(state: AppState, action: Action): AppState {
         bookings: state.bookings.map((b) =>
           b.id === action.bookingId ? { ...b, status: action.status } : b,
         ),
+      };
+    case "MARK_NOTIFICATION_READ":
+      return {
+        ...state,
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.notificationId
+            ? { ...notification, read: true }
+            : notification,
+        ),
+      };
+    case "MARK_ALL_NOTIFICATIONS_READ":
+      return {
+        ...state,
+        notifications: state.notifications.map((notification) => ({
+          ...notification,
+          read: true,
+        })),
       };
     case "TOGGLE_LIKE":
       return {
@@ -252,6 +278,10 @@ export interface AppApi {
   sendBookingOffer(input: BookingOfferInput): string;
   /** accept or decline an offer received by the signed-in player */
   respondToBooking(bookingId: string, status: "accepted" | "declined"): void;
+  markNotificationRead(notificationId: string): void;
+  markAllNotificationsRead(): void;
+  enablePushNotifications(): Promise<void>;
+  disablePushNotifications(): Promise<void>;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -505,6 +535,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       respondToBooking(bookingId, status) {
         dispatch({ type: "SET_BOOKING_STATUS", bookingId, status });
         persist((user) => backend.setBookingStatus(user, bookingId, status));
+      },
+
+      markNotificationRead(notificationId) {
+        dispatch({ type: "MARK_NOTIFICATION_READ", notificationId });
+        persist((user) => backend.markNotificationRead(user, notificationId));
+      },
+
+      markAllNotificationsRead() {
+        dispatch({ type: "MARK_ALL_NOTIFICATIONS_READ" });
+        persist((user) => backend.markAllNotificationsRead(user));
+      },
+
+      async enablePushNotifications() {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before enabling notifications.");
+        const subscription = await subscribeBrowserToPush();
+        await backend.savePushSubscription(
+          user,
+          subscription.toJSON(),
+          navigator.userAgent,
+        );
+      },
+
+      async disablePushNotifications() {
+        const user = authUserRef.current;
+        if (!user) return;
+        const subscription = await getBrowserPushSubscription();
+        if (!subscription) return;
+        await backend.removePushSubscription(user, subscription.endpoint);
+        await subscription.unsubscribe();
       },
 
       postOpening(input) {
@@ -937,6 +997,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return backend.signUp(email, password, name);
       },
       async signOut() {
+        const user = authUserRef.current;
+        const subscription = await getBrowserPushSubscription().catch(() => null);
+        if (user && subscription) {
+          await backend.removePushSubscription(user, subscription.endpoint).catch((error) => {
+            console.error("[backline] push cleanup failed", error);
+          });
+          await subscription.unsubscribe().catch(() => false);
+        }
         await backend.signOut();
       },
       resetPassword(email) {
@@ -965,4 +1033,9 @@ export function useConversationWith(playerId: string): Conversation | undefined 
 export function useUnreadCount(): number {
   const { state } = useApp();
   return state.conversations.reduce((n, c) => n + c.unread, 0);
+}
+
+export function useUnreadNotificationCount(): number {
+  const { state } = useApp();
+  return state.notifications.reduce((count, notification) => count + Number(!notification.read), 0);
 }

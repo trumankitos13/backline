@@ -112,7 +112,9 @@ grant select, insert, update on public.direct_conversation_reads to authenticate
 -- player id for backwards compatibility.
 alter table public.bookings drop constraint if exists bookings_musician_id_fkey;
 alter table public.bookings
-  add column musician_user_id uuid references public.profiles(id) on delete restrict,
+  -- Keep the historical player id on the booking if an account is deleted,
+  -- while releasing the live participant FK so account deletion is possible.
+  add column musician_user_id uuid references public.profiles(id) on delete set null,
   add column responded_at timestamptz,
   add column paid_at timestamptz,
   add column completed_at timestamptz,

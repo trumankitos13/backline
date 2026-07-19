@@ -92,6 +92,14 @@ async function main() {
 
   const A = await makeUser("a");
   const B = await makeUser("b");
+  const C = await makeUser("c");
+  const profileStamp = Date.now();
+  const completedProfiles = await Promise.all([
+    A.client.from("profiles").update({ handle: `rls_a_${profileStamp}`, instruments: ["guitar"] }).eq("id", A.id),
+    B.client.from("profiles").update({ handle: `rls_b_${profileStamp}`, instruments: ["drums"] }).eq("id", B.id),
+    C.client.from("profiles").update({ handle: `rls_c_${profileStamp}`, instruments: ["bass"] }).eq("id", C.id),
+  ]);
+  check("test accounts can complete valid public profiles", completedProfiles.every((result) => !result.error));
   console.log("\nseeding user A's private data:");
 
   // A writes a full set of owned rows
@@ -102,14 +110,13 @@ async function main() {
     A.client.from("bookings").insert({ id: bookingId, user_id: A.id, musician_id: musicianId, gig_title: "Secret gig", amount: 150, status: "offer" }),
     A.client.from("liked_posts").insert({ user_id: A.id, post_id: "p-1" }),
     A.client.from("responded_sub_posts").insert({ user_id: A.id, post_id: "p-1" }),
-    A.client.from("profiles").update({ handle: `a-${Date.now()}` }).eq("id", A.id),
     // fee lives on this row — its privacy is exactly what these tests protect
     A.client.from("openings").insert({ id: openingId, user_id: A.id, instrument: "drums", posted_by_kind: "player", posted_by_id: "me", when_label: "Tonight", fee: 150 }),
     // projects + group chats persist as whole documents (Phase 0)
     A.client.from("user_projects").insert({ id: `proj-rls-${Date.now()}`, user_id: A.id, data: { id: "proj-x", name: "Secret Project", members: [] } }),
     A.client.from("group_conversations").insert({ id: `g-rls-${Date.now()}`, user_id: A.id, data: { id: "g-x", kind: "group", messages: [], unread: 0 } }),
   ]);
-  check("A can write its own follows/bookings/likes/subs/profile/openings/projects/group-chats", seedA.every((r) => !r.error));
+  check("A can write its own follows/bookings/likes/subs/openings/projects/group-chats", seedA.every((r) => !r.error));
 
   const convIns = await A.client.from("conversations").insert({ user_id: A.id, musician_id: musicianId }).select("id").single();
   check("A can create its own conversation", !convIns.error);
@@ -117,12 +124,57 @@ async function main() {
   const msgIns = await A.client.from("messages").insert({ id: `m-rls-${Date.now()}`, conversation_id: convId, sender: "user", body: "secret" });
   check("A can post a message in its own conversation", !msgIns.error);
 
+  // Phase 2: a canonical account-to-account conversation is visible only to
+  // its two participants, and sending a message creates B's durable alert.
+  const [participantA, participantB] = [A.id, B.id].sort();
+  const directConvIns = await A.client.from("direct_conversations").insert({
+    participant_a: participantA,
+    participant_b: participantB,
+  }).select("id").single();
+  check("A can create a direct conversation with B", !directConvIns.error);
+  const directConvId = directConvIns.data?.id;
+  const directMessageId = `dm-rls-${Date.now()}`;
+  const directMsgIns = await A.client.from("direct_messages").insert({
+    id: directMessageId,
+    conversation_id: directConvId,
+    sender_id: A.id,
+    body: "participant secret",
+  });
+  check("A can send B a real direct message", !directMsgIns.error);
+  const bDirectRead = await B.client.from("direct_messages").select("id").eq("id", directMessageId);
+  const cDirectRead = await C.client.from("direct_messages").select("id").eq("id", directMessageId);
+  check("B can read their direct message", (bDirectRead.data?.length ?? 0) === 1);
+  check("C cannot read A and B's direct message", !cDirectRead.error && (cDirectRead.data?.length ?? 0) === 0);
+
+  const realBookingId = `bk-real-${Date.now()}`;
+  const realBooking = await A.client.from("bookings").insert({
+    id: realBookingId,
+    user_id: A.id,
+    musician_id: B.id,
+    musician_user_id: B.id,
+    gig_title: "Real two-party gig",
+    amount: 200,
+    status: "offer",
+  });
+  check("A can send B a real booking offer", !realBooking.error);
+
+  await A.client.from("bookings").update({ status: "accepted" }).eq("id", realBookingId);
+  const afterWrongActor = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("booker cannot accept their own offer", afterWrongActor.data?.status === "offer");
+
+  const bAccept = await B.client.from("bookings").update({ status: "accepted" }).eq("id", realBookingId).select("status").single();
+  check("only invited player B can accept the offer", bAccept.data?.status === "accepted");
+
+  const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
+  const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
+  check("B receives durable message and offer notifications", new Set((bNotifications.data ?? []).map((row) => row.kind)).size === 2);
+  check("C cannot read B's notifications", !cNotifications.error && (cNotifications.data?.length ?? 0) === 0);
+
   // ---- isolation: B must not SEE any of A's rows ----
   console.log("\nuser B reading user A's data (must be empty):");
   const reads = {
-    profiles: await B.client.from("profiles").select("*").eq("id", A.id),
     follows: await B.client.from("follows").select("*").eq("user_id", A.id),
-    bookings: await B.client.from("bookings").select("*").eq("user_id", A.id),
+    bookings: await B.client.from("bookings").select("*").eq("id", bookingId),
     conversations: await B.client.from("conversations").select("*").eq("user_id", A.id),
     messages: await B.client.from("messages").select("*").eq("conversation_id", convId),
     liked_posts: await B.client.from("liked_posts").select("*").eq("user_id", A.id),
@@ -134,10 +186,12 @@ async function main() {
   for (const [table, res] of Object.entries(reads)) {
     check(`B sees 0 of A's ${table}`, !res.error && (res.data?.length ?? 0) === 0);
   }
+  const publicAProfile = await B.client.from("profiles").select("id,handle").eq("id", A.id);
+  check("B CAN read A's completed public profile", (publicAProfile.data?.length ?? 0) === 1);
 
   // ---- isolation: B must not MUTATE A's rows ----
   console.log("\nuser B mutating user A's data (must not take effect):");
-  // 'held' also proves the escrow-states enum migration is applied
+  // The legacy booking has no invited account; B is not a participant.
   await B.client.from("bookings").update({ status: "held" }).eq("id", bookingId);
   const afterUpd = await admin.from("bookings").select("status").eq("id", bookingId).single();
   check("B cannot change A's booking status", afterUpd.data?.status === "offer");
@@ -155,10 +209,6 @@ async function main() {
   const forgeProject = await B.client.from("user_projects").insert({ id: `proj-forge-${Date.now()}`, user_id: A.id, data: {} });
   check("B cannot forge a project owned by A", forgeProject.error !== null);
 
-  // A's held→released transition still works from A's own client
-  const aHold = await A.client.from("bookings").update({ status: "held" }).eq("id", bookingId).select("status").single();
-  check("A can move its own booking to 'held' (new enum value live)", aHold.data?.status === "held");
-
   // ---- positive control: B sees its own data ----
   console.log("\npositive control:");
   const ownProfile = await B.client.from("profiles").select("*").eq("id", B.id);
@@ -167,6 +217,7 @@ async function main() {
   // ---- cleanup ----
   await admin.auth.admin.deleteUser(A.id);
   await admin.auth.admin.deleteUser(B.id);
+  await admin.auth.admin.deleteUser(C.id);
   await admin.from("bookings").delete().eq("id", bookingId); // in case cascade lagged
 
   console.log(`\n\x1b[1m${passed} passed, ${failures.length} failed\x1b[0m`);

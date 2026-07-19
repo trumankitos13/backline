@@ -8,6 +8,10 @@ const rows: Record<string, unknown> = {
   bookings: [],
   conversations: [],
   messages: [],
+  direct_conversations: [],
+  direct_messages: [],
+  direct_conversation_reads: [],
+  notifications: [],
   liked_posts: [],
   responded_sub_posts: [],
   openings: [
@@ -38,7 +42,9 @@ function query(data: unknown) {
   const chain = {
     select: () => chain,
     eq: () => chain,
+    or: () => chain,
     order: () => chain,
+    limit: () => chain,
     maybeSingle: () => Promise.resolve(result),
     then: <TResult1 = QueryResult, TResult2 = never>(
       onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,

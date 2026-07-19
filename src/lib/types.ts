@@ -286,6 +286,24 @@ export interface Message {
   at: string;
 }
 
+export type NotificationKind =
+  | "direct_message"
+  | "booking_offer"
+  | "booking_accepted"
+  | "booking_declined"
+  | "booking_cancelled";
+
+export interface NotificationItem {
+  id: string;
+  kind: NotificationKind;
+  urgency: "low" | "normal" | "high";
+  title: string;
+  body: string;
+  href: string;
+  createdAt: string;
+  read: boolean;
+}
+
 /**
  * DMs are 1:1 with a Player (`playerId`, ids `c-<playerId>`). Group chats
  * belong to a project/band (`bandId`, ids `g-<bandId>`): the roster talks in

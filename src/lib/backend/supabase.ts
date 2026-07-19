@@ -20,6 +20,7 @@ import type {
   FeedPost,
   InstrumentId,
   Message,
+  NotificationItem,
   Opening,
   Player,
   Venue,
@@ -122,6 +123,11 @@ export const supabaseBackend: Backend = {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings" },
+        onChange,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications" },
         onChange,
       )
       .subscribe();
@@ -407,6 +413,7 @@ export const supabaseBackend: Backend = {
       following: [],
       conversations: [],
       bookings: [],
+      notifications: [],
       likedPosts: [],
       respondedSubPosts: [],
       openings: [],
@@ -423,6 +430,7 @@ export const supabaseBackend: Backend = {
       directConvosRes,
       directMessagesRes,
       directReadsRes,
+      notificationsRes,
       likesRes,
       subsRes,
       openingsRes,
@@ -448,6 +456,11 @@ export const supabaseBackend: Backend = {
           .from("direct_conversation_reads")
           .select("conversation_id,read_at")
           .eq("user_id", user.id),
+        supabase
+          .from("notifications")
+          .select("id,kind,urgency,title,body,href,read_at,created_at")
+          .order("created_at", { ascending: false })
+          .limit(100),
         supabase.from("liked_posts").select("post_id").eq("user_id", user.id),
         supabase.from("responded_sub_posts").select("post_id").eq("user_id", user.id),
         supabase.from("openings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
@@ -463,6 +476,7 @@ export const supabaseBackend: Backend = {
     fail("load direct conversations", directConvosRes.error);
     fail("load direct messages", directMessagesRes.error);
     fail("load direct read markers", directReadsRes.error);
+    fail("load notifications", notificationsRes.error);
     fail("load likes", likesRes.error);
     fail("load sub-responses", subsRes.error);
     fail("load openings", openingsRes.error);
@@ -570,6 +584,19 @@ export const supabaseBackend: Backend = {
       direction: b.user_id === user.id ? "outgoing" : "incoming",
     }));
 
+    const notifications: NotificationItem[] = (
+      (notificationsRes.data ?? []) as Record<string, unknown>[]
+    ).map((notification) => ({
+      id: notification.id as string,
+      kind: notification.kind as NotificationItem["kind"],
+      urgency: notification.urgency as NotificationItem["urgency"],
+      title: notification.title as string,
+      body: (notification.body as string) ?? "",
+      href: notification.href as string,
+      createdAt: notification.created_at as string,
+      read: notification.read_at != null,
+    }));
+
     // group chats are stored as whole documents; they join the DM list
     const groupConversations = ((groupsRes.data ?? []) as Record<string, unknown>[]).map(
       (g) => g.data as Conversation,
@@ -580,6 +607,7 @@ export const supabaseBackend: Backend = {
       following: ((followsRes.data ?? []) as { target_id: string }[]).map((f) => f.target_id),
       conversations: [...groupConversations, ...directConversations, ...conversations],
       bookings,
+      notifications,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
       openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => normalizeOpeningScene({
@@ -797,6 +825,64 @@ export const supabaseBackend: Backend = {
       .update({ status })
       .eq("id", bookingId);
     fail("set booking status", error);
+  },
+
+  async markNotificationRead(_user, notificationId) {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", notificationId);
+    fail("mark notification read", error);
+  },
+
+  async markAllNotificationsRead(_user) {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .is("read_at", null);
+    fail("mark all notifications read", error);
+  },
+
+  async savePushSubscription(user, subscription, userAgent) {
+    const endpoint = subscription.endpoint;
+    const p256dh = subscription.keys?.p256dh;
+    const auth = subscription.keys?.auth;
+    if (!endpoint || !p256dh || !auth) throw new Error("Push subscription is incomplete.");
+
+    const { error: subscriptionError } = await supabase.from("push_subscriptions").upsert(
+      {
+        user_id: user.id,
+        endpoint,
+        p256dh,
+        auth,
+        user_agent: userAgent.slice(0, 500),
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "endpoint" },
+    );
+    fail("save push subscription", subscriptionError);
+
+    const { error: preferenceError } = await supabase.from("notification_preferences").upsert({
+      user_id: user.id,
+      push_enabled: true,
+      updated_at: new Date().toISOString(),
+    });
+    fail("enable push preference", preferenceError);
+  },
+
+  async removePushSubscription(user, endpoint) {
+    const { error: subscriptionError } = await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("endpoint", endpoint);
+    fail("remove push subscription", subscriptionError);
+
+    const { error: preferenceError } = await supabase
+      .from("notification_preferences")
+      .update({ push_enabled: false, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+    fail("disable push preference", preferenceError);
   },
 
   async addOpening(user, opening) {

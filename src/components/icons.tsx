@@ -56,6 +56,13 @@ export const ChatIcon = (p: IconProps) => (
   </Base>
 );
 
+export const BellIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 8h18c0-1-3-1-3-8" />
+    <path d="M10 21h4" />
+  </Base>
+);
+
 export const UserIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="12" cy="8" r="4" />

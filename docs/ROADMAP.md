@@ -109,8 +109,12 @@ the suite green.)*
 - ✅ **Booking state machine in Postgres:** `offer → accepted | declined → paid
   → completed | cancelled`, with server-owned timestamps and transition guards
   (only the invited musician can accept or decline).
-- **Notifications:** email (Resend) + web push for new message / offer /
-  acceptance / payment / gig reminder.
+- 🚧 **Notifications:** durable, deduplicated in-app alerts and cross-device
+  read state are implemented; owner-scoped Web Push subscriptions and the
+  push-delivery Edge Function are implemented for urgent offer/cancellation
+  alerts. Remaining: deploy/configure VAPID + webhook, preference/quiet-hours
+  UI, group/SOS/payment triggers, and delivery verification. Per the newer V1
+  spec, general email notifications remain deferred.
 - **Exit:** a booking goes offer → accept → (ready to pay) with live chat and
   notifications, no fakery.
 
