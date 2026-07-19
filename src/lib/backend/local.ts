@@ -183,6 +183,9 @@ export const localBackend: Backend = {
   async createPayoutOnboardingLink() {
     throw new Error("Payout onboarding is available only with the cloud backend.");
   },
+  async createBookingPaymentIntent() {
+    throw new Error("Real payment setup is available only with the cloud backend.");
+  },
   async addOpening(_user: AuthUser, opening: Opening) {
     mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));
   },

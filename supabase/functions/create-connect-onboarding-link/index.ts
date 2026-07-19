@@ -64,6 +64,13 @@ async function stripePost<T>(
 }
 
 Deno.serve(async (request) => {
+  const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+  const expectedLiveMode = Deno.env.get("STRIPE_LIVE_MODE");
+  const stripeModeMatches = expectedLiveMode === "true"
+    ? stripeSecret.startsWith("sk_live_")
+    : expectedLiveMode === "false" && stripeSecret.startsWith("sk_test_");
+  if (!stripeModeMatches) return response({ error: "Server configuration missing" }, 500);
+
   const appUrlValue = Deno.env.get("APP_URL") ?? "";
   let appOrigin: string;
   try {

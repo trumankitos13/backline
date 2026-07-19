@@ -169,15 +169,23 @@ async function main() {
   const afterWrongHolder = await admin.from("bookings").select("status").eq("id", realBookingId).single();
   check("invited player cannot place the payment hold", afterWrongHolder.data?.status === "accepted");
 
-  const aHold = await A.client.from("bookings").update({ status: "held" }).eq("id", realBookingId).select("status").single();
-  check("booker can move an accepted booking to held", aHold.data?.status === "held");
+  await A.client.from("bookings").update({ status: "held" }).eq("id", realBookingId);
+  const afterBookerHold = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("booker cannot forge a payment hold", afterBookerHold.data?.status === "accepted");
+
+  const serverHold = await admin.from("bookings").update({ status: "held" }).eq("id", realBookingId).select("status").single();
+  check("payment service can confirm a hold", serverHold.data?.status === "held");
 
   await B.client.from("bookings").update({ status: "released" }).eq("id", realBookingId);
   const afterWrongRelease = await admin.from("bookings").select("status").eq("id", realBookingId).single();
   check("invited player cannot release the demo payment", afterWrongRelease.data?.status === "held");
 
-  const aRelease = await A.client.from("bookings").update({ status: "released" }).eq("id", realBookingId).select("status").single();
-  check("booker can move a held booking to released", aRelease.data?.status === "released");
+  await A.client.from("bookings").update({ status: "released" }).eq("id", realBookingId);
+  const afterBookerRelease = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("booker cannot forge a payment release", afterBookerRelease.data?.status === "held");
+
+  const serverRelease = await admin.from("bookings").update({ status: "released" }).eq("id", realBookingId).select("status").single();
+  check("payment service can confirm a release", serverRelease.data?.status === "released");
 
   // Phase 3 foundation: clients can read only their safe payment status and
   // payout-readiness columns. Stripe ids and all writes remain server-only.

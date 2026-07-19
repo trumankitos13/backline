@@ -102,15 +102,11 @@ export function BookingCard({
                 : `Lock it in before ${first}'s night books up.`}
           </p>
           {!incoming && (
-            isCloudBackend ? (
-              <Button className="mt-2.5 w-full" disabled>
-                Payment setup is next
-              </Button>
-            ) : (
-              <Button className="mt-2.5 w-full" onClick={() => onPay(booking)}>
-                Hold ${booking.amount} — lock it in
-              </Button>
-            )
+            <Button className="mt-2.5 w-full" onClick={() => onPay(booking)}>
+              {isCloudBackend
+                ? `Authorize payment — $${booking.amount} take-home`
+                : `Hold $${booking.amount} — lock it in`}
+            </Button>
           )}
           <Button
             variant="ghost"
@@ -148,15 +144,20 @@ export function BookingCard({
             {first} is locked in. The money moves 24h after showtime —
             cancel-friendly up to 24h before.
           </p>
-          {/* prototype stand-in for the 24h auto-release */}
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-2.5 w-full"
-            onClick={() => api.releaseBooking(booking.id, booking.playerId)}
-          >
-            Gig played — release ${booking.amount} now
-          </Button>
+          {isCloudBackend ? (
+            <Button variant="secondary" size="sm" className="mt-2.5 w-full" disabled>
+              Release is server-controlled
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2.5 w-full"
+              onClick={() => api.releaseBooking(booking.id, booking.playerId)}
+            >
+              Gig played — release ${booking.amount} now
+            </Button>
+          )}
         </div>
       )}
 

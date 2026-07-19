@@ -97,6 +97,8 @@ export interface Backend {
   ): Promise<void>;
   /** create a short-lived Stripe-hosted payout onboarding link */
   createPayoutOnboardingLink(user: AuthUser): Promise<string>;
+  /** create or resume the server-owned PaymentIntent for an accepted booking */
+  createBookingPaymentIntent(user: AuthUser, bookingId: string): Promise<string>;
   addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setOpeningStatus(user: AuthUser, openingId: string, status: Opening["status"]): Promise<void>;
   /** create-or-replace a user project (assemble / roster / ready-check updates) */

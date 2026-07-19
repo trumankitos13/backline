@@ -35,6 +35,82 @@ create trigger enforce_booking_schedule_immutable_before_update
   before update on public.bookings
   for each row execute function public.enforce_booking_schedule_immutable();
 
+-- Replace the Phase 2 demo transition guard: payment-backed states are now
+-- reachable only from a trusted server path (service-role calls have no
+-- auth.uid()). Offer response/cancellation remains participant-controlled.
+create or replace function public.enforce_booking_transition()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  actor uuid := auth.uid();
+  old_status text := old.status::text;
+  new_status text := new.status::text;
+begin
+  if new.user_id is distinct from old.user_id
+    or new.musician_user_id is distinct from old.musician_user_id
+    or new.musician_id is distinct from old.musician_id
+    or new.gig_title is distinct from old.gig_title
+    or new.venue_name is distinct from old.venue_name
+    or new.date is distinct from old.date
+    or new.time is distinct from old.time
+    or new.amount is distinct from old.amount
+    or new.opening_id is distinct from old.opening_id
+    or new.created_at is distinct from old.created_at then
+    raise exception 'booking details cannot change after the offer is sent';
+  end if;
+
+  new.responded_at := old.responded_at;
+  new.paid_at := old.paid_at;
+  new.completed_at := old.completed_at;
+  new.cancelled_at := old.cancelled_at;
+  new.updated_at := old.updated_at;
+
+  if new_status = old_status then
+    return old;
+  end if;
+
+  if old_status = 'offer' and new_status in ('accepted', 'declined') then
+    if actor is distinct from old.musician_user_id then
+      raise exception 'only the invited player can respond to this offer';
+    end if;
+    new.responded_at := now();
+  elsif old_status = 'offer' and new_status = 'cancelled' then
+    if actor is distinct from old.user_id then
+      raise exception 'only the booker can cancel this offer';
+    end if;
+    new.cancelled_at := now();
+  elsif old_status = 'accepted' and new_status = 'cancelled' then
+    if actor not in (old.user_id, old.musician_user_id) then
+      raise exception 'only a booking participant can cancel';
+    end if;
+    new.cancelled_at := now();
+  elsif old_status = 'accepted' and new_status = 'held' then
+    if actor is not null then
+      raise exception 'only the payment service can confirm a hold';
+    end if;
+    new.paid_at := now();
+  elsif old_status = 'held' and new_status = 'released' then
+    if actor is not null then
+      raise exception 'only the payment service can confirm a release';
+    end if;
+    new.completed_at := now();
+  elsif old_status = 'held' and new_status = 'cancelled' then
+    if actor is not null then
+      raise exception 'only the payment service can cancel a held booking';
+    end if;
+    new.cancelled_at := now();
+  else
+    raise exception 'invalid booking transition: % to %', old_status, new_status;
+  end if;
+
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
 create type public.payment_status as enum (
   'pending',
   'requires_payment_method',

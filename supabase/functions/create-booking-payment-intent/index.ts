@@ -21,6 +21,7 @@ type PaymentIntent = {
   id: string;
   client_secret: string | null;
   status: string;
+  livemode: boolean;
 };
 
 function dictionaryKey(name: "SUPABASE_PUBLISHABLE_KEYS" | "SUPABASE_SECRET_KEYS"): string {
@@ -72,6 +73,15 @@ async function stripeRequest<T>(
 }
 
 Deno.serve(async (request) => {
+  const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+  const expectedLiveMode = Deno.env.get("STRIPE_LIVE_MODE");
+  const stripeModeMatches = expectedLiveMode === "true"
+    ? stripeSecret.startsWith("sk_live_")
+    : expectedLiveMode === "false" && stripeSecret.startsWith("sk_test_");
+  if (!stripeModeMatches) {
+    return Response.json({ error: "Server configuration missing" }, { status: 500 });
+  }
+
   const configuredUrl = Deno.env.get("APP_URL") ?? "";
   let appOrigin: string;
   try {
@@ -165,6 +175,9 @@ Deno.serve(async (request) => {
         `payment_intents/${encodeURIComponent(existing.stripe_payment_intent_id)}`,
         "GET",
       );
+      if (intent.livemode !== (expectedLiveMode === "true")) {
+        throw new Error("Existing PaymentIntent mode mismatch");
+      }
       if (!intent.client_secret) throw new Error("Existing PaymentIntent has no client secret");
       return response({ clientSecret: intent.client_secret }, 200, appOrigin);
     }
@@ -194,6 +207,9 @@ Deno.serve(async (request) => {
       },
       `booking-payment-${booking.id}-${attempt}`,
     );
+    if (intent.livemode !== (expectedLiveMode === "true")) {
+      throw new Error("PaymentIntent mode mismatch");
+    }
     if (!intent.client_secret) throw new Error("PaymentIntent has no client secret");
 
     const { error: saveError } = await admin.from("booking_payments").upsert({

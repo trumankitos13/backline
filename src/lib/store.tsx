@@ -305,6 +305,8 @@ export interface AppApi {
   updateNotificationPreferences(patch: Partial<NotificationPreferences>): void;
   /** create a Stripe-hosted payout onboarding link for the signed-in musician */
   startPayoutOnboarding(): Promise<string>;
+  /** create or resume secure card authorization for an accepted booking */
+  createBookingPaymentIntent(bookingId: string): Promise<string>;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -614,6 +616,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const user = authUserRef.current;
         if (!user) throw new Error("Sign in before setting up payouts.");
         return backend.createPayoutOnboardingLink(user);
+      },
+
+      async createBookingPaymentIntent(bookingId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before authorizing payment.");
+        return backend.createBookingPaymentIntent(user, bookingId);
       },
 
       postOpening(input) {

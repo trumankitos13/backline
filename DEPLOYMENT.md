@@ -334,6 +334,31 @@ webhook from the same release:
 npx supabase functions deploy create-booking-payment-intent
 ```
 
+Add the matching test publishable key to Vercel as
+`VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`. The publishable and secret keys must
+belong to the same Stripe sandbox/account.
+
+Deploy the platform-account payment webhook:
+
+```bash
+npx supabase functions deploy stripe-payment-webhook
+```
+
+In Stripe Workbench, create a **test-mode Account** event destination—not a
+Connected accounts destination—pointing to
+`https://<project-ref>.supabase.co/functions/v1/stripe-payment-webhook`. Select
+only:
+
+- `payment_intent.amount_capturable_updated`
+- `payment_intent.payment_failed`
+- `payment_intent.canceled`
+- `payment_intent.succeeded`
+
+Store its distinct signing secret as `STRIPE_PAYMENT_WEBHOOK_SECRET`. Deploy the
+Phase 3 migration, both payment functions, this webhook, and the Vercel client
+together; mixing the old browser-owned hold UI with the new server-only database
+guard intentionally fails closed.
+
 Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
 the repository, or `.env.local.example`.
 

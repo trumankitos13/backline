@@ -946,6 +946,18 @@ export const supabaseBackend: Backend = {
     return url.toString();
   },
 
+  async createBookingPaymentIntent(_user, bookingId) {
+    const { data, error } = await supabase.functions.invoke("create-booking-payment-intent", {
+      body: { bookingId },
+    });
+    fail("start booking payment", error);
+    const clientSecret = (data as { clientSecret?: unknown } | null)?.clientSecret;
+    if (typeof clientSecret !== "string" || !clientSecret.startsWith("pi_")) {
+      throw new Error("Stripe client secret missing");
+    }
+    return clientSecret;
+  },
+
   async addOpening(user, opening) {
     const { error } = await supabase.from("openings").insert({
       id: opening.id,

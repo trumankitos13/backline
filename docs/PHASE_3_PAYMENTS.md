@@ -11,8 +11,12 @@ booking, and manual capture for eligible near-term gigs:
    moves the payment and booking to `held`.
 4. After the gig and dispute window, a server-side action captures the intent.
 5. Stripe transfers the musician amount to the connected account and leaves the
-   service fee with Backline. A signed success webhook moves the records to their
-   terminal states.
+service fee with Backline. A signed success webhook moves the records to their
+terminal states.
+
+The browser integration uses Stripe's Payment Element. It receives only the
+publishable key and one PaymentIntent client secret; it cannot choose amounts,
+destinations, fees, metadata identities, or booking state.
 
 The Vite client never receives a Stripe secret, connected-account identifier,
 PaymentIntent identifier, or authority to mark money held/released. It receives
