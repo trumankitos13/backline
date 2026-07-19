@@ -28,18 +28,22 @@ mobile.
   `user_projects`, `group_conversations` tables, owner-only RLS).
 
 **Mocked / not yet real (the gap):**
-- Messaging replies are simulated `setTimeout`s; booking acceptance is faked.
+- Cloud DMs, offer responses, booking cancellation, durable in-app alerts, and
+  browser-push delivery are implemented; group-chat replies remain simulated,
+  and the Phase 2 migrations/function still need deployment verification.
 - Payments are a **UI mock** — the held/released escrow lifecycle is modeled,
   but Stripe isn't wired (no real money).
-- Reels are **generative gradient placeholders** (`video.tsx`) — no real video.
+- Public TikTok/YouTube reels are real provider embeds; generative gradients
+  remain the fallback for profiles without a reel.
 - Ratings are **session-only** (`state.ratingsGiven`, not persisted).
 - SOS matching is client-side; "near me" isn't geographic.
 - No notifications, no native app.
 
 ## Guiding principles
 
-1. **One city first (Austin).** Marketplaces die of empty supply, not missing
-   features. Optimize for liquidity in one scene before breadth.
+1. **Two launch scenes, kept distinct (Austin + Nashville).** Marketplaces die
+   of empty supply, not missing features. Seed each city deliberately before
+   adding more markets or intra-city scene fragmentation.
 2. **Ship the critical path before breadth:** *find a sub → book → get paid.*
    SOS broadcast, feed, and native can follow.
 3. **Keep demo mode working** the whole way — it's our dev velocity and our
@@ -87,7 +91,7 @@ the suite green.)*
 - **Exit:** sign up → onboard → see DB-backed catalog, all persisted server-side;
   pipeline green.
 
-### Phase 1 — Real profiles + reels
+### Phase 1 — Real profiles + reels ✅ CODE COMPLETE
 **Goal:** a player creates a public profile and features a reel that actually plays.
 - Profile **editing** for your own player page (instruments, rate, gear,
   availability, neighborhood, bio) — writing through the backend.
@@ -99,17 +103,24 @@ the suite green.)*
 - **Exit:** edit a profile and add a reel on one device, then discover and play
   both from another account/device.
 
-### Phase 2 — Messaging + booking (realtime, real state machine)
+### Phase 2 — Messaging + booking (realtime, real state machine) ✅ CODE COMPLETE
 **Goal:** two real users message and move a booking through its lifecycle.
-- Replace simulated replies with **Supabase Realtime** subscriptions; messages
-  persist and sync live. (Touchpoint: the `setTimeout` blocks in `store.tsx`.)
-- **Booking state machine on the server:** `offer → accepted | declined → paid →
-  completed | cancelled`, with server-enforced transitions, timestamps, and
-  guards (only the invited musician can accept, etc.).
-- **Notifications:** email (Resend) + web push for new message / offer /
-  acceptance / payment / gig reminder.
-- **Exit:** a booking goes offer → accept → (ready to pay) with live chat and
-  notifications, no fakery.
+- ✅ Account-to-account DMs use participant-scoped tables and **Supabase
+  Realtime** subscriptions; cloud replies persist and sync live, while demo
+  mode alone retains canned replies.
+- ✅ **Booking state machine in Postgres:** `offer → accepted → held → released`,
+  with `declined` and pre-payment `cancelled` terminal paths, server-owned
+  timestamps, and transition guards (only the invited musician can accept or
+  decline); valid cancellation actions are exposed in the thread UI.
+- ✅ **Notifications:** durable, deduplicated in-app alerts, cross-device read
+  state, browser-push subscriptions, preference controls, hard mute, and quiet
+  hours are implemented. The push-delivery Edge Function handles urgent booking
+  alerts and optional message pushes. Group, SOS, and payment notifications land
+  with the normalized group/SOS models and real payments in Phases 3–4. Per the
+  newer V1 spec, general email notifications remain deferred.
+- **Operational exit (pending):** deploy migrations and the Edge Function,
+  configure VAPID + the database webhook, then verify two accounts can move a
+  booking offer → accepted/cancelled with live chat and cross-device alerts.
 
 ### Phase 3 — Payments (real money) ⚠️ hardest, regulated
 **Goal:** money moves booker → escrow → musician's bank, minus platform fee.
@@ -152,9 +163,10 @@ the suite green.)*
   parity on the core flow. (The mobile-first web layout was built for exactly
   this port.)
 
-### Phase 7 — Launch & growth (one city, then many)
-- **Closed beta in Austin:** hand-seed supply (recruit real musicians, venues,
-  bands), invites/referrals, waitlist, white-glove onboarding, support.
+### Phase 7 — Launch & growth (two scenes, then many)
+- **Closed beta in Austin and Nashville:** hand-seed supply independently in
+  both scenes (recruit real musicians, venues, and bands), invites/referrals,
+  waitlist, white-glove onboarding, and support.
 - Instrument the **marketplace metrics** that matter: fill rate, time-to-fill an
   SOS, GMV, take rate, repeat-booking rate, supply/demand balance.
 - Then a repeatable **multi-city playbook**.

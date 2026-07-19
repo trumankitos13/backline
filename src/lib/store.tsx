@@ -5,8 +5,8 @@
 // mutation is then written through to the active backend (see src/lib/backend):
 // localStorage in demo mode, or Supabase (auth + Postgres) when configured.
 //
-// The simulated musician replies / booking acceptances are kept so the
-// prototype still feels alive; in cloud mode they persist as real message rows.
+// Simulated replies / booking acceptances remain in local demo mode only.
+// Cloud mode receives real participant updates through Supabase Realtime.
 
 import {
   createContext,
@@ -25,6 +25,8 @@ import type {
   CurrentUser,
   InstrumentId,
   Message,
+  NotificationItem,
+  NotificationPreferences,
   Opening,
 } from "./types";
 import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAndReload } from "./data";
@@ -33,6 +35,10 @@ import { upsertMessage } from "./conversations";
 import { scopePersistedData } from "./sceneScope";
 import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
 import type { AuthResult } from "./backend/types";
+import {
+  getBrowserPushSubscription,
+  subscribeBrowserToPush,
+} from "./push";
 
 export interface AppState {
   user: CurrentUser | null;
@@ -40,6 +46,8 @@ export interface AppState {
   following: string[];
   conversations: Conversation[];
   bookings: Booking[];
+  notifications: NotificationItem[];
+  notificationPreferences: NotificationPreferences;
   likedPosts: string[];
   /** feed "need-sub" posts the user raised a hand on */
   respondedSubPosts: string[];
@@ -56,6 +64,16 @@ const EMPTY_STATE: AppState = {
   following: [],
   conversations: [],
   bookings: [],
+  notifications: [],
+  notificationPreferences: {
+    pushEnabled: false,
+    highPush: true,
+    normalPush: false,
+    hardMute: false,
+    quietStart: "22:00",
+    quietEnd: "08:00",
+    timezone: "America/Chicago",
+  },
   likedPosts: [],
   respondedSubPosts: [],
   ratingsGiven: {},
@@ -73,6 +91,9 @@ type Action =
   | { type: "MARK_READ"; conversationId: string }
   | { type: "ADD_BOOKING"; booking: Booking }
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
+  | { type: "MARK_NOTIFICATION_READ"; notificationId: string }
+  | { type: "MARK_ALL_NOTIFICATIONS_READ" }
+  | { type: "UPDATE_NOTIFICATION_PREFERENCES"; patch: Partial<NotificationPreferences> }
   | { type: "TOGGLE_LIKE"; postId: string }
   | { type: "RESPOND_SUB"; postId: string }
   | { type: "RATE_MUSICIAN"; playerId: string; stars: number }
@@ -133,6 +154,28 @@ function reducer(state: AppState, action: Action): AppState {
         bookings: state.bookings.map((b) =>
           b.id === action.bookingId ? { ...b, status: action.status } : b,
         ),
+      };
+    case "MARK_NOTIFICATION_READ":
+      return {
+        ...state,
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.notificationId
+            ? { ...notification, read: true }
+            : notification,
+        ),
+      };
+    case "MARK_ALL_NOTIFICATIONS_READ":
+      return {
+        ...state,
+        notifications: state.notifications.map((notification) => ({
+          ...notification,
+          read: true,
+        })),
+      };
+    case "UPDATE_NOTIFICATION_PREFERENCES":
+      return {
+        ...state,
+        notificationPreferences: { ...state.notificationPreferences, ...action.patch },
       };
     case "TOGGLE_LIKE":
       return {
@@ -246,10 +289,19 @@ interface OpeningInput {
 }
 
 export interface AppApi {
-  /** send a chat message; the musician sends a canned reply shortly after */
+  /** send a chat message; local demo mode may add a canned reply */
   sendMessage(playerId: string, text: string, opts?: { simulateReply?: boolean }): void;
-  /** send a booking offer into the thread; simulated acceptance follows */
+  /** send a booking offer into the thread */
   sendBookingOffer(input: BookingOfferInput): string;
+  /** accept or decline an offer received by the signed-in player */
+  respondToBooking(bookingId: string, status: "accepted" | "declined"): void;
+  /** withdraw an outgoing offer or cancel an accepted booking */
+  cancelBooking(bookingId: string): void;
+  markNotificationRead(notificationId: string): void;
+  markAllNotificationsRead(): void;
+  enablePushNotifications(): Promise<void>;
+  disablePushNotifications(): Promise<void>;
+  updateNotificationPreferences(patch: Partial<NotificationPreferences>): void;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -384,6 +436,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Cloud tables are the source of truth across devices. Rehydrate the
+  // participant-scoped slice after a realtime message or booking change.
+  useEffect(() => {
+    if (auth.status !== "signedIn" || !auth.user) return;
+    let timer: number | undefined;
+    const user = auth.user;
+    const unsubscribe = backend.subscribeToChanges(user, () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        backend.load(user)
+          .then((data) => dispatch({ type: "HYDRATE", data }))
+          .catch((error) => console.error("[backline] realtime reload failed", error));
+      }, 80);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [auth.status, auth.user?.id]);
+
   const api = useMemo<AppApi>(() => {
     // fire-and-forget write-through; errors are logged, UI already updated
     function persist(run: (user: AuthUser) => Promise<void>) {
@@ -409,7 +481,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "SEND_MESSAGE", playerId, message });
         persist((u) => backend.addMessage(u, playerId, message));
 
-        if (opts?.simulateReply !== false) {
+        if (!isCloudBackend && opts?.simulateReply !== false) {
           const reply =
             CANNED_REPLIES[Math.floor(Math.random() * CANNED_REPLIES.length)];
           window.setTimeout(() => {
@@ -459,22 +531,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
           })().catch((e) => console.error("[backline] persist offer failed", e));
         }
 
-        // simulate the musician accepting after a short delay
-        const name = getPlayer(input.playerId)?.name.split(" ")[0] ?? "They";
-        window.setTimeout(() => {
-          const acceptMsg: Message = {
-            id: uid("m"),
-            from: "them",
-            text: `${name} here — I'm in! Accepted the offer. Hold the payment in the app to lock it and I'll see you at soundcheck. 🤘`,
-            at: nowLabel(),
-          };
-          dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
-          dispatch({ type: "RECEIVE_MESSAGE", playerId: input.playerId, message: acceptMsg });
-          persist((u) => backend.setBookingStatus(u, bookingId, "accepted"));
-          persist((u) => backend.addMessage(u, input.playerId, acceptMsg));
-        }, 3500);
+        if (!isCloudBackend) {
+          // Keep the no-setup demo lively; cloud offers wait for the real
+          // invited account to accept or decline.
+          const name = getPlayer(input.playerId)?.name.split(" ")[0] ?? "They";
+          window.setTimeout(() => {
+            const acceptMsg: Message = {
+              id: uid("m"),
+              from: "them",
+              text: `${name} here — I'm in! Accepted the offer. Hold the payment in the app to lock it and I'll see you at soundcheck. 🤘`,
+              at: nowLabel(),
+            };
+            dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
+            dispatch({ type: "RECEIVE_MESSAGE", playerId: input.playerId, message: acceptMsg });
+            persist((u) => backend.setBookingStatus(u, bookingId, "accepted"));
+            persist((u) => backend.addMessage(u, input.playerId, acceptMsg));
+          }, 3500);
+        }
 
         return bookingId;
+      },
+
+      respondToBooking(bookingId, status) {
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status });
+        persist((user) => backend.setBookingStatus(user, bookingId, status));
+      },
+
+      cancelBooking(bookingId) {
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "cancelled" });
+        persist((user) => backend.setBookingStatus(user, bookingId, "cancelled"));
+      },
+
+      markNotificationRead(notificationId) {
+        dispatch({ type: "MARK_NOTIFICATION_READ", notificationId });
+        persist((user) => backend.markNotificationRead(user, notificationId));
+      },
+
+      markAllNotificationsRead() {
+        dispatch({ type: "MARK_ALL_NOTIFICATIONS_READ" });
+        persist((user) => backend.markAllNotificationsRead(user));
+      },
+
+      async enablePushNotifications() {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before enabling notifications.");
+        const subscription = await subscribeBrowserToPush();
+        await backend.savePushSubscription(
+          user,
+          subscription.toJSON(),
+          navigator.userAgent,
+          Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
+        );
+        dispatch({
+          type: "UPDATE_NOTIFICATION_PREFERENCES",
+          patch: { pushEnabled: true },
+        });
+      },
+
+      async disablePushNotifications() {
+        const user = authUserRef.current;
+        if (!user) return;
+        const subscription = await getBrowserPushSubscription();
+        if (!subscription) return;
+        await backend.removePushSubscription(user, subscription.endpoint);
+        await subscription.unsubscribe();
+        dispatch({
+          type: "UPDATE_NOTIFICATION_PREFERENCES",
+          patch: { pushEnabled: false },
+        });
+      },
+
+      updateNotificationPreferences(patch) {
+        dispatch({ type: "UPDATE_NOTIFICATION_PREFERENCES", patch });
+        persist((user) => backend.updateNotificationPreferences(user, patch));
       },
 
       postOpening(input) {
@@ -907,6 +1036,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return backend.signUp(email, password, name);
       },
       async signOut() {
+        const user = authUserRef.current;
+        const subscription = await getBrowserPushSubscription().catch(() => null);
+        if (user && subscription) {
+          await backend.removePushSubscription(user, subscription.endpoint).catch((error) => {
+            console.error("[backline] push cleanup failed", error);
+          });
+          await subscription.unsubscribe().catch(() => false);
+        }
         await backend.signOut();
       },
       resetPassword(email) {
@@ -935,4 +1072,9 @@ export function useConversationWith(playerId: string): Conversation | undefined 
 export function useUnreadCount(): number {
   const { state } = useApp();
   return state.conversations.reduce((n, c) => n + c.unread, 0);
+}
+
+export function useUnreadNotificationCount(): number {
+  const { state } = useApp();
+  return state.notifications.reduce((count, notification) => count + Number(!notification.read), 0);
 }

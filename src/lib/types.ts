@@ -248,7 +248,15 @@ export interface Opening {
  * The old single "paid" split into held vs released; legacy persisted "paid"
  * is mapped to "held" at load time by each backend.
  */
-export type BookingStatus = "offer" | "accepted" | "held" | "released" | "declined";
+export type BookingStatus =
+  | "offer"
+  | "accepted"
+  | "held"
+  | "released"
+  | "declined"
+  | "paid"
+  | "completed"
+  | "cancelled";
 
 export interface Booking {
   id: string;
@@ -259,6 +267,8 @@ export interface Booking {
   time: string;
   amount: number;
   status: BookingStatus;
+  /** whether the signed-in account sent or received this offer */
+  direction?: "outgoing" | "incoming";
   /** when the booking fills a posted Opening, holding it locks that seat */
   openingId?: string;
 }
@@ -274,6 +284,34 @@ export interface Message {
   /** a system line ("🥁 Nia locked in on drums") — centered, no bubble */
   system?: boolean;
   at: string;
+}
+
+export type NotificationKind =
+  | "direct_message"
+  | "booking_offer"
+  | "booking_accepted"
+  | "booking_declined"
+  | "booking_cancelled";
+
+export interface NotificationItem {
+  id: string;
+  kind: NotificationKind;
+  urgency: "low" | "normal" | "high";
+  title: string;
+  body: string;
+  href: string;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface NotificationPreferences {
+  pushEnabled: boolean;
+  highPush: boolean;
+  normalPush: boolean;
+  hardMute: boolean;
+  quietStart: string;
+  quietEnd: string;
+  timezone: string;
 }
 
 /**

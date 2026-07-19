@@ -5,13 +5,14 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, type ReactNode } from "react";
 import {
   BoltIcon,
+  BellIcon,
   ChatIcon,
   PlayIcon,
   PulseIcon,
   UserIcon,
   UsersIcon,
 } from "./icons";
-import { useApp, useUnreadCount } from "../lib/store";
+import { useApp, useUnreadCount, useUnreadNotificationCount } from "../lib/store";
 import { SCENES } from "../lib/scenes";
 import { Avatar, Wordmark } from "./ui";
 
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/feed", label: "Feed", icon: PulseIcon },
   { to: "/bands", label: "Bands", icon: UsersIcon },
   { to: "/messages", label: "Chats", icon: ChatIcon },
+  { to: "/notifications", label: "Alerts", icon: BellIcon },
   { to: "/profile", label: "You", icon: UserIcon },
 ];
 
@@ -30,12 +32,14 @@ const MOBILE_LEFT = [
 ];
 const MOBILE_RIGHT = [
   { to: "/messages", label: "Chats", icon: ChatIcon },
+  { to: "/notifications", label: "Alerts", icon: BellIcon },
   { to: "/profile", label: "You", icon: UserIcon },
 ];
 
 export function Shell({ children }: { children: ReactNode }) {
   const { state } = useApp();
   const unread = useUnreadCount();
+  const unreadNotifications = useUnreadNotificationCount();
   const location = useLocation();
   const navigate = useNavigate();
   const sceneLabel = SCENES.find((scene) => scene.id === state.user?.scene)?.label ?? "Austin, TX";
@@ -75,6 +79,11 @@ export function Shell({ children }: { children: ReactNode }) {
               {label === "Chats" && unread > 0 && (
                 <span className="mono ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-ink-near">
                   {unread}
+                </span>
+              )}
+              {label === "Alerts" && unreadNotifications > 0 && (
+                <span className="mono ml-auto rounded-full bg-cyan-400 px-1.5 py-0.5 text-[10px] font-bold text-ink-near">
+                  {unreadNotifications}
                 </span>
               )}
             </NavLink>
@@ -137,6 +146,9 @@ export function Shell({ children }: { children: ReactNode }) {
               <Icon size={21} />
               {label === "Chats" && unread > 0 && (
                 <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-amber-500" />
+              )}
+              {label === "Alerts" && unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1.5 h-2 w-2 rounded-full bg-cyan-400" />
               )}
             </span>
             <span className="mono text-[9px]">{label}</span>

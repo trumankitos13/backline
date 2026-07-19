@@ -237,6 +237,54 @@ new client. The new client reads the added profile columns during catalog boot.
 After deployment, edit a profile, reload in a private window, and confirm the
 avatar and reel remain visible.
 
+Phase 2 is stacked on Phase 1. Apply its migration only after the Phase 1
+migration is present. It adds participant-scoped `direct_conversations`,
+`direct_messages`, and read markers; adds the real recipient and lifecycle
+timestamps to `bookings`; and enables Realtime Postgres Changes for messages
+and bookings. The migration leaves the legacy seeded-demo chat tables intact.
+
+Before the Phase 2 client deploy, confirm both `direct_messages` and `bookings`
+appear in Database → Publications → `supabase_realtime`. After deploy, use two
+real accounts: send a DM and offer from account A, then accept or decline from
+account B. Neither account should be able to read a third account's thread or
+change the other participant's allowed state transitions.
+
+#### Phase 2 notification delivery
+
+`20260719210030_phase_2_durable_notifications.sql` adds the durable in-app
+notification center, owner-scoped Web Push subscriptions/preferences, and the
+transactional message/booking notification triggers. Apply it before deploying
+the notification client.
+
+Generate one VAPID pair and keep it for the lifetime of existing subscriptions:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+- Add the public key to Vercel as `VITE_VAPID_PUBLIC_KEY` for Production and
+  Preview.
+- Store `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (for example
+  `mailto:support@your-domain.com`), and a long random `PUSH_WEBHOOK_SECRET` in
+  Supabase Edge Function secrets. The private key and webhook secret never
+  belong in Vercel browser variables or Git.
+- Deploy `deliver-push-notification`:
+
+  ```bash
+  npx supabase functions deploy deliver-push-notification
+  ```
+
+- In Supabase Database → Webhooks, add an **INSERT** webhook for
+  `public.notifications` targeting
+  `https://<project-ref>.supabase.co/functions/v1/deliver-push-notification`.
+  Add `x-webhook-secret: <PUSH_WEBHOOK_SECRET>` as a header. The webhook is
+  asynchronous; notification inserts never wait on an external push service.
+
+High-urgency offers and cancellations push by default after the user opts in.
+Normal message alerts remain in-app unless the user later enables normal push.
+The Edge Function removes expired device subscriptions on HTTP 404/410 and
+claims each notification before fan-out to suppress duplicate webhook delivery.
+
 ---
 
 ### Optional — observability

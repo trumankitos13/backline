@@ -12,6 +12,8 @@ import type {
   Conversation,
   CurrentUser,
   Message,
+  NotificationItem,
+  NotificationPreferences,
   Opening,
 } from "../types";
 import type { Catalog } from "../data";
@@ -23,6 +25,8 @@ export interface PersistedData {
   following: string[];
   conversations: Conversation[];
   bookings: Booking[];
+  notifications: NotificationItem[];
+  notificationPreferences: NotificationPreferences;
   likedPosts: string[];
   respondedSubPosts: string[];
   /** openings the user posted (newest first) — they lead the feed */
@@ -66,6 +70,8 @@ export interface Backend {
   loadCatalog(scene: SceneId): Promise<Catalog | null>;
   /** load everything persisted for `user` (or the demo default when local) */
   load(user: AuthUser | null): Promise<PersistedData>;
+  /** subscribe to participant-scoped cloud changes; demo mode returns a no-op */
+  subscribeToChanges(user: AuthUser, onChange: () => void): () => void;
 
   saveUser(user: AuthUser, profile: CurrentUser): Promise<void>;
   updateUser(user: AuthUser, patch: Partial<CurrentUser>): Promise<void>;
@@ -76,6 +82,19 @@ export interface Backend {
   markRead(user: AuthUser, playerId: string): Promise<void>;
   addBooking(user: AuthUser, booking: Booking): Promise<void>;
   setBookingStatus(user: AuthUser, bookingId: string, status: BookingStatus): Promise<void>;
+  markNotificationRead(user: AuthUser, notificationId: string): Promise<void>;
+  markAllNotificationsRead(user: AuthUser): Promise<void>;
+  savePushSubscription(
+    user: AuthUser,
+    subscription: PushSubscriptionJSON,
+    userAgent: string,
+    timezone: string,
+  ): Promise<void>;
+  removePushSubscription(user: AuthUser, endpoint: string): Promise<void>;
+  updateNotificationPreferences(
+    user: AuthUser,
+    patch: Partial<NotificationPreferences>,
+  ): Promise<void>;
   addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setOpeningStatus(user: AuthUser, openingId: string, status: Opening["status"]): Promise<void>;
   /** create-or-replace a user project (assemble / roster / ready-check updates) */

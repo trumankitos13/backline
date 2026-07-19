@@ -3,7 +3,7 @@
 // the app (and the deployed site) always runs, even before the backend is set
 // up. Behavior matches the original SitIn prototype.
 
-import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, Opening } from "../types";
+import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, NotificationPreferences, Opening } from "../types";
 import { demoCatalogForScene, SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
 import { normalizePersistedData } from "../sceneScope";
@@ -20,6 +20,16 @@ function demoDefault(): PersistedData {
     following: ["v-armadillo", "v-rattlesnake", "b-moontower", "b-brasshouse"],
     conversations: SEED_CONVERSATIONS,
     bookings: [],
+    notifications: [],
+    notificationPreferences: {
+      pushEnabled: false,
+      highPush: true,
+      normalPush: false,
+      hardMute: false,
+      quietStart: "22:00",
+      quietEnd: "08:00",
+      timezone: "America/Chicago",
+    },
     likedPosts: [],
     respondedSubPosts: [],
     openings: [],
@@ -58,6 +68,10 @@ function mutate(fn: (d: PersistedData) => PersistedData): void {
 
 export const localBackend: Backend = {
   mode: "local",
+
+  subscribeToChanges() {
+    return () => undefined;
+  },
 
   async getSession() {
     // Local mode is always "signed in"; onboarding (state.user) is the real gate.
@@ -138,6 +152,32 @@ export const localBackend: Backend = {
     mutate((d) => ({
       ...d,
       bookings: d.bookings.map((b) => (b.id === bookingId ? { ...b, status } : b)),
+    }));
+  },
+  async markNotificationRead(_user: AuthUser, notificationId: string) {
+    mutate((d) => ({
+      ...d,
+      notifications: d.notifications.map((notification) =>
+        notification.id === notificationId ? { ...notification, read: true } : notification,
+      ),
+    }));
+  },
+  async markAllNotificationsRead() {
+    mutate((d) => ({
+      ...d,
+      notifications: d.notifications.map((notification) => ({ ...notification, read: true })),
+    }));
+  },
+  async savePushSubscription() {
+    // Push delivery is cloud-only.
+  },
+  async removePushSubscription() {
+    // Push delivery is cloud-only.
+  },
+  async updateNotificationPreferences(_user: AuthUser, patch: Partial<NotificationPreferences>) {
+    mutate((d) => ({
+      ...d,
+      notificationPreferences: { ...d.notificationPreferences, ...patch },
     }));
   },
   async addOpening(_user: AuthUser, opening: Opening) {

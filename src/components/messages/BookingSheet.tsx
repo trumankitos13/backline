@@ -1,5 +1,5 @@
-// Booking offer sheet — where the money flow starts. Sends the offer into the
-// thread; the store simulates the musician accepting ~3.5s later.
+// Booking offer sheet — where the money flow starts. Cloud offers wait for the
+// invited account; local demo mode keeps the simulated acceptance.
 
 import { useState, type FormEvent } from "react";
 import type { InstrumentId, Player } from "../../lib/types";
@@ -70,7 +70,10 @@ export function BookingSheet({
 
   const parsedAmount = Number(amount);
   const valid =
-    gigTitle.trim().length > 0 && Number.isFinite(parsedAmount) && parsedAmount > 0;
+    gigTitle.trim().length > 0 &&
+    Number.isFinite(parsedAmount) &&
+    parsedAmount > 0 &&
+    parsedAmount <= 100000;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -96,6 +99,7 @@ export function BookingSheet({
             className={inputCls}
             value={gigTitle}
             onChange={(e) => setGigTitle(e.target.value)}
+            maxLength={160}
             placeholder="Fill-in gig"
           />
         </Field>
@@ -118,6 +122,7 @@ export function BookingSheet({
               className={`${inputCls} mt-2`}
               value={customVenue}
               onChange={(e) => setCustomVenue(e.target.value)}
+              maxLength={160}
               placeholder="Where's the gig?"
             />
           )}
@@ -142,6 +147,7 @@ export function BookingSheet({
               className={inputCls}
               value={time}
               onChange={(e) => setTime(e.target.value)}
+              maxLength={80}
               placeholder="9:00 PM"
             />
           </Field>
@@ -153,6 +159,7 @@ export function BookingSheet({
               className={inputCls}
               value={customDate}
               onChange={(e) => setCustomDate(e.target.value)}
+              maxLength={80}
               placeholder="e.g. Fri Jul 24"
               autoFocus
             />
@@ -170,6 +177,7 @@ export function BookingSheet({
             <input
               type="number"
               min={1}
+              max={100000}
               step="any"
               inputMode="numeric"
               className={`${inputCls} pl-7`}
@@ -185,6 +193,7 @@ export function BookingSheet({
             className={`${inputCls} resize-none`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
+            maxLength={4000}
           />
         </Field>
 
