@@ -5,7 +5,7 @@
 // this file. Exports (VideoTile, ReelViewer) keep stable signatures.
 
 import { useEffect, useState } from "react";
-import type { VideoClip } from "../lib/types";
+import type { Reel, VideoClip } from "../lib/types";
 import {
   CloseIcon,
   CommentIcon,
@@ -15,6 +15,7 @@ import {
 } from "./icons";
 import { formatCount, formatDuration, Mono } from "./ui";
 import { GRAIN_DATA_URI, reelGrad, waveform } from "../lib/generative";
+import { reelEmbedUrl } from "../lib/reels";
 
 /** deterministic eq bar heights (0.25..0.95) per clip id. */
 function barHeights(id: string, count: number): number[] {
@@ -120,6 +121,144 @@ export function VideoTile({
         )}
       </span>
     </button>
+  );
+}
+
+/** A persisted TikTok/YouTube reel link, rendered in Backline's 9:16 rail. */
+export function ReelTile({
+  reel,
+  onPlay,
+  className = "",
+}: {
+  reel: Reel;
+  onPlay?: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      className={`group relative aspect-[9/16] shrink-0 overflow-hidden rounded-2xl text-left ring-1 ring-white/10 ${className}`}
+      style={{ background: reelGrad(reel.id) }}
+      aria-label={`Play ${reel.platform} reel${reel.caption ? `: ${reel.caption}` : ""}`}
+    >
+      <AliveOverlay />
+      <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/35" />
+      <span className="absolute top-2 left-2">
+        <Mono className="rounded-md border border-white/15 bg-black/45 px-2 py-1 text-[9px] text-white/85 backdrop-blur-sm">
+          {reel.platform === "youtube" ? "YouTube" : "TikTok"}
+        </Mono>
+      </span>
+      <span className="absolute inset-0 flex items-center justify-center">
+        <span className="rounded-full bg-black/50 p-3 backdrop-blur-sm transition-transform group-hover:scale-110">
+          <PlayIcon size={19} className="text-white" />
+        </span>
+      </span>
+      <span className="absolute inset-x-3 bottom-3 line-clamp-3 text-xs leading-snug font-medium text-white">
+        {reel.caption || "Play reel"}
+      </span>
+    </button>
+  );
+}
+
+/** Fullscreen provider player for real persisted reels. */
+export function EmbeddedReelViewer({
+  reels,
+  startIndex = 0,
+  ownerName,
+  onClose,
+}: {
+  reels: Reel[];
+  startIndex?: number;
+  ownerName?: string;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(startIndex);
+  const reel = reels[index];
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        setIndex((current) => Math.min(current + 1, reels.length - 1));
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        setIndex((current) => Math.max(current - 1, 0));
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose, reels.length]);
+
+  if (!reel) return null;
+  const embedUrl = reelEmbedUrl(reel);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-3">
+      <div className="relative aspect-[9/16] h-[92vh] max-w-[94vw] overflow-hidden rounded-2xl bg-surface-900 ring-1 ring-white/15">
+        {embedUrl ? (
+          <iframe
+            key={reel.id}
+            src={embedUrl}
+            title={`${ownerName ?? "Player"} — ${reel.caption || `${reel.platform} reel`}`}
+            className="h-full w-full border-0"
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+            <p className="text-sm text-text-mid">This reel opens on {reel.platform}.</p>
+            <a
+              href={reel.url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-ink-near"
+            >
+              Watch reel
+            </a>
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close reel"
+        className="absolute top-4 right-4 z-20 rounded-full bg-white/10 p-2 text-white backdrop-blur-sm hover:bg-white/20"
+      >
+        <CloseIcon size={20} />
+      </button>
+      {reels.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setIndex((current) => Math.max(current - 1, 0))}
+            disabled={index === 0}
+            className="absolute left-3 rounded-full bg-white/10 px-3 py-2 text-white disabled:opacity-25"
+            aria-label="Previous reel"
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            onClick={() => setIndex((current) => Math.min(current + 1, reels.length - 1))}
+            disabled={index === reels.length - 1}
+            className="absolute right-3 rounded-full bg-white/10 px-3 py-2 text-white disabled:opacity-25"
+            aria-label="Next reel"
+          >
+            →
+          </button>
+        </>
+      )}
+      <Mono className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-white/50">
+        {index + 1} / {reels.length}
+      </Mono>
+    </div>
   );
 }
 

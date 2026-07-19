@@ -13,7 +13,7 @@ import { useApp } from "../../lib/store";
 import { ratingSummary } from "../../lib/ratings";
 import { Mono, RatingNumber } from "../ui";
 import { VerifiedIcon } from "../icons";
-import { VideoTile } from "../video";
+import { ReelTile, VideoTile } from "../video";
 
 export function ReelGridTile({
   player: p,
@@ -26,18 +26,27 @@ export function ReelGridTile({
   const { state } = useApp();
   const rating = ratingSummary(p, state.ratingsGiven[p.id]);
   const clip = p.videos[0];
-  if (!clip) return null;
+  const reel = p.reels?.[0];
+  if (!clip && !reel) return null;
 
   return (
     <div className="flex flex-col gap-2">
       {/* reel tile → fullscreen viewer. VideoTile is 9:16; force it to fill a
           3/4 wrapper so the gel composition reflows to the grid crop. */}
       <div className="relative aspect-[3/4] overflow-hidden rounded-2xl">
-        <VideoTile
-          clip={clip}
-          onPlay={() => onOpenReel(p)}
-          className="absolute! inset-0 h-full w-full"
-        />
+        {reel ? (
+          <ReelTile
+            reel={reel}
+            onPlay={() => onOpenReel(p)}
+            className="absolute! inset-0 h-full w-full"
+          />
+        ) : clip ? (
+          <VideoTile
+            clip={clip}
+            onPlay={() => onOpenReel(p)}
+            className="absolute! inset-0 h-full w-full"
+          />
+        ) : null}
         {p.availableTonight && (
           <span className="pointer-events-none absolute top-2 left-2 z-10">
             <Mono className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-ink-near shadow-[0_4px_16px_-4px_var(--accent)]">

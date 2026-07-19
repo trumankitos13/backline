@@ -29,6 +29,8 @@ import { getBand, getPlayer, getVenue } from "../lib/data";
 import { resolveActingContext } from "../lib/actingAs";
 import { instrumentLabel } from "../lib/instruments";
 import { SCENES, type SceneId } from "../lib/scenes";
+import { ProfileEditor } from "../components/profile/ProfileEditor";
+import { EmbeddedReelViewer, ReelTile } from "../components/video";
 import {
   BookingStatusBadge,
   InstrumentChips,
@@ -47,6 +49,9 @@ export default function MyProfile() {
   const { state, api, auth } = useApp();
   const navigate = useNavigate();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [reelAt, setReelAt] = useState<number | null>(null);
 
   const user = state.user;
   // App.tsx redirects to /welcome when there's no user; guard anyway.
@@ -101,7 +106,7 @@ export default function MyProfile() {
       {/* -------------------------------------------------------- header */}
       <header>
         <div className="flex items-start gap-4">
-          <Avatar name={user.name} seed={99} size={80} className="ring-2 ring-hairline-strong" />
+          <Avatar name={user.name} seed={99} src={user.avatarUrl} size={80} className="ring-2 ring-hairline-strong" />
           <div className="min-w-0 pt-0.5">
             <h1 className="truncate text-2xl font-bold tracking-tight">{user.name}</h1>
             <Mono className="mt-0.5 block text-xs text-text-lo">@{user.handle}</Mono>
@@ -116,7 +121,31 @@ export default function MyProfile() {
           instruments={user.instruments.map((iid) => ({ id: iid }))}
           className="mt-4"
         />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => { setSaved(false); setEditing(true); }}>
+            Edit player profile
+          </Button>
+          {user.id && (
+            <Button size="sm" variant="secondary" onClick={() => navigate(`/m/${user.id}`)}>
+              View public profile
+            </Button>
+          )}
+          {saved && <Mono className="self-center text-[10px] text-cyan-300">Saved to Backline</Mono>}
+        </div>
       </header>
+
+      {editing && (
+        <ProfileEditor
+          user={user}
+          onCancel={() => setEditing(false)}
+          onUploadAvatar={api.uploadAvatar}
+          onSave={async (patch) => {
+            await api.updateUser(patch);
+            setEditing(false);
+            setSaved(true);
+          }}
+        />
+      )}
 
       {/* ---------------------------------------------- availability toggle */}
       <Card className="mt-6 flex items-center justify-between gap-4 p-4">
@@ -130,7 +159,10 @@ export default function MyProfile() {
         </div>
         <Toggle
           checked={user.availableTonight}
-          onChange={(next) => api.updateUser({ availableTonight: next })}
+          onChange={(next) => {
+            void api.updateUser({ availableTonight: next })
+              .catch((error) => console.error("[backline] availability update failed", error));
+          }}
           label="Available tonight"
         />
       </Card>
@@ -142,7 +174,10 @@ export default function MyProfile() {
           <select
             aria-label="Scene"
             value={user.scene}
-            onChange={(event) => api.updateUser({ scene: event.currentTarget.value as SceneId })}
+            onChange={(event) => {
+              void api.updateUser({ scene: event.currentTarget.value as SceneId })
+                .catch((error) => console.error("[backline] scene update failed", error));
+            }}
             className="rounded-lg border border-hairline-strong bg-surface-900 px-2.5 py-2 text-sm text-text-hi focus:border-amber-500 focus:outline-none"
           >
             {SCENES.map((scene) => (
@@ -279,27 +314,33 @@ export default function MyProfile() {
       {/* ---------------------------------------------------------- reels */}
       <section className="mt-8">
         <SectionHeader title="Your reels" className="mb-3" />
-        <div className="flex items-center gap-4">
+        {(user.reels ?? []).length > 0 ? (
+          <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
+            {(user.reels ?? []).map((reel, index) => (
+              <ReelTile key={reel.id} reel={reel} onPlay={() => setReelAt(index)} className="w-32 sm:w-36" />
+            ))}
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="flex aspect-[9/16] w-32 shrink-0 flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-hairline-strong text-text-lo hover:border-amber-500/40 hover:text-amber-300"
+            >
+              <span className="rounded-full border border-current p-2.5"><PlusIcon size={18} /></span>
+              <Mono className="px-3 text-center text-[10px] leading-tight">Add another</Mono>
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            disabled
-            className="flex aspect-[9/16] w-32 shrink-0 cursor-not-allowed flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-hairline-strong text-text-lo"
+            onClick={() => setEditing(true)}
+            className="flex w-full items-center gap-4 rounded-2xl border-2 border-dashed border-hairline-strong p-4 text-left text-text-lo hover:border-amber-500/40"
           >
-            <span className="rounded-full border border-hairline-strong p-2.5">
-              <PlusIcon size={18} />
+            <span className="rounded-full border border-hairline-strong p-2.5"><PlusIcon size={18} /></span>
+            <span>
+              <span className="block text-sm font-semibold text-text-hi">Feature your first reel</span>
+              <span className="mt-1 block text-xs">Paste a public TikTok or YouTube clip—no re-upload needed.</span>
             </span>
-            <Mono className="px-3 text-center text-[10px] leading-tight">
-              Upload a reel
-            </Mono>
           </button>
-          <div className="max-w-[230px]">
-            <Mono className="text-[10px] text-amber-300">Coming soon</Mono>
-            <p className="mt-1.5 text-xs leading-relaxed text-text-lo">
-              Thirty seconds of your best groove beats any bio — get a clip ready
-              for launch day.
-            </p>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* ------------------------------------------------------- bookings */}
@@ -446,6 +487,9 @@ export default function MyProfile() {
           </button>
         )}
       </div>
+      {reelAt !== null && (user.reels ?? []).length > 0 && (
+        <EmbeddedReelViewer reels={user.reels ?? []} startIndex={reelAt} ownerName={user.name} onClose={() => setReelAt(null)} />
+      )}
     </Page>
   );
 }

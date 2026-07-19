@@ -29,7 +29,7 @@ import {
   MusicNoteIcon,
   PlayIcon,
 } from "../components/icons";
-import { ReelViewer, VideoTile } from "../components/video";
+import { EmbeddedReelViewer, ReelTile, ReelViewer, VideoTile } from "../components/video";
 import { LinksSection } from "../components/links";
 import { getBand, getPlayer } from "../lib/data";
 import { ratingSummary } from "../lib/ratings";
@@ -54,6 +54,7 @@ export default function MusicianProfile() {
   const navigate = useNavigate();
   const { state } = useApp();
   const [reelAt, setReelAt] = useState<number | null>(null);
+  const [fallbackAt, setFallbackAt] = useState<number | null>(null);
 
   const m = id ? getPlayer(id) : undefined;
 
@@ -73,6 +74,8 @@ export default function MusicianProfile() {
   const firstName = m.name.split(" ")[0];
   const summary = ratingSummary(m, state.ratingsGiven[m.id]);
   const totalPlays = m.videos.reduce((sum, v) => sum + v.plays, 0);
+  const realReels = m.reels ?? [];
+  const isOwnProfile = state.user?.id === m.id;
   const bands = m.bandIds
     .map((bid) => getBand(bid))
     .filter((b): b is Band => Boolean(b));
@@ -92,7 +95,7 @@ export default function MusicianProfile() {
         {/* ------------------------------------------------------- header */}
         <header>
           <div className="flex items-start gap-4">
-            <Avatar name={m.name} seed={m.seed} size={88} className="ring-2 ring-hairline-strong" />
+            <Avatar name={m.name} seed={m.seed} src={m.avatarUrl} size={88} className="ring-2 ring-hairline-strong" />
             <div className="min-w-0 pt-1">
               <h1 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl font-bold tracking-tight">
                 <span className="truncate">{m.name}</span>
@@ -144,7 +147,12 @@ export default function MusicianProfile() {
             title="Reels"
             className="mb-3"
             action={
-              m.videos.length > 0 ? (
+              realReels.length > 0 ? (
+                <Mono className="flex items-center gap-1 text-[10px] text-text-lo">
+                  <PlayIcon size={11} />
+                  {realReels.length} featured
+                </Mono>
+              ) : m.videos.length > 0 ? (
                 <Mono className="flex items-center gap-1 text-[10px] text-text-lo">
                   <PlayIcon size={11} />
                   {formatCount(totalPlays)} plays
@@ -152,13 +160,24 @@ export default function MusicianProfile() {
               ) : undefined
             }
           />
-          {m.videos.length > 0 ? (
+          {realReels.length > 0 ? (
+            <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
+              {realReels.map((reel, index) => (
+                <ReelTile
+                  key={reel.id}
+                  reel={reel}
+                  onPlay={() => setReelAt(index)}
+                  className="w-32 sm:w-36"
+                />
+              ))}
+            </div>
+          ) : m.videos.length > 0 ? (
             <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
               {m.videos.map((clip, i) => (
                 <VideoTile
                   key={clip.id}
                   clip={clip}
-                  onPlay={() => setReelAt(i)}
+                  onPlay={() => setFallbackAt(i)}
                   className="w-32 sm:w-36"
                 />
               ))}
@@ -276,34 +295,50 @@ export default function MusicianProfile() {
         <div className="mx-auto max-w-6xl md:pl-56">
           <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
             <div className="pointer-events-auto flex gap-3 rounded-2xl border border-hairline bg-surface-900/90 p-3 shadow-2xl shadow-black/60 backdrop-blur-md">
-              <Button
-                variant="secondary"
-                className="flex-1"
-                onClick={() => navigate(`/messages/c-${m.id}`)}
-              >
-                <ChatIcon size={17} />
-                Message
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() =>
-                  navigate(`/messages/c-${m.id}`, { state: { openBooking: true } })
-                }
-              >
-                <BoltIcon size={17} />
-                Book for a gig
-              </Button>
+              {isOwnProfile ? (
+                <Button className="flex-1" onClick={() => navigate("/profile")}>
+                  Edit your profile
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => navigate(`/messages/c-${m.id}`)}
+                  >
+                    <ChatIcon size={17} />
+                    Message
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() =>
+                      navigate(`/messages/c-${m.id}`, { state: { openBooking: true } })
+                    }
+                  >
+                    <BoltIcon size={17} />
+                    Book for a gig
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {reelAt !== null && (
-        <ReelViewer
-          clips={m.videos}
+      {reelAt !== null && realReels.length > 0 && (
+        <EmbeddedReelViewer
+          reels={realReels}
           startIndex={reelAt}
           ownerName={m.name}
           onClose={() => setReelAt(null)}
+        />
+      )}
+      {fallbackAt !== null && (
+        <ReelViewer
+          clips={m.videos}
+          startIndex={fallbackAt}
+          ownerName={m.name}
+          onClose={() => setFallbackAt(null)}
         />
       )}
     </Page>
