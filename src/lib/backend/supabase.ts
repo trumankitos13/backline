@@ -930,6 +930,20 @@ export const supabaseBackend: Backend = {
     fail("update notification preferences", error);
   },
 
+  async createPayoutOnboardingLink(_user) {
+    const { data, error } = await supabase.functions.invoke("create-connect-onboarding-link", {
+      body: {},
+    });
+    fail("start payout onboarding", error);
+    const rawUrl = (data as { url?: unknown } | null)?.url;
+    if (typeof rawUrl !== "string") throw new Error("Stripe onboarding link missing");
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:" || url.hostname !== "connect.stripe.com") {
+      throw new Error("Stripe onboarding link invalid");
+    }
+    return url.toString();
+  },
+
   async addOpening(user, opening) {
     const { error } = await supabase.from("openings").insert({
       id: opening.id,

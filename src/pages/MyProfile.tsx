@@ -2,8 +2,8 @@
 // reels placeholder, booking history, following list, demo reset, and (in cloud
 // mode) sign out. Backline tokens throughout: mono data atoms, amber scarce.
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Page } from "../components/shell";
 import {
   Avatar,
@@ -48,18 +48,47 @@ interface FollowedEntry {
 export default function MyProfile() {
   const { state, api, auth } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [confirmReset, setConfirmReset] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reelAt, setReelAt] = useState<number | null>(null);
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+  const payoutRefreshStarted = useRef(false);
 
   const user = state.user;
-  // App.tsx redirects to /welcome when there's no user; guard anyway.
-  if (!user) return null;
-
   // a real signed-in account (cloud mode) — demo mode has status signedIn but a
   // null auth.user, so gate sign-out on the user actually being present.
   const signedInReal = auth.status === "signedIn" && auth.user !== null;
+  const connectState = searchParams.get("connect");
+  const connectReturn = connectState === "return";
+
+  const startPayoutOnboarding = useCallback(async () => {
+    setPayoutBusy(true);
+    setPayoutError(null);
+    try {
+      const url = await api.startPayoutOnboarding();
+      window.location.assign(url);
+    } catch (error) {
+      setPayoutError(error instanceof Error ? error.message : "Could not start payout setup.");
+      setPayoutBusy(false);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    if (
+      !signedInReal
+      || connectState !== "refresh"
+      || payoutRefreshStarted.current
+    ) return;
+    payoutRefreshStarted.current = true;
+    void startPayoutOnboarding();
+  }, [connectState, signedInReal, startPayoutOnboarding]);
+
+  // App.tsx redirects to /welcome when there's no user; guard after hooks so
+  // hook ordering stays stable during auth hydration.
+  if (!user) return null;
 
   // newest bookings first
   const bookings = [...state.bookings].reverse();
@@ -185,6 +214,31 @@ export default function MyProfile() {
             ))}
           </select>
         </label>
+        {isCloudBackend && signedInReal && (
+          <div className="mt-4 flex items-center justify-between gap-4 border-t border-hairline-subtle pt-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-text-hi">Stripe payouts</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
+                {connectReturn
+                  ? "You're back from Stripe. Continue setup if Stripe still needs information."
+                  : "Set up secure identity verification and bank payouts with Stripe."}
+              </p>
+              {payoutError && (
+                <p role="alert" className="mt-1 text-xs text-[var(--color-danger)]">
+                  {payoutError}
+                </p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={payoutBusy}
+              onClick={() => void startPayoutOnboarding()}
+            >
+              {payoutBusy ? "Opening…" : connectReturn ? "Continue setup" : "Set up payouts"}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* ------------------------------------- post an opening / assemble */}

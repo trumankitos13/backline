@@ -180,6 +180,9 @@ export const localBackend: Backend = {
       notificationPreferences: { ...d.notificationPreferences, ...patch },
     }));
   },
+  async createPayoutOnboardingLink() {
+    throw new Error("Payout onboarding is available only with the cloud backend.");
+  },
   async addOpening(_user: AuthUser, opening: Opening) {
     mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));
   },

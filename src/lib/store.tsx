@@ -302,6 +302,8 @@ export interface AppApi {
   enablePushNotifications(): Promise<void>;
   disablePushNotifications(): Promise<void>;
   updateNotificationPreferences(patch: Partial<NotificationPreferences>): void;
+  /** create a Stripe-hosted payout onboarding link for the signed-in musician */
+  startPayoutOnboarding(): Promise<string>;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -604,6 +606,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateNotificationPreferences(patch) {
         dispatch({ type: "UPDATE_NOTIFICATION_PREFERENCES", patch });
         persist((user) => backend.updateNotificationPreferences(user, patch));
+      },
+
+      async startPayoutOnboarding() {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before setting up payouts.");
+        return backend.createPayoutOnboardingLink(user);
       },
 
       postOpening(input) {

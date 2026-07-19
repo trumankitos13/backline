@@ -423,3 +423,9 @@ entrypoint = "./functions/deliver-push-notification/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/deliver-push-notification/*.html" ]
+
+[functions.create-connect-onboarding-link]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-connect-onboarding-link/deno.json"
+entrypoint = "./functions/create-connect-onboarding-link/index.ts"

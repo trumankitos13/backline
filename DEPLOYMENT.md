@@ -285,6 +285,34 @@ Normal message alerts remain in-app unless the user later enables normal push.
 The Edge Function removes expired device subscriptions on HTTP 404/410 and
 claims each notification before fan-out to suppress duplicate webhook delivery.
 
+#### Phase 3 payout onboarding (test mode only)
+
+Do not deploy this stacked Phase 3 branch until Phase 2 is merged and its
+migrations are applied. `20260719214303_phase_3_payment_foundation.sql` adds
+server-owned Connect/payment records and read-only participant receipt access.
+
+Before deploying `create-connect-onboarding-link`:
+
+1. Complete Stripe Connect platform onboarding in **test mode** and confirm the
+   platform accepts responsibility for indirect-charge fees and losses.
+2. Store `STRIPE_SECRET_KEY=sk_test_...` and
+   `APP_URL=https://your-production-domain.example` in Supabase Edge Function
+   secrets. `APP_URL` must exactly match the browser origin; use a separate
+   local project secret for localhost testing.
+3. Deploy the authenticated function:
+
+   ```bash
+   npx supabase functions deploy create-connect-onboarding-link
+   ```
+
+The app sends musicians to a one-time Stripe-hosted onboarding URL from Profile
+→ Settings → Stripe payouts. Bank and identity data stays on Stripe. Returning
+from onboarding does not by itself prove approval; payout readiness will be
+updated from signed `account.updated` webhooks in the next Phase 3 slice.
+
+Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
+the repository, or `.env.local.example`.
+
 ---
 
 ### Optional — observability

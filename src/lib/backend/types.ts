@@ -95,6 +95,8 @@ export interface Backend {
     user: AuthUser,
     patch: Partial<NotificationPreferences>,
   ): Promise<void>;
+  /** create a short-lived Stripe-hosted payout onboarding link */
+  createPayoutOnboardingLink(user: AuthUser): Promise<string>;
   addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setOpeningStatus(user: AuthUser, openingId: string, status: Opening["status"]): Promise<void>;
   /** create-or-replace a user project (assemble / roster / ready-check updates) */
