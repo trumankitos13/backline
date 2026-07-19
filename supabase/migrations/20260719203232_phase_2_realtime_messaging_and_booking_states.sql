@@ -210,14 +210,14 @@ begin
       raise exception 'only a booking participant can cancel';
     end if;
     new.cancelled_at := now();
-  elsif old_status = 'accepted' and new_status = 'paid' then
+  elsif old_status = 'accepted' and new_status = 'held' then
     if actor is distinct from old.user_id then
-      raise exception 'only the booker can mark the booking paid';
+      raise exception 'only the booker can place the payment hold';
     end if;
     new.paid_at := now();
-  elsif old_status = 'paid' and new_status = 'completed' then
+  elsif old_status = 'held' and new_status = 'released' then
     if actor is distinct from old.user_id then
-      raise exception 'only the booker can complete this booking';
+      raise exception 'only the booker can release this demo payment';
     end if;
     new.completed_at := now();
   else

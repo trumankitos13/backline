@@ -108,10 +108,10 @@ the suite green.)*
 - ✅ Account-to-account DMs use participant-scoped tables and **Supabase
   Realtime** subscriptions; cloud replies persist and sync live, while demo
   mode alone retains canned replies.
-- ✅ **Booking state machine in Postgres:** `offer → accepted | declined → paid
-  → completed | cancelled`, with server-owned timestamps and transition guards
-  (only the invited musician can accept or decline); valid pre-payment
-  cancellation actions are exposed in the thread UI.
+- ✅ **Booking state machine in Postgres:** `offer → accepted → held → released`,
+  with `declined` and pre-payment `cancelled` terminal paths, server-owned
+  timestamps, and transition guards (only the invited musician can accept or
+  decline); valid cancellation actions are exposed in the thread UI.
 - ✅ **Notifications:** durable, deduplicated in-app alerts, cross-device read
   state, browser-push subscriptions, preference controls, hard mute, and quiet
   hours are implemented. The push-delivery Edge Function handles urgent booking

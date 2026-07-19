@@ -165,6 +165,20 @@ async function main() {
   const bAccept = await B.client.from("bookings").update({ status: "accepted" }).eq("id", realBookingId).select("status").single();
   check("only invited player B can accept the offer", bAccept.data?.status === "accepted");
 
+  await B.client.from("bookings").update({ status: "held" }).eq("id", realBookingId);
+  const afterWrongHolder = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("invited player cannot place the payment hold", afterWrongHolder.data?.status === "accepted");
+
+  const aHold = await A.client.from("bookings").update({ status: "held" }).eq("id", realBookingId).select("status").single();
+  check("booker can move an accepted booking to held", aHold.data?.status === "held");
+
+  await B.client.from("bookings").update({ status: "released" }).eq("id", realBookingId);
+  const afterWrongRelease = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("invited player cannot release the demo payment", afterWrongRelease.data?.status === "held");
+
+  const aRelease = await A.client.from("bookings").update({ status: "released" }).eq("id", realBookingId).select("status").single();
+  check("booker can move a held booking to released", aRelease.data?.status === "released");
+
   const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
   const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
   check("B receives durable message and offer notifications", new Set((bNotifications.data ?? []).map((row) => row.kind)).size === 2);
