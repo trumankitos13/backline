@@ -26,6 +26,7 @@ import type {
   InstrumentId,
   Message,
   NotificationItem,
+  NotificationPreferences,
   Opening,
 } from "./types";
 import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAndReload } from "./data";
@@ -46,6 +47,7 @@ export interface AppState {
   conversations: Conversation[];
   bookings: Booking[];
   notifications: NotificationItem[];
+  notificationPreferences: NotificationPreferences;
   likedPosts: string[];
   /** feed "need-sub" posts the user raised a hand on */
   respondedSubPosts: string[];
@@ -63,6 +65,15 @@ const EMPTY_STATE: AppState = {
   conversations: [],
   bookings: [],
   notifications: [],
+  notificationPreferences: {
+    pushEnabled: false,
+    highPush: true,
+    normalPush: false,
+    hardMute: false,
+    quietStart: "22:00",
+    quietEnd: "08:00",
+    timezone: "America/Chicago",
+  },
   likedPosts: [],
   respondedSubPosts: [],
   ratingsGiven: {},
@@ -82,6 +93,7 @@ type Action =
   | { type: "SET_BOOKING_STATUS"; bookingId: string; status: Booking["status"] }
   | { type: "MARK_NOTIFICATION_READ"; notificationId: string }
   | { type: "MARK_ALL_NOTIFICATIONS_READ" }
+  | { type: "UPDATE_NOTIFICATION_PREFERENCES"; patch: Partial<NotificationPreferences> }
   | { type: "TOGGLE_LIKE"; postId: string }
   | { type: "RESPOND_SUB"; postId: string }
   | { type: "RATE_MUSICIAN"; playerId: string; stars: number }
@@ -159,6 +171,11 @@ function reducer(state: AppState, action: Action): AppState {
           ...notification,
           read: true,
         })),
+      };
+    case "UPDATE_NOTIFICATION_PREFERENCES":
+      return {
+        ...state,
+        notificationPreferences: { ...state.notificationPreferences, ...action.patch },
       };
     case "TOGGLE_LIKE":
       return {
@@ -282,6 +299,7 @@ export interface AppApi {
   markAllNotificationsRead(): void;
   enablePushNotifications(): Promise<void>;
   disablePushNotifications(): Promise<void>;
+  updateNotificationPreferences(patch: Partial<NotificationPreferences>): void;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -555,7 +573,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           user,
           subscription.toJSON(),
           navigator.userAgent,
+          Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
         );
+        dispatch({
+          type: "UPDATE_NOTIFICATION_PREFERENCES",
+          patch: { pushEnabled: true },
+        });
       },
 
       async disablePushNotifications() {
@@ -565,6 +588,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!subscription) return;
         await backend.removePushSubscription(user, subscription.endpoint);
         await subscription.unsubscribe();
+        dispatch({
+          type: "UPDATE_NOTIFICATION_PREFERENCES",
+          patch: { pushEnabled: false },
+        });
+      },
+
+      updateNotificationPreferences(patch) {
+        dispatch({ type: "UPDATE_NOTIFICATION_PREFERENCES", patch });
+        persist((user) => backend.updateNotificationPreferences(user, patch));
       },
 
       postOpening(input) {

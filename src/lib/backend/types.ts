@@ -13,6 +13,7 @@ import type {
   CurrentUser,
   Message,
   NotificationItem,
+  NotificationPreferences,
   Opening,
 } from "../types";
 import type { Catalog } from "../data";
@@ -25,6 +26,7 @@ export interface PersistedData {
   conversations: Conversation[];
   bookings: Booking[];
   notifications: NotificationItem[];
+  notificationPreferences: NotificationPreferences;
   likedPosts: string[];
   respondedSubPosts: string[];
   /** openings the user posted (newest first) — they lead the feed */
@@ -86,8 +88,13 @@ export interface Backend {
     user: AuthUser,
     subscription: PushSubscriptionJSON,
     userAgent: string,
+    timezone: string,
   ): Promise<void>;
   removePushSubscription(user: AuthUser, endpoint: string): Promise<void>;
+  updateNotificationPreferences(
+    user: AuthUser,
+    patch: Partial<NotificationPreferences>,
+  ): Promise<void>;
   addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setOpeningStatus(user: AuthUser, openingId: string, status: Opening["status"]): Promise<void>;
   /** create-or-replace a user project (assemble / roster / ready-check updates) */

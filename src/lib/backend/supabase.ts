@@ -21,6 +21,7 @@ import type {
   InstrumentId,
   Message,
   NotificationItem,
+  NotificationPreferences,
   Opening,
   Player,
   Venue,
@@ -414,6 +415,15 @@ export const supabaseBackend: Backend = {
       conversations: [],
       bookings: [],
       notifications: [],
+      notificationPreferences: {
+        pushEnabled: false,
+        highPush: true,
+        normalPush: false,
+        hardMute: false,
+        quietStart: "22:00",
+        quietEnd: "08:00",
+        timezone: "America/Chicago",
+      },
       likedPosts: [],
       respondedSubPosts: [],
       openings: [],
@@ -431,6 +441,7 @@ export const supabaseBackend: Backend = {
       directMessagesRes,
       directReadsRes,
       notificationsRes,
+      notificationPreferencesRes,
       likesRes,
       subsRes,
       openingsRes,
@@ -461,6 +472,11 @@ export const supabaseBackend: Backend = {
           .select("id,kind,urgency,title,body,href,read_at,created_at")
           .order("created_at", { ascending: false })
           .limit(100),
+        supabase
+          .from("notification_preferences")
+          .select("push_enabled,high_push,normal_push,hard_mute,quiet_start,quiet_end,timezone")
+          .eq("user_id", user.id)
+          .maybeSingle(),
         supabase.from("liked_posts").select("post_id").eq("user_id", user.id),
         supabase.from("responded_sub_posts").select("post_id").eq("user_id", user.id),
         supabase.from("openings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
@@ -477,6 +493,7 @@ export const supabaseBackend: Backend = {
     fail("load direct messages", directMessagesRes.error);
     fail("load direct read markers", directReadsRes.error);
     fail("load notifications", notificationsRes.error);
+    fail("load notification preferences", notificationPreferencesRes.error);
     fail("load likes", likesRes.error);
     fail("load sub-responses", subsRes.error);
     fail("load openings", openingsRes.error);
@@ -596,6 +613,16 @@ export const supabaseBackend: Backend = {
       createdAt: notification.created_at as string,
       read: notification.read_at != null,
     }));
+    const preferenceRow = notificationPreferencesRes.data as Record<string, unknown> | null;
+    const notificationPreferences: NotificationPreferences = {
+      pushEnabled: Boolean(preferenceRow?.push_enabled),
+      highPush: preferenceRow ? Boolean(preferenceRow.high_push) : true,
+      normalPush: Boolean(preferenceRow?.normal_push),
+      hardMute: Boolean(preferenceRow?.hard_mute),
+      quietStart: String(preferenceRow?.quiet_start ?? "22:00").slice(0, 5),
+      quietEnd: String(preferenceRow?.quiet_end ?? "08:00").slice(0, 5),
+      timezone: String(preferenceRow?.timezone ?? "America/Chicago"),
+    };
 
     // group chats are stored as whole documents; they join the DM list
     const groupConversations = ((groupsRes.data ?? []) as Record<string, unknown>[]).map(
@@ -608,6 +635,7 @@ export const supabaseBackend: Backend = {
       conversations: [...groupConversations, ...directConversations, ...conversations],
       bookings,
       notifications,
+      notificationPreferences,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
       openings: ((openingsRes.data ?? []) as Record<string, unknown>[]).map((o) => normalizeOpeningScene({
@@ -843,7 +871,7 @@ export const supabaseBackend: Backend = {
     fail("mark all notifications read", error);
   },
 
-  async savePushSubscription(user, subscription, userAgent) {
+  async savePushSubscription(user, subscription, userAgent, timezone) {
     const endpoint = subscription.endpoint;
     const p256dh = subscription.keys?.p256dh;
     const auth = subscription.keys?.auth;
@@ -865,6 +893,7 @@ export const supabaseBackend: Backend = {
     const { error: preferenceError } = await supabase.from("notification_preferences").upsert({
       user_id: user.id,
       push_enabled: true,
+      timezone,
       updated_at: new Date().toISOString(),
     });
     fail("enable push preference", preferenceError);
@@ -883,6 +912,22 @@ export const supabaseBackend: Backend = {
       .update({ push_enabled: false, updated_at: new Date().toISOString() })
       .eq("user_id", user.id);
     fail("disable push preference", preferenceError);
+  },
+
+  async updateNotificationPreferences(user, patch) {
+    const row: Record<string, unknown> = {
+      user_id: user.id,
+      updated_at: new Date().toISOString(),
+    };
+    if (patch.pushEnabled !== undefined) row.push_enabled = patch.pushEnabled;
+    if (patch.highPush !== undefined) row.high_push = patch.highPush;
+    if (patch.normalPush !== undefined) row.normal_push = patch.normalPush;
+    if (patch.hardMute !== undefined) row.hard_mute = patch.hardMute;
+    if (patch.quietStart !== undefined) row.quiet_start = patch.quietStart;
+    if (patch.quietEnd !== undefined) row.quiet_end = patch.quietEnd;
+    if (patch.timezone !== undefined) row.timezone = patch.timezone;
+    const { error } = await supabase.from("notification_preferences").upsert(row);
+    fail("update notification preferences", error);
   },
 
   async addOpening(user, opening) {

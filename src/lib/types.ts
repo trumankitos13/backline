@@ -304,6 +304,16 @@ export interface NotificationItem {
   read: boolean;
 }
 
+export interface NotificationPreferences {
+  pushEnabled: boolean;
+  highPush: boolean;
+  normalPush: boolean;
+  hardMute: boolean;
+  quietStart: string;
+  quietEnd: string;
+  timezone: string;
+}
+
 /**
  * DMs are 1:1 with a Player (`playerId`, ids `c-<playerId>`). Group chats
  * belong to a project/band (`bandId`, ids `g-<bandId>`): the roster talks in

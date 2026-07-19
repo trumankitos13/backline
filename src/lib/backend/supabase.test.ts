@@ -12,6 +12,7 @@ const rows: Record<string, unknown> = {
   direct_messages: [],
   direct_conversation_reads: [],
   notifications: [],
+  notification_preferences: null,
   liked_posts: [],
   responded_sub_posts: [],
   openings: [

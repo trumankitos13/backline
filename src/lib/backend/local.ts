@@ -3,7 +3,7 @@
 // the app (and the deployed site) always runs, even before the backend is set
 // up. Behavior matches the original SitIn prototype.
 
-import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, Opening } from "../types";
+import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, NotificationPreferences, Opening } from "../types";
 import { demoCatalogForScene, SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
 import { normalizePersistedData } from "../sceneScope";
@@ -21,6 +21,15 @@ function demoDefault(): PersistedData {
     conversations: SEED_CONVERSATIONS,
     bookings: [],
     notifications: [],
+    notificationPreferences: {
+      pushEnabled: false,
+      highPush: true,
+      normalPush: false,
+      hardMute: false,
+      quietStart: "22:00",
+      quietEnd: "08:00",
+      timezone: "America/Chicago",
+    },
     likedPosts: [],
     respondedSubPosts: [],
     openings: [],
@@ -164,6 +173,12 @@ export const localBackend: Backend = {
   },
   async removePushSubscription() {
     // Push delivery is cloud-only.
+  },
+  async updateNotificationPreferences(_user: AuthUser, patch: Partial<NotificationPreferences>) {
+    mutate((d) => ({
+      ...d,
+      notificationPreferences: { ...d.notificationPreferences, ...patch },
+    }));
   },
   async addOpening(_user: AuthUser, opening: Opening) {
     mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));
