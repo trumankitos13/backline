@@ -72,9 +72,19 @@ export function BookingCard({
               </div>
             </>
           ) : (
-            <p className="text-sm text-text-mid">
-              <span className="blink">⏳</span> Waiting for {first} to accept…
-            </p>
+            <>
+              <p className="text-sm text-text-mid">
+                <span className="blink">⏳</span> Waiting for {first} to accept…
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2.5 w-full"
+                onClick={() => api.cancelBooking(booking.id)}
+              >
+                Withdraw offer
+              </Button>
+            </>
           )}
         </div>
       )}
@@ -102,6 +112,14 @@ export function BookingCard({
               </Button>
             )
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2.5 w-full"
+            onClick={() => api.cancelBooking(booking.id)}
+          >
+            Cancel booking
+          </Button>
         </div>
       )}
 

@@ -295,6 +295,8 @@ export interface AppApi {
   sendBookingOffer(input: BookingOfferInput): string;
   /** accept or decline an offer received by the signed-in player */
   respondToBooking(bookingId: string, status: "accepted" | "declined"): void;
+  /** withdraw an outgoing offer or cancel an accepted booking */
+  cancelBooking(bookingId: string): void;
   markNotificationRead(notificationId: string): void;
   markAllNotificationsRead(): void;
   enablePushNotifications(): Promise<void>;
@@ -553,6 +555,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       respondToBooking(bookingId, status) {
         dispatch({ type: "SET_BOOKING_STATUS", bookingId, status });
         persist((user) => backend.setBookingStatus(user, bookingId, status));
+      },
+
+      cancelBooking(bookingId) {
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "cancelled" });
+        persist((user) => backend.setBookingStatus(user, bookingId, "cancelled"));
       },
 
       markNotificationRead(notificationId) {
