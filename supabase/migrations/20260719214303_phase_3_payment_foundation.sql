@@ -88,13 +88,16 @@ create table public.stripe_events (
   event_type text not null,
   object_id text,
   livemode boolean not null,
-  processed_at timestamptz not null default now(),
+  received_at timestamptz not null default now(),
+  processed_at timestamptz,
+  processing_attempts integer not null default 1,
   processing_error text,
   constraint stripe_events_id_format check (stripe_event_id ~ '^evt_[A-Za-z0-9]+$'),
   constraint stripe_events_type_length check (char_length(event_type) between 1 and 160),
   constraint stripe_events_error_length check (
     processing_error is null or char_length(processing_error) <= 500
-  )
+  ),
+  constraint stripe_events_positive_attempts check (processing_attempts > 0)
 );
 
 alter table public.connected_accounts enable row level security;

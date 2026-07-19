@@ -295,7 +295,7 @@ Before deploying `create-connect-onboarding-link`:
 
 1. Complete Stripe Connect platform onboarding in **test mode** and confirm the
    platform accepts responsibility for indirect-charge fees and losses.
-2. Store `STRIPE_SECRET_KEY=sk_test_...` and
+2. Store `STRIPE_SECRET_KEY=sk_test_...`, `STRIPE_LIVE_MODE=false`, and
    `APP_URL=https://your-production-domain.example` in Supabase Edge Function
    secrets. `APP_URL` must exactly match the browser origin; use a separate
    local project secret for localhost testing.
@@ -309,6 +309,20 @@ The app sends musicians to a one-time Stripe-hosted onboarding URL from Profile
 → Settings → Stripe payouts. Bank and identity data stays on Stripe. Returning
 from onboarding does not by itself prove approval; payout readiness will be
 updated from signed `account.updated` webhooks in the next Phase 3 slice.
+
+Deploy the Connect webhook function:
+
+```bash
+npx supabase functions deploy stripe-connect-webhook
+```
+
+In Stripe Workbench, create a **test-mode Connected accounts** event destination
+for `account.updated` pointing to
+`https://<project-ref>.supabase.co/functions/v1/stripe-connect-webhook`. Store
+that endpoint's signing secret as `STRIPE_CONNECT_WEBHOOK_SECRET`. This is not
+the same secret as a platform-account payment webhook. The handler verifies the
+raw-body signature, safely ignores the wrong test/live mode, and deduplicates
+event IDs before updating payout readiness.
 
 Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
 the repository, or `.env.local.example`.
