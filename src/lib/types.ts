@@ -265,6 +265,8 @@ export interface Booking {
   venueName: string;
   date: string;
   time: string;
+  /** canonical show instant; required before a real payment can be authorized */
+  gigAt?: string;
   amount: number;
   status: BookingStatus;
   /** whether the signed-in account sent or received this offer */

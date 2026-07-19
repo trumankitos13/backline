@@ -324,6 +324,16 @@ the same secret as a platform-account payment webhook. The handler verifies the
 raw-body signature, safely ignores the wrong test/live mode, and deduplicates
 event IDs before updating payout readiness.
 
+`create-booking-payment-intent` is the authenticated server boundary for card
+authorization. It derives the amount, 10% service fee, connected destination,
+and Stripe idempotency key from an accepted booking; the browser supplies only
+the booking ID. Deploy it only with the payment UI and platform-account payment
+webhook from the same release:
+
+```bash
+npx supabase functions deploy create-booking-payment-intent
+```
+
 Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
 the repository, or `.env.local.example`.
 

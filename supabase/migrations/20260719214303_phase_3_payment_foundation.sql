@@ -7,6 +7,34 @@
 -- Stripe identifiers are server-managed. Authenticated users receive only the
 -- safe, column-limited status fields needed for onboarding and receipts.
 
+alter table public.bookings
+  add column gig_at timestamptz,
+  add constraint bookings_gig_at_range check (
+    gig_at is null
+    or (gig_at >= created_at - interval '5 minutes' and gig_at <= created_at + interval '2 years')
+  );
+
+create function public.enforce_booking_schedule_immutable()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if new.gig_at is distinct from old.gig_at then
+    raise exception 'booking schedule cannot change after the offer is sent';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.enforce_booking_schedule_immutable()
+  from public, anon, authenticated;
+
+create trigger enforce_booking_schedule_immutable_before_update
+  before update on public.bookings
+  for each row execute function public.enforce_booking_schedule_immutable();
+
 create type public.payment_status as enum (
   'pending',
   'requires_payment_method',
@@ -50,6 +78,7 @@ create table public.booking_payments (
   authorization_expires_at timestamptz,
   failure_code text,
   failure_message text,
+  attempt_number integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint booking_payments_distinct_participants check (
@@ -72,7 +101,8 @@ create table public.booking_payments (
   ),
   constraint booking_payments_authorization_expiry check (
     status <> 'held' or authorization_expires_at is not null
-  )
+  ),
+  constraint booking_payments_positive_attempt check (attempt_number > 0)
 );
 
 create index booking_payments_payer_created_idx

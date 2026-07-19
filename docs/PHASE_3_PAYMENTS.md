@@ -35,6 +35,11 @@ Therefore:
 - automatic or extended authorization is an optional later optimization, not a
   launch assumption.
 
+The initial implementation opens authorization at most **72 hours before the
+gig** and rejects shows less than 15 minutes away. This conservative gate leaves
+room for the 24-hour post-show capture/dispute window and can be widened only
+after capture-expiry behavior is measured in test and production data.
+
 ## State ownership
 
 `bookings.status` describes the marketplace agreement. `booking_payments.status`

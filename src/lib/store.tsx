@@ -235,6 +235,7 @@ interface BookingOfferInput {
   venueName: string;
   date: string;
   time: string;
+  gigAt?: string;
   amount: number;
   note?: string;
   /** when the offer is for a posted Opening — holding it locks that seat */
@@ -508,6 +509,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           venueName: input.venueName,
           date: input.date,
           time: input.time,
+          gigAt: input.gigAt,
           amount: input.amount,
           status: "offer",
           openingId: input.openingId,

@@ -594,6 +594,7 @@ export const supabaseBackend: Backend = {
       venueName: b.venue_name as string,
       date: b.date as string,
       time: b.time as string,
+      gigAt: (b.gig_at as string) ?? undefined,
       amount: (b.amount as number) ?? 0,
       // legacy escrow rename: rows written before held/released say "paid"
       status: (b.status === "paid" ? "held" : b.status) as BookingStatus,
@@ -840,6 +841,7 @@ export const supabaseBackend: Backend = {
       venue_name: booking.venueName,
       date: booking.date,
       time: booking.time,
+      gig_at: booking.gigAt ?? null,
       amount: booking.amount,
       status: booking.status,
       opening_id: booking.openingId ?? null,

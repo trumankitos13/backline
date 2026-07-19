@@ -435,3 +435,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/stripe-connect-webhook/deno.json"
 entrypoint = "./functions/stripe-connect-webhook/index.ts"
+
+[functions.create-booking-payment-intent]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-booking-payment-intent/deno.json"
+entrypoint = "./functions/create-booking-payment-intent/index.ts"
