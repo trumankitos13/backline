@@ -6,6 +6,7 @@
 
 import type { Booking, Player } from "../../lib/types";
 import { useApp } from "../../lib/store";
+import { isCloudBackend } from "../../lib/backend";
 import { Button, Card, Mono, StarInput, Stars } from "../ui";
 import { CalendarIcon, CheckIcon, LockIcon } from "../icons";
 
@@ -21,6 +22,7 @@ export function BookingCard({
 }) {
   const { state, api } = useApp();
   const first = musician.name.split(" ")[0] ?? musician.name;
+  const incoming = booking.direction === "incoming";
 
   const given = state.ratingsGiven[booking.playerId] ?? [];
   const rated = given.length > 0;
@@ -52,9 +54,28 @@ export function BookingCard({
       {/* live status strip */}
       {booking.status === "offer" && (
         <div className="border-t border-hairline-subtle bg-surface-800/50 px-4 py-3">
-          <p className="text-sm text-text-mid">
-            <span className="blink">⏳</span> Waiting for {first} to accept…
-          </p>
+          {incoming ? (
+            <>
+              <p className="text-sm font-semibold text-text-hi">
+                {first} invited you to play this gig.
+              </p>
+              <div className="mt-2.5 grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => api.respondToBooking(booking.id, "declined")}
+                >
+                  Decline
+                </Button>
+                <Button onClick={() => api.respondToBooking(booking.id, "accepted")}>
+                  Accept offer
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-text-mid">
+              <span className="blink">⏳</span> Waiting for {first} to accept…
+            </p>
+          )}
         </div>
       )}
 
@@ -64,11 +85,39 @@ export function BookingCard({
             <CheckIcon size={15} /> Accepted
           </p>
           <p className="mt-0.5 text-xs text-text-mid">
-            Lock it in before {first}'s night books up.
+            {incoming
+              ? `${first} can now move this offer to payment.`
+              : isCloudBackend
+                ? "This booking is ready for the payment step."
+                : `Lock it in before ${first}'s night books up.`}
           </p>
-          <Button className="mt-2.5 w-full" onClick={() => onPay(booking)}>
-            Hold ${booking.amount} — lock it in
-          </Button>
+          {!incoming && (
+            isCloudBackend ? (
+              <Button className="mt-2.5 w-full" disabled>
+                Payment setup is next
+              </Button>
+            ) : (
+              <Button className="mt-2.5 w-full" onClick={() => onPay(booking)}>
+                Hold ${booking.amount} — lock it in
+              </Button>
+            )
+          )}
+        </div>
+      )}
+
+      {booking.status === "paid" && (
+        <div className="border-t border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cyan-300">
+            <LockIcon size={15} /> Paid — gig completion pending
+          </p>
+        </div>
+      )}
+
+      {booking.status === "completed" && (
+        <div className="border-t border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-cyan-300">
+            <CheckIcon size={15} /> Booking complete
+          </p>
         </div>
       )}
 
@@ -132,6 +181,12 @@ export function BookingCard({
           <p className="text-sm font-medium text-[var(--color-danger)]">
             {first} passed on this one — try another player.
           </p>
+        </div>
+      )}
+
+      {booking.status === "cancelled" && (
+        <div className="border-t border-hairline-subtle bg-surface-800/50 px-4 py-3">
+          <p className="text-sm font-medium text-text-lo">This booking was cancelled.</p>
         </div>
       )}
     </Card>

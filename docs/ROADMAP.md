@@ -28,10 +28,12 @@ mobile.
   `user_projects`, `group_conversations` tables, owner-only RLS).
 
 **Mocked / not yet real (the gap):**
-- Messaging replies are simulated `setTimeout`s; booking acceptance is faked.
+- Cloud DMs and offer responses are real; group-chat replies remain simulated
+  and Phase 2 notifications are not wired yet.
 - Payments are a **UI mock** — the held/released escrow lifecycle is modeled,
   but Stripe isn't wired (no real money).
-- Reels are **generative gradient placeholders** (`video.tsx`) — no real video.
+- Public TikTok/YouTube reels are real provider embeds; generative gradients
+  remain the fallback for profiles without a reel.
 - Ratings are **session-only** (`state.ratingsGiven`, not persisted).
 - SOS matching is client-side; "near me" isn't geographic.
 - No notifications, no native app.
@@ -87,7 +89,7 @@ the suite green.)*
 - **Exit:** sign up → onboard → see DB-backed catalog, all persisted server-side;
   pipeline green.
 
-### Phase 1 — Real profiles + reels
+### Phase 1 — Real profiles + reels ✅ CODE COMPLETE
 **Goal:** a player creates a public profile and features a reel that actually plays.
 - Profile **editing** for your own player page (instruments, rate, gear,
   availability, neighborhood, bio) — writing through the backend.
@@ -99,13 +101,14 @@ the suite green.)*
 - **Exit:** edit a profile and add a reel on one device, then discover and play
   both from another account/device.
 
-### Phase 2 — Messaging + booking (realtime, real state machine)
+### Phase 2 — Messaging + booking (realtime, real state machine) 🚧 IN PROGRESS
 **Goal:** two real users message and move a booking through its lifecycle.
-- Replace simulated replies with **Supabase Realtime** subscriptions; messages
-  persist and sync live. (Touchpoint: the `setTimeout` blocks in `store.tsx`.)
-- **Booking state machine on the server:** `offer → accepted | declined → paid →
-  completed | cancelled`, with server-enforced transitions, timestamps, and
-  guards (only the invited musician can accept, etc.).
+- ✅ Account-to-account DMs use participant-scoped tables and **Supabase
+  Realtime** subscriptions; cloud replies persist and sync live, while demo
+  mode alone retains canned replies.
+- ✅ **Booking state machine in Postgres:** `offer → accepted | declined → paid
+  → completed | cancelled`, with server-owned timestamps and transition guards
+  (only the invited musician can accept or decline).
 - **Notifications:** email (Resend) + web push for new message / offer /
   acceptance / payment / gig reminder.
 - **Exit:** a booking goes offer → accept → (ready to pay) with live chat and

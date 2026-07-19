@@ -198,7 +198,10 @@ function ThreadView({ id }: { id: string }) {
           if (m.bookingId) {
             const bk = state.bookings.find((b) => b.id === m.bookingId);
             return (
-              <div key={m.id} className="w-full max-w-sm self-end">
+              <div
+                key={m.id}
+                className={`w-full max-w-sm ${bk?.direction === "incoming" ? "self-start" : "self-end"}`}
+              >
                 {bk ? (
                   <BookingCard
                     booking={bk}
@@ -258,6 +261,7 @@ function ThreadView({ id }: { id: string }) {
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            maxLength={4000}
             placeholder={`Message ${first}…`}
             aria-label={`Message ${musician.name}`}
             className="min-w-0 flex-1 rounded-full border border-hairline-strong bg-surface-800 px-4 py-2.5 text-sm placeholder:text-text-faint transition-colors focus:border-amber-500/70 focus:outline-none"

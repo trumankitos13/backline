@@ -98,11 +98,30 @@ export function BookingStatusBadge({ status }: { status: BookingStatus }) {
           Released
         </Badge>
       );
+    case "paid":
+      return (
+        <Badge tone="cyan" icon={<LockIcon size={11} />}>
+          Paid
+        </Badge>
+      );
+    case "completed":
+      return (
+        <Badge tone="cyan" icon={<CheckIcon size={11} />}>
+          Complete
+        </Badge>
+      );
     case "declined":
       return (
         <span className="mono inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--color-danger)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-danger)_12%,transparent)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-danger)]">
           <CloseIcon size={11} />
           Declined
+        </span>
+      );
+    case "cancelled":
+      return (
+        <span className="mono inline-flex shrink-0 items-center gap-1.5 rounded-full border border-hairline-strong bg-surface-800 px-2.5 py-1 text-[10px] font-bold text-text-lo">
+          <CloseIcon size={11} />
+          Cancelled
         </span>
       );
   }

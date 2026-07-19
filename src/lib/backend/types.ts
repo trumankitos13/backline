@@ -66,6 +66,8 @@ export interface Backend {
   loadCatalog(scene: SceneId): Promise<Catalog | null>;
   /** load everything persisted for `user` (or the demo default when local) */
   load(user: AuthUser | null): Promise<PersistedData>;
+  /** subscribe to participant-scoped cloud changes; demo mode returns a no-op */
+  subscribeToChanges(user: AuthUser, onChange: () => void): () => void;
 
   saveUser(user: AuthUser, profile: CurrentUser): Promise<void>;
   updateUser(user: AuthUser, patch: Partial<CurrentUser>): Promise<void>;

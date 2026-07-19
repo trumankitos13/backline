@@ -66,6 +66,43 @@ function profileSeed(id: string): number {
   return value || 1;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isAccountPlayerId(id: string): boolean {
+  return UUID_PATTERN.test(id);
+}
+
+async function getOrCreateDirectConversation(userId: string, playerId: string): Promise<string> {
+  const [participantA, participantB] = [userId, playerId].sort();
+  const find = () => supabase
+    .from("direct_conversations")
+    .select("id")
+    .eq("participant_a", participantA)
+    .eq("participant_b", participantB)
+    .maybeSingle();
+
+  const existing = await find();
+  fail("find direct conversation", existing.error);
+  if (existing.data) return (existing.data as { id: string }).id;
+
+  const created = await supabase
+    .from("direct_conversations")
+    .insert({ participant_a: participantA, participant_b: participantB })
+    .select("id")
+    .single();
+  if (!created.error) return (created.data as { id: string }).id;
+
+  // Two first messages can race to create the same canonical pair. The unique
+  // constraint picks one winner; the loser reads that row and continues.
+  if ((created.error as { code?: string }).code === "23505") {
+    const raced = await find();
+    fail("load raced direct conversation", raced.error);
+    if (raced.data) return (raced.data as { id: string }).id;
+  }
+  fail("create direct conversation", created.error);
+  throw new Error("create direct conversation failed");
+}
+
 /** Keep catalog roots within the active scene before their dependents are loaded. */
 export function filterCatalogRoots<T extends Record<string, unknown>>(rows: T[], scene: SceneId): T[] {
   return rows.filter((row) => row.scene === scene);
@@ -73,6 +110,25 @@ export function filterCatalogRoots<T extends Record<string, unknown>>(rows: T[],
 
 export const supabaseBackend: Backend = {
   mode: "supabase",
+
+  subscribeToChanges(user, onChange) {
+    const channel = supabase
+      .channel(`backline:user:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "direct_messages" },
+        onChange,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        onChange,
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  },
 
   async getSession() {
     const { data } = await supabase.auth.getSession();
@@ -358,17 +414,40 @@ export const supabaseBackend: Backend = {
     };
     if (!user) return empty;
 
-    const [profileRes, followsRes, bookingsRes, convosRes, messagesRes, likesRes, subsRes, openingsRes, projectsRes, groupsRes] =
+    const [
+      profileRes,
+      followsRes,
+      bookingsRes,
+      convosRes,
+      messagesRes,
+      directConvosRes,
+      directMessagesRes,
+      directReadsRes,
+      likesRes,
+      subsRes,
+      openingsRes,
+      projectsRes,
+      groupsRes,
+    ] =
       await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase.from("follows").select("target_id").eq("user_id", user.id),
-        supabase.from("bookings").select("*").eq("user_id", user.id).order("created_at"),
+        supabase.from("bookings").select("*").order("created_at"),
         supabase.from("conversations").select("*").eq("user_id", user.id),
         supabase
           .from("messages")
           .select("*, conversations!inner(user_id, musician_id)")
           .eq("conversations.user_id", user.id)
           .order("created_at"),
+        supabase
+          .from("direct_conversations")
+          .select("*")
+          .or(`participant_a.eq.${user.id},participant_b.eq.${user.id}`),
+        supabase.from("direct_messages").select("*").order("created_at"),
+        supabase
+          .from("direct_conversation_reads")
+          .select("conversation_id,read_at")
+          .eq("user_id", user.id),
         supabase.from("liked_posts").select("post_id").eq("user_id", user.id),
         supabase.from("responded_sub_posts").select("post_id").eq("user_id", user.id),
         supabase.from("openings").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
@@ -381,6 +460,9 @@ export const supabaseBackend: Backend = {
     fail("load bookings", bookingsRes.error);
     fail("load conversations", convosRes.error);
     fail("load messages", messagesRes.error);
+    fail("load direct conversations", directConvosRes.error);
+    fail("load direct messages", directMessagesRes.error);
+    fail("load direct read markers", directReadsRes.error);
     fail("load likes", likesRes.error);
     fail("load sub-responses", subsRes.error);
     fail("load openings", openingsRes.error);
@@ -437,9 +519,46 @@ export const supabaseBackend: Backend = {
       }),
     );
 
+    const directMessagesByConversation = new Map<string, Record<string, unknown>[]>();
+    for (const row of (directMessagesRes.data ?? []) as Record<string, unknown>[]) {
+      const conversationId = row.conversation_id as string;
+      const rows = directMessagesByConversation.get(conversationId) ?? [];
+      rows.push(row);
+      directMessagesByConversation.set(conversationId, rows);
+    }
+    const readAtByConversation = new Map(
+      ((directReadsRes.data ?? []) as { conversation_id: string; read_at: string }[])
+        .map((row) => [row.conversation_id, new Date(row.read_at).getTime()]),
+    );
+    const directConversations: Conversation[] = (
+      (directConvosRes.data ?? []) as Record<string, unknown>[]
+    ).map((conversation) => {
+      const conversationId = conversation.id as string;
+      const playerId = conversation.participant_a === user.id
+        ? conversation.participant_b as string
+        : conversation.participant_a as string;
+      const rows = directMessagesByConversation.get(conversationId) ?? [];
+      const readAt = readAtByConversation.get(conversationId) ?? 0;
+      return {
+        id: conversationId,
+        kind: "dm" as const,
+        playerId,
+        messages: rows.map((row) => ({
+          id: row.id as string,
+          from: row.sender_id === user.id ? "me" as const : "them" as const,
+          text: (row.body as string | null) ?? undefined,
+          bookingId: (row.booking_id as string | null) ?? undefined,
+          at: timeLabel(row.created_at as string),
+        })),
+        unread: rows.filter((row) => (
+          row.sender_id !== user.id && new Date(row.created_at as string).getTime() > readAt
+        )).length,
+      };
+    });
+
     const bookings: Booking[] = ((bookingsRes.data ?? []) as Record<string, unknown>[]).map((b) => ({
       id: b.id as string,
-      playerId: b.musician_id as string,
+      playerId: b.user_id === user.id ? b.musician_id as string : b.user_id as string,
       gigTitle: b.gig_title as string,
       venueName: b.venue_name as string,
       date: b.date as string,
@@ -448,6 +567,7 @@ export const supabaseBackend: Backend = {
       // legacy escrow rename: rows written before held/released say "paid"
       status: (b.status === "paid" ? "held" : b.status) as BookingStatus,
       openingId: (b.opening_id as string) ?? undefined,
+      direction: b.user_id === user.id ? "outgoing" : "incoming",
     }));
 
     // group chats are stored as whole documents; they join the DM list
@@ -458,7 +578,7 @@ export const supabaseBackend: Backend = {
     return {
       user: profile,
       following: ((followsRes.data ?? []) as { target_id: string }[]).map((f) => f.target_id),
-      conversations: [...groupConversations, ...conversations],
+      conversations: [...groupConversations, ...directConversations, ...conversations],
       bookings,
       likedPosts: ((likesRes.data ?? []) as { post_id: string }[]).map((l) => l.post_id),
       respondedSubPosts: ((subsRes.data ?? []) as { post_id: string }[]).map((s) => s.post_id),
@@ -581,6 +701,19 @@ export const supabaseBackend: Backend = {
   },
 
   async addMessage(user, playerId, message) {
+    if (isAccountPlayerId(playerId)) {
+      const conversationId = await getOrCreateDirectConversation(user.id, playerId);
+      const { error } = await supabase.from("direct_messages").insert({
+        id: message.id,
+        conversation_id: conversationId,
+        sender_id: user.id,
+        body: message.text ?? null,
+        booking_id: message.bookingId ?? null,
+      });
+      fail("insert direct message", error);
+      return;
+    }
+
     // upsert the conversation (unread untouched on conflict) and get its id
     const { data: conv, error: convErr } = await supabase
       .from("conversations")
@@ -613,6 +746,25 @@ export const supabaseBackend: Backend = {
   },
 
   async markRead(user, playerId) {
+    if (isAccountPlayerId(playerId)) {
+      const [participantA, participantB] = [user.id, playerId].sort();
+      const conversation = await supabase
+        .from("direct_conversations")
+        .select("id")
+        .eq("participant_a", participantA)
+        .eq("participant_b", participantB)
+        .maybeSingle();
+      fail("find direct conversation to mark read", conversation.error);
+      if (!conversation.data) return;
+      const { error } = await supabase.from("direct_conversation_reads").upsert({
+        conversation_id: (conversation.data as { id: string }).id,
+        user_id: user.id,
+        read_at: new Date().toISOString(),
+      });
+      fail("mark direct conversation read", error);
+      return;
+    }
+
     const { error } = await supabase
       .from("conversations")
       .update({ unread: 0 })
@@ -622,10 +774,12 @@ export const supabaseBackend: Backend = {
   },
 
   async addBooking(user, booking) {
+    const realRecipient = isAccountPlayerId(booking.playerId);
     const { error } = await supabase.from("bookings").insert({
       id: booking.id,
       user_id: user.id,
       musician_id: booking.playerId,
+      musician_user_id: realRecipient ? booking.playerId : null,
       gig_title: booking.gigTitle,
       venue_name: booking.venueName,
       date: booking.date,
@@ -637,12 +791,11 @@ export const supabaseBackend: Backend = {
     fail("add booking", error);
   },
 
-  async setBookingStatus(user, bookingId, status) {
+  async setBookingStatus(_user, bookingId, status) {
     const { error } = await supabase
       .from("bookings")
       .update({ status })
-      .eq("id", bookingId)
-      .eq("user_id", user.id);
+      .eq("id", bookingId);
     fail("set booking status", error);
   },
 

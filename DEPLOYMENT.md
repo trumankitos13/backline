@@ -237,6 +237,18 @@ new client. The new client reads the added profile columns during catalog boot.
 After deployment, edit a profile, reload in a private window, and confirm the
 avatar and reel remain visible.
 
+Phase 2 is stacked on Phase 1. Apply its migration only after the Phase 1
+migration is present. It adds participant-scoped `direct_conversations`,
+`direct_messages`, and read markers; adds the real recipient and lifecycle
+timestamps to `bookings`; and enables Realtime Postgres Changes for messages
+and bookings. The migration leaves the legacy seeded-demo chat tables intact.
+
+Before the Phase 2 client deploy, confirm both `direct_messages` and `bookings`
+appear in Database → Publications → `supabase_realtime`. After deploy, use two
+real accounts: send a DM and offer from account A, then accept or decline from
+account B. Neither account should be able to read a third account's thread or
+change the other participant's allowed state transitions.
+
 ---
 
 ### Optional — observability

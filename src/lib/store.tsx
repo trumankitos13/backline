@@ -5,8 +5,8 @@
 // mutation is then written through to the active backend (see src/lib/backend):
 // localStorage in demo mode, or Supabase (auth + Postgres) when configured.
 //
-// The simulated musician replies / booking acceptances are kept so the
-// prototype still feels alive; in cloud mode they persist as real message rows.
+// Simulated replies / booking acceptances remain in local demo mode only.
+// Cloud mode receives real participant updates through Supabase Realtime.
 
 import {
   createContext,
@@ -246,10 +246,12 @@ interface OpeningInput {
 }
 
 export interface AppApi {
-  /** send a chat message; the musician sends a canned reply shortly after */
+  /** send a chat message; local demo mode may add a canned reply */
   sendMessage(playerId: string, text: string, opts?: { simulateReply?: boolean }): void;
-  /** send a booking offer into the thread; simulated acceptance follows */
+  /** send a booking offer into the thread */
   sendBookingOffer(input: BookingOfferInput): string;
+  /** accept or decline an offer received by the signed-in player */
+  respondToBooking(bookingId: string, status: "accepted" | "declined"): void;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -384,6 +386,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Cloud tables are the source of truth across devices. Rehydrate the
+  // participant-scoped slice after a realtime message or booking change.
+  useEffect(() => {
+    if (auth.status !== "signedIn" || !auth.user) return;
+    let timer: number | undefined;
+    const user = auth.user;
+    const unsubscribe = backend.subscribeToChanges(user, () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        backend.load(user)
+          .then((data) => dispatch({ type: "HYDRATE", data }))
+          .catch((error) => console.error("[backline] realtime reload failed", error));
+      }, 80);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [auth.status, auth.user?.id]);
+
   const api = useMemo<AppApi>(() => {
     // fire-and-forget write-through; errors are logged, UI already updated
     function persist(run: (user: AuthUser) => Promise<void>) {
@@ -409,7 +431,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "SEND_MESSAGE", playerId, message });
         persist((u) => backend.addMessage(u, playerId, message));
 
-        if (opts?.simulateReply !== false) {
+        if (!isCloudBackend && opts?.simulateReply !== false) {
           const reply =
             CANNED_REPLIES[Math.floor(Math.random() * CANNED_REPLIES.length)];
           window.setTimeout(() => {
@@ -459,22 +481,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
           })().catch((e) => console.error("[backline] persist offer failed", e));
         }
 
-        // simulate the musician accepting after a short delay
-        const name = getPlayer(input.playerId)?.name.split(" ")[0] ?? "They";
-        window.setTimeout(() => {
-          const acceptMsg: Message = {
-            id: uid("m"),
-            from: "them",
-            text: `${name} here — I'm in! Accepted the offer. Hold the payment in the app to lock it and I'll see you at soundcheck. 🤘`,
-            at: nowLabel(),
-          };
-          dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
-          dispatch({ type: "RECEIVE_MESSAGE", playerId: input.playerId, message: acceptMsg });
-          persist((u) => backend.setBookingStatus(u, bookingId, "accepted"));
-          persist((u) => backend.addMessage(u, input.playerId, acceptMsg));
-        }, 3500);
+        if (!isCloudBackend) {
+          // Keep the no-setup demo lively; cloud offers wait for the real
+          // invited account to accept or decline.
+          const name = getPlayer(input.playerId)?.name.split(" ")[0] ?? "They";
+          window.setTimeout(() => {
+            const acceptMsg: Message = {
+              id: uid("m"),
+              from: "them",
+              text: `${name} here — I'm in! Accepted the offer. Hold the payment in the app to lock it and I'll see you at soundcheck. 🤘`,
+              at: nowLabel(),
+            };
+            dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "accepted" });
+            dispatch({ type: "RECEIVE_MESSAGE", playerId: input.playerId, message: acceptMsg });
+            persist((u) => backend.setBookingStatus(u, bookingId, "accepted"));
+            persist((u) => backend.addMessage(u, input.playerId, acceptMsg));
+          }, 3500);
+        }
 
         return bookingId;
+      },
+
+      respondToBooking(bookingId, status) {
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status });
+        persist((user) => backend.setBookingStatus(user, bookingId, status));
       },
 
       postOpening(input) {

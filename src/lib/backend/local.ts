@@ -59,6 +59,10 @@ function mutate(fn: (d: PersistedData) => PersistedData): void {
 export const localBackend: Backend = {
   mode: "local",
 
+  subscribeToChanges() {
+    return () => undefined;
+  },
+
   async getSession() {
     // Local mode is always "signed in"; onboarding (state.user) is the real gate.
     return LOCAL_USER;
