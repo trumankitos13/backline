@@ -179,6 +179,53 @@ async function main() {
   const aRelease = await A.client.from("bookings").update({ status: "released" }).eq("id", realBookingId).select("status").single();
   check("booker can move a held booking to released", aRelease.data?.status === "released");
 
+  // Phase 3 foundation: clients can read only their safe payment status and
+  // payout-readiness columns. Stripe ids and all writes remain server-only.
+  const paymentStamp = Date.now();
+  const paymentSeed = await admin.from("booking_payments").insert({
+    booking_id: realBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    currency: "usd",
+    musician_amount_cents: 20000,
+    service_fee_cents: 2000,
+    total_amount_cents: 22000,
+    status: "pending",
+  }).select("id").single();
+  check("server can create a payment record", !paymentSeed.error);
+
+  const connectSeed = await admin.from("connected_accounts").insert({
+    user_id: B.id,
+    stripe_account_id: `acct_Rls${paymentStamp}`,
+    details_submitted: true,
+    charges_enabled: true,
+    payouts_enabled: true,
+  });
+  check("server can record connected-account readiness", !connectSeed.error);
+
+  const [aPayment, bPayment, cPayment] = await Promise.all([
+    A.client.from("booking_payments").select("booking_id,status,total_amount_cents").eq("booking_id", realBookingId),
+    B.client.from("booking_payments").select("booking_id,status,total_amount_cents").eq("booking_id", realBookingId),
+    C.client.from("booking_payments").select("booking_id,status,total_amount_cents").eq("booking_id", realBookingId),
+  ]);
+  check("booker can read safe payment status", !aPayment.error && aPayment.data?.length === 1);
+  check("musician can read safe payment status", !bPayment.error && bPayment.data?.length === 1);
+  check("nonparticipant cannot read payment status", !cPayment.error && cPayment.data?.length === 0);
+
+  const hiddenStripeId = await B.client.from("connected_accounts").select("stripe_account_id").eq("user_id", B.id);
+  check("client cannot select the connected Stripe account id", hiddenStripeId.error !== null);
+  const forgedPayment = await A.client.from("booking_payments").insert({
+    booking_id: realBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    musician_amount_cents: 1,
+    service_fee_cents: 0,
+    total_amount_cents: 1,
+  });
+  check("client cannot create payment records", forgedPayment.error !== null);
+  const forgedReadiness = await B.client.from("connected_accounts").update({ payouts_enabled: true }).eq("user_id", B.id);
+  check("client cannot forge payout readiness", forgedReadiness.error !== null);
+
   const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
   const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
   check("B receives durable message and offer notifications", new Set((bNotifications.data ?? []).map((row) => row.kind)).size === 2);
@@ -229,6 +276,9 @@ async function main() {
   check("B CAN read its own profile", !ownProfile.error && (ownProfile.data?.length ?? 0) === 1);
 
   // ---- cleanup ----
+  if (paymentSeed.data?.id) {
+    await admin.from("booking_payments").delete().eq("id", paymentSeed.data.id);
+  }
   await admin.auth.admin.deleteUser(A.id);
   await admin.auth.admin.deleteUser(B.id);
   await admin.auth.admin.deleteUser(C.id);
