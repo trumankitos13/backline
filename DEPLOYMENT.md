@@ -408,6 +408,21 @@ The worker claims only bookings still held 24 hours after `gig_at`, with an
 unexpired authorization and no open dispute. Stripe's signed payment webhook
 remains responsible for marking a successful capture released/transferred.
 
+Deploy the server-only dispute resolver with the same Stripe and Supabase Edge
+Function secrets:
+
+```bash
+npx supabase functions deploy resolve-booking-dispute --no-verify-jwt
+```
+
+This endpoint is intentionally not connected to the browser. It requires a
+Supabase secret key in the `apikey` header and accepts a dispute ID, `release`
+or `refund`, and a required resolution note. Invoke it only from a trusted admin
+service or Supabase's authenticated function tester. A refund cancels an
+uncaptured hold; for a captured destination charge it reverses the transfer and
+refunds the application fee. Keep `STRIPE_LIVE_MODE=false` until staff access,
+audit procedures, and the legal policy are approved.
+
 Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
 the repository, or `.env.local.example`.
 

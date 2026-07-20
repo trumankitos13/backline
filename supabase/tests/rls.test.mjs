@@ -309,6 +309,44 @@ async function main() {
   });
   check("participants cannot open a duplicate dispute", duplicateDispute.error !== null);
 
+  const forgedResolution = await A.client.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "refund",
+    resolution_note: "client must not resolve",
+    stripe_refund_id: `re_RlsForged${Date.now()}`,
+  });
+  check("participant cannot resolve their own dispute", forgedResolution.error !== null);
+
+  const refundId = `re_Rls${Date.now()}`;
+  const serverResolution = await admin.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "refund",
+    resolution_note: "Disposable-project resolution test",
+    stripe_refund_id: refundId,
+  });
+  const [resolvedDispute, refundedBooking, refundedPayment, refundNotice] = await Promise.all([
+    admin.from("booking_disputes").select("status,resolved_at").eq("id", participantDispute.data?.id).single(),
+    admin.from("bookings").select("status").eq("id", disputeBookingId).single(),
+    admin.from("booking_payments").select("status,stripe_refund_id").eq("booking_id", disputeBookingId).single(),
+    A.client.from("notifications").select("kind").eq("kind", "payment_refunded").eq("recipient_id", A.id),
+  ]);
+  check("payment service can atomically resolve a refund", !serverResolution.error && resolvedDispute.data?.status === "resolved_refund" && refundedBooking.data?.status === "refunded" && refundedPayment.data?.status === "refunded" && refundedPayment.data?.stripe_refund_id === refundId);
+  check("booker receives a durable refund notification", refundNotice.data?.length === 1);
+
+  const repeatedResolution = await admin.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "refund",
+    resolution_note: "Idempotent retry",
+    stripe_refund_id: refundId,
+  });
+  const conflictingResolution = await admin.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "release",
+    resolution_note: "Must fail",
+  });
+  check("same dispute resolution is idempotent", !repeatedResolution.error && repeatedResolution.data?.alreadyResolved === true);
+  check("opposite dispute resolution fails closed", conflictingResolution.error !== null);
+
   const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
   const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
   check("B receives durable message and offer notifications", new Set((bNotifications.data ?? []).map((row) => row.kind)).size === 2);

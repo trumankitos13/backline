@@ -299,7 +299,8 @@ export type NotificationKind =
   | "booking_declined"
   | "booking_cancelled"
   | "booking_disputed"
-  | "payment_released";
+  | "payment_released"
+  | "payment_refunded";
 
 export interface NotificationItem {
   id: string;

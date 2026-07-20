@@ -70,6 +70,23 @@ status and the absence of an open dispute. That closes the last-millisecond race
 between filing and capture. A worker interrupted after claiming can reclaim the
 reservation after 15 minutes; Stripe capture uses a stable idempotency key.
 
+## Dispute resolution
+
+Resolution is a trusted server operation, never a participant/browser update:
+
+- **release:** capture an uncaptured PaymentIntent (or verify it already
+  succeeded), then atomically mark payment transferred, booking released, and
+  dispute `resolved_release`;
+- **refund:** cancel an uncaptured PaymentIntent, or create a full refund for a
+  captured destination charge with both `reverse_transfer` and
+  `refund_application_fee`, then atomically mark the payment/booking refunded
+  and the dispute `resolved_refund`.
+
+Stripe calls and the database RPC are independently idempotent. A pending refund
+keeps the dispute frozen; retries retrieve the recorded Stripe Refund rather
+than creating another one. The resolution endpoint accepts only a Supabase
+secret key and must sit behind a future staff-authenticated operator surface.
+
 ## Money model
 
 All persisted payment amounts are integer minor units:

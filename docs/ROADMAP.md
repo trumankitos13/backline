@@ -128,7 +128,8 @@ the suite green.)*
 - **Foundation implemented (test-mode gate):** hosted Express onboarding,
   server-owned destination-charge PaymentIntents, Payment Element authorization,
   signed Connect/payment webhooks, participant dispute freezes, and an
-  idempotent scheduled capture worker.
+  idempotent scheduled capture worker. A server-only resolver safely releases
+  or fully refunds frozen destination charges.
 - **Stripe Connect (Express):** musicians onboard as connected accounts (Stripe
   handles KYC/identity/tax/1099). Replace `PaymentSheet` with Stripe
   Elements/Checkout.
@@ -136,7 +137,7 @@ the suite green.)*
   on **gig completion**; transfer/payout to the musician; **application fee** =
   platform take. Refunds + the "cancel-friendly up to 24h" policy as real logic.
 - **Remaining hardening:** automated Stripe fixtures, expired-authorization and
-  cancellation/refund paths, an operator dispute-resolution surface, payout
+  cancellation-policy paths, a staff-authenticated operator surface, payout
   schedule verification, and the full two-account test-mode runbook.
 - **Exit:** a completed real booking results in a real bank payout.
 
