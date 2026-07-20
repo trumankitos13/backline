@@ -21,6 +21,7 @@ import {
 import type {
   Band,
   Booking,
+  BookingDisputeReason,
   Conversation,
   CurrentUser,
   InstrumentId,
@@ -307,6 +308,12 @@ export interface AppApi {
   startPayoutOnboarding(): Promise<string>;
   /** create or resume secure card authorization for an accepted booking */
   createBookingPaymentIntent(bookingId: string): Promise<string>;
+  /** freeze a held payment while support reviews a participant dispute */
+  fileBookingDispute(
+    bookingId: string,
+    reason: BookingDisputeReason,
+    details: string,
+  ): Promise<void>;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -622,6 +629,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const user = authUserRef.current;
         if (!user) throw new Error("Sign in before authorizing payment.");
         return backend.createBookingPaymentIntent(user, bookingId);
+      },
+
+      async fileBookingDispute(bookingId, reason, details) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before filing a dispute.");
+        await backend.fileBookingDispute(user, bookingId, reason, details);
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "disputed" });
       },
 
       postOpening(input) {

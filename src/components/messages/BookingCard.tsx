@@ -4,11 +4,13 @@
 // auto-release; released hosts the rating entry (Uber-style: rate after
 // the gig completes, not after paying).
 
-import type { Booking, Player } from "../../lib/types";
+import { useState, type FormEvent } from "react";
+import type { Booking, BookingDisputeReason, Player } from "../../lib/types";
 import { useApp } from "../../lib/store";
 import { isCloudBackend } from "../../lib/backend";
 import { Button, Card, Mono, StarInput, Stars } from "../ui";
 import { CalendarIcon, CheckIcon, LockIcon } from "../icons";
+import { Field, inputCls } from "./form";
 
 export function BookingCard({
   booking,
@@ -23,10 +25,28 @@ export function BookingCard({
   const { state, api } = useApp();
   const first = musician.name.split(" ")[0] ?? musician.name;
   const incoming = booking.direction === "incoming";
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState<BookingDisputeReason>("no_show");
+  const [disputeDetails, setDisputeDetails] = useState("");
+  const [disputeError, setDisputeError] = useState<string | null>(null);
+  const [filingDispute, setFilingDispute] = useState(false);
 
   const given = state.ratingsGiven[booking.playerId] ?? [];
   const rated = given.length > 0;
   const myStars = rated ? given[given.length - 1]! : 0;
+
+  async function submitDispute(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFilingDispute(true);
+    setDisputeError(null);
+    try {
+      await api.fileBookingDispute(booking.id, disputeReason, disputeDetails.trim());
+    } catch (error) {
+      setDisputeError(error instanceof Error ? error.message : "Could not file the dispute.");
+    } finally {
+      setFilingDispute(false);
+    }
+  }
 
   return (
     <Card className="w-full overflow-hidden border-amber-500/25 bg-surface-900">
@@ -158,6 +178,75 @@ export function BookingCard({
               Gig played — release ${booking.amount} now
             </Button>
           )}
+          {showDisputeForm ? (
+            <form className="mt-3 space-y-3 border-t border-cyan-400/15 pt-3" onSubmit={submitDispute}>
+              <p className="text-xs leading-relaxed text-text-mid">
+                Filing freezes the release while Backline reviews the booking.
+              </p>
+              <Field label="What happened?">
+                <select
+                  className={inputCls}
+                  value={disputeReason}
+                  onChange={(event) => setDisputeReason(event.target.value as BookingDisputeReason)}
+                >
+                  <option value="no_show">No-show</option>
+                  <option value="quality">Service issue</option>
+                  <option value="other">Other</option>
+                </select>
+              </Field>
+              <Field label="Details" hint={`${disputeDetails.length}/2000`}>
+                <textarea
+                  className={`${inputCls} min-h-24 resize-y`}
+                  value={disputeDetails}
+                  onChange={(event) => setDisputeDetails(event.target.value)}
+                  maxLength={2000}
+                  required
+                  placeholder="Tell us what happened so the review team has enough context."
+                />
+              </Field>
+              {disputeError && (
+                <p className="text-xs text-[var(--color-danger)]" role="alert">
+                  {disputeError}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDisputeForm(false)}
+                  disabled={filingDispute}
+                >
+                  Never mind
+                </Button>
+                <Button type="submit" variant="danger" size="sm" disabled={filingDispute}>
+                  {filingDispute ? "Filing…" : "Freeze & review"}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              className="mt-2.5 w-full"
+              onClick={() => setShowDisputeForm(true)}
+            >
+              Report a problem
+            </Button>
+          )}
+        </div>
+      )}
+
+      {booking.status === "disputed" && (
+        <div className="border-t border-amber-500/25 bg-amber-500/10 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-300">
+            <LockIcon size={15} /> Payment frozen for review
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-text-lo">
+            The automatic release is paused. Backline support will review the booking before
+            money moves.
+          </p>
         </div>
       )}
 
@@ -206,6 +295,12 @@ export function BookingCard({
       {booking.status === "cancelled" && (
         <div className="border-t border-hairline-subtle bg-surface-800/50 px-4 py-3">
           <p className="text-sm font-medium text-text-lo">This booking was cancelled.</p>
+        </div>
+      )}
+
+      {booking.status === "refunded" && (
+        <div className="border-t border-hairline-subtle bg-surface-800/50 px-4 py-3">
+          <p className="text-sm font-medium text-text-mid">This payment was refunded.</p>
         </div>
       )}
     </Card>

@@ -958,6 +958,16 @@ export const supabaseBackend: Backend = {
     return clientSecret;
   },
 
+  async fileBookingDispute(user, bookingId, reason, details) {
+    const { error } = await supabase.from("booking_disputes").insert({
+      booking_id: bookingId,
+      filed_by: user.id,
+      reason,
+      details,
+    });
+    fail("file booking dispute", error);
+  },
+
   async addOpening(user, opening) {
     const { error } = await supabase.from("openings").insert({
       id: opening.id,

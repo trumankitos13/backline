@@ -355,9 +355,58 @@ only:
 - `payment_intent.succeeded`
 
 Store its distinct signing secret as `STRIPE_PAYMENT_WEBHOOK_SECRET`. Deploy the
-Phase 3 migration, both payment functions, this webhook, and the Vercel client
+Phase 3 migrations, payment functions, webhooks, and the Vercel client
 together; mixing the old browser-owned hold UI with the new server-only database
 guard intentionally fails closed.
+
+Deploy the scheduled capture worker after the dispute migrations are applied:
+
+```bash
+npx supabase functions deploy capture-due-booking-payments --no-verify-jwt
+```
+
+In Supabase Dashboard → Integrations, enable **Vault** and **Cron**. Store the
+project URL and a Supabase secret key in Vault; do not paste the secret directly
+into a cron command. Then schedule the function every ten minutes (replace only
+the two example values):
+
+```sql
+select vault.create_secret(
+  'https://your-project-ref.supabase.co',
+  'backline_project_url'
+);
+select vault.create_secret(
+  'sb_secret_your_secret_key',
+  'backline_capture_secret_key'
+);
+
+select cron.schedule(
+  'capture-due-booking-payments',
+  '*/10 * * * *',
+  $$
+  select net.http_post(
+    url := (
+      select decrypted_secret
+      from vault.decrypted_secrets
+      where name = 'backline_project_url'
+    ) || '/functions/v1/capture-due-booking-payments',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'backline_capture_secret_key'
+      )
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+The worker claims only bookings still held 24 hours after `gig_at`, with an
+unexpired authorization and no open dispute. Stripe's signed payment webhook
+remains responsible for marking a successful capture released/transferred.
 
 Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
 the repository, or `.env.local.example`.

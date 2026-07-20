@@ -9,10 +9,13 @@ booking, and manual capture for eligible near-term gigs:
 2. After the musician accepts an offer, the booker authorizes the booking total.
 3. Stripe reports `payment_intent.amount_capturable_updated`; the signed webhook
    moves the payment and booking to `held`.
-4. After the gig and dispute window, a server-side action captures the intent.
-5. Stripe transfers the musician amount to the connected account and leaves the
-service fee with Backline. A signed success webhook moves the records to their
-terminal states.
+4. Either participant may file a dispute through 24 hours after showtime. The
+   insert atomically freezes the booking and payment so release cannot race it.
+5. Every ten minutes, a secret-authenticated worker atomically claims eligible,
+   undisputed holds and captures them after the 24-hour window.
+6. Stripe transfers the musician amount to the connected account and leaves the
+   service fee with Backline. A signed success webhook moves the records to their
+   terminal states.
 
 The browser integration uses Stripe's Payment Element. It receives only the
 publishable key and one PaymentIntent client secret; it cannot choose amounts,
@@ -56,6 +59,12 @@ Handlers must tolerate duplicate and out-of-order delivery by retrieving the
 current Stripe object when the event alone is insufficient. Full event payloads
 are not retained in Postgres.
 
+The capture worker cannot select a disputed booking. Its database claim changes
+the payment to `capture_pending` in the same transaction that checks booking
+status and the absence of an open dispute. That closes the last-millisecond race
+between filing and capture. A worker interrupted after claiming can reclaim the
+reservation after 15 minutes; Stripe capture uses a stable idempotency key.
+
 ## Money model
 
 All persisted payment amounts are integer minor units:
@@ -72,6 +81,10 @@ legal/accounting review before live mode.
 ## Security boundaries
 
 - Authenticated user functions validate the Supabase user JWT and booking role.
+- Dispute inserts are limited by RLS to booking participants and the window
+  ending 24 hours after the canonical `gig_at`; clients cannot resolve cases.
+- The scheduled capture function accepts only a Supabase secret key in the
+  `apikey` header and is deployed with gateway JWT verification disabled.
 - The Stripe webhook disables gateway JWT verification only because Stripe signs
   the raw request body; invalid signatures fail before any database write.
 - Stripe and Supabase secret/service keys exist only in Edge Function secrets.
@@ -83,11 +96,14 @@ legal/accounting review before live mode.
 1. Local migration reset and database advisors are clean.
 2. RLS tests prove participants can read safe status and cannot write payments.
 3. Stripe test-mode Connect onboarding succeeds for a test musician.
-4. Duplicate, invalid-signature, out-of-order, failed, expired, cancelled, and
+4. RLS tests prove a participant can freeze a hold while a stranger and duplicate
+   dispute cannot.
+5. Duplicate, invalid-signature, out-of-order, failed, expired, cancelled, and
    successful webhook fixtures are covered.
-5. A two-account browser test completes authorize → held → capture → transferred.
-6. Legal/accounting review approves cancellation, disputes, tax reporting, and
-   marketplace terms before any live-mode charge.
+6. A two-account browser test completes authorize → held → disputed and a second
+   undisputed booking completes held → capture → transferred.
+7. Legal/accounting review approves cancellation, dispute resolution, refunds,
+   tax reporting, and marketplace terms before any live-mode charge.
 
 References:
 

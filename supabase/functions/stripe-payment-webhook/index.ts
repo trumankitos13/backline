@@ -169,9 +169,24 @@ Deno.serve(async (request) => {
     if (intent.status === "requires_capture") {
       const captureBefore = charge?.payment_method_details?.card?.capture_before;
       if (!captureBefore) throw new Error("Card authorization expiry missing");
-      update.status = "held";
       update.authorization_expires_at = new Date(captureBefore * 1000).toISOString();
-      bookingTarget = "held";
+      const { data: booking, error: bookingError } = await admin
+        .from("bookings")
+        .select("gig_at")
+        .eq("id", bookingId)
+        .single();
+      if (bookingError) throw bookingError;
+      const releaseAt = new Date(booking.gig_at as string).getTime() + 24 * 60 * 60 * 1000;
+      const captureSafetyMs = 15 * 60 * 1000;
+      if (!Number.isFinite(releaseAt) || captureBefore * 1000 <= releaseAt + captureSafetyMs) {
+        await stripe.paymentIntents.cancel(intent.id);
+        update.status = "cancelled";
+        update.failure_code = "authorization_window";
+        update.failure_message = "Card authorization expires before the post-gig release window";
+      } else {
+        update.status = "held";
+        bookingTarget = "held";
+      }
     } else if (intent.status === "succeeded") {
       update.status = "transferred";
       bookingTarget = "released";

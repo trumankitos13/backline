@@ -447,3 +447,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/stripe-payment-webhook/deno.json"
 entrypoint = "./functions/stripe-payment-webhook/index.ts"
+
+[functions.capture-due-booking-payments]
+enabled = true
+verify_jwt = false
+import_map = "./functions/capture-due-booking-payments/deno.json"
+entrypoint = "./functions/capture-due-booking-payments/index.ts"

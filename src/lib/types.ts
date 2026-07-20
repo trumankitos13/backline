@@ -252,11 +252,15 @@ export type BookingStatus =
   | "offer"
   | "accepted"
   | "held"
+  | "disputed"
   | "released"
+  | "refunded"
   | "declined"
   | "paid"
   | "completed"
   | "cancelled";
+
+export type BookingDisputeReason = "no_show" | "quality" | "other";
 
 export interface Booking {
   id: string;
@@ -293,7 +297,9 @@ export type NotificationKind =
   | "booking_offer"
   | "booking_accepted"
   | "booking_declined"
-  | "booking_cancelled";
+  | "booking_cancelled"
+  | "booking_disputed"
+  | "payment_released";
 
 export interface NotificationItem {
   id: string;

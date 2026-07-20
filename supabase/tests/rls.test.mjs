@@ -233,6 +233,81 @@ async function main() {
   check("client cannot create payment records", forgedPayment.error !== null);
   const forgedReadiness = await B.client.from("connected_accounts").update({ payouts_enabled: true }).eq("user_id", B.id);
   check("client cannot forge payout readiness", forgedReadiness.error !== null);
+  const forgedCaptureClaim = await A.client.rpc("claim_due_booking_payments", { batch_size: 1 });
+  check("client cannot invoke the scheduled capture claim", forgedCaptureClaim.error !== null);
+
+  // A held payment may be disputed by either participant through the narrow
+  // insert policy. The trigger freezes both state machines atomically; a
+  // stranger and a duplicate open dispute both fail closed.
+  const disputeBookingId = `bk-dispute-${Date.now()}`;
+  const gigAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const disputeOffer = await A.client.from("bookings").insert({
+    id: disputeBookingId,
+    user_id: A.id,
+    musician_id: B.id,
+    musician_user_id: B.id,
+    gig_title: "Disputed test gig",
+    date: "Today",
+    time: "Soon",
+    gig_at: gigAt,
+    amount: 175,
+    status: "offer",
+  });
+  const disputeAccept = await B.client.from("bookings")
+    .update({ status: "accepted" }).eq("id", disputeBookingId);
+  const disputeHold = await admin.from("bookings")
+    .update({ status: "held" }).eq("id", disputeBookingId);
+  const disputePayment = await admin.from("booking_payments").insert({
+    booking_id: disputeBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    stripe_payment_intent_id: `pi_Rls${Date.now()}`,
+    currency: "usd",
+    musician_amount_cents: 17500,
+    service_fee_cents: 1750,
+    total_amount_cents: 19250,
+    status: "held",
+    authorization_expires_at: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+  }).select("id").single();
+  check(
+    "server can prepare a held booking for dispute testing",
+    !disputeOffer.error && !disputeAccept.error && !disputeHold.error && !disputePayment.error,
+  );
+
+  const strangerDispute = await C.client.from("booking_disputes").insert({
+    booking_id: disputeBookingId,
+    filed_by: C.id,
+    reason: "other",
+    details: "not a participant",
+  });
+  check("nonparticipant cannot file a booking dispute", strangerDispute.error !== null);
+
+  const participantDispute = await B.client.from("booking_disputes").insert({
+    booking_id: disputeBookingId,
+    filed_by: B.id,
+    reason: "no_show",
+    details: "RLS freeze test",
+  }).select("id").single();
+  check("participant can file a timely dispute", !participantDispute.error);
+
+  const [frozenBooking, frozenPayment, aDisputeRead, bDisputeRead, cDisputeRead] = await Promise.all([
+    admin.from("bookings").select("status").eq("id", disputeBookingId).single(),
+    admin.from("booking_payments").select("status").eq("booking_id", disputeBookingId).single(),
+    A.client.from("booking_disputes").select("id").eq("booking_id", disputeBookingId),
+    B.client.from("booking_disputes").select("id").eq("booking_id", disputeBookingId),
+    C.client.from("booking_disputes").select("id").eq("booking_id", disputeBookingId),
+  ]);
+  check("dispute atomically freezes booking and payment", frozenBooking.data?.status === "disputed" && frozenPayment.data?.status === "disputed");
+  check("both booking participants can read the dispute", aDisputeRead.data?.length === 1 && bDisputeRead.data?.length === 1);
+  check("nonparticipant cannot read the dispute", !cDisputeRead.error && cDisputeRead.data?.length === 0);
+
+  const duplicateDispute = await A.client.from("booking_disputes").insert({
+    booking_id: disputeBookingId,
+    filed_by: A.id,
+    reason: "quality",
+    details: "duplicate open case",
+  });
+  check("participants cannot open a duplicate dispute", duplicateDispute.error !== null);
 
   const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
   const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
@@ -286,6 +361,12 @@ async function main() {
   // ---- cleanup ----
   if (paymentSeed.data?.id) {
     await admin.from("booking_payments").delete().eq("id", paymentSeed.data.id);
+  }
+  if (participantDispute.data?.id) {
+    await admin.from("booking_disputes").delete().eq("id", participantDispute.data.id);
+  }
+  if (disputePayment.data?.id) {
+    await admin.from("booking_payments").delete().eq("id", disputePayment.data.id);
   }
   await admin.auth.admin.deleteUser(A.id);
   await admin.auth.admin.deleteUser(B.id);

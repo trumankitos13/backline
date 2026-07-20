@@ -8,6 +8,7 @@
 import type {
   Band,
   Booking,
+  BookingDisputeReason,
   BookingStatus,
   Conversation,
   CurrentUser,
@@ -99,6 +100,13 @@ export interface Backend {
   createPayoutOnboardingLink(user: AuthUser): Promise<string>;
   /** create or resume the server-owned PaymentIntent for an accepted booking */
   createBookingPaymentIntent(user: AuthUser, bookingId: string): Promise<string>;
+  /** freeze an eligible hold while support reviews a participant's dispute */
+  fileBookingDispute(
+    user: AuthUser,
+    bookingId: string,
+    reason: BookingDisputeReason,
+    details: string,
+  ): Promise<void>;
   addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setOpeningStatus(user: AuthUser, openingId: string, status: Opening["status"]): Promise<void>;
   /** create-or-replace a user project (assemble / roster / ready-check updates) */
