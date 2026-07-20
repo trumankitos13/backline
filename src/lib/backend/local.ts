@@ -194,6 +194,14 @@ export const localBackend: Backend = {
       )),
     }));
   },
+  async cancelHeldBooking(_user: AuthUser, bookingId: string) {
+    mutate((d) => ({
+      ...d,
+      bookings: d.bookings.map((booking) => (
+        booking.id === bookingId ? { ...booking, status: "cancelled" } : booking
+      )),
+    }));
+  },
   async addOpening(_user: AuthUser, opening: Opening) {
     mutate((d) => ({ ...d, openings: [opening, ...d.openings] }));
   },

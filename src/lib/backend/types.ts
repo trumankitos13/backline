@@ -107,6 +107,8 @@ export interface Backend {
     reason: BookingDisputeReason,
     details: string,
   ): Promise<void>;
+  /** apply the server-owned cancellation policy to a held Stripe payment */
+  cancelHeldBooking(user: AuthUser, bookingId: string): Promise<void>;
   addOpening(user: AuthUser, opening: Opening): Promise<void>;
   setOpeningStatus(user: AuthUser, openingId: string, status: Opening["status"]): Promise<void>;
   /** create-or-replace a user project (assemble / roster / ready-check updates) */

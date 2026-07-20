@@ -423,6 +423,19 @@ uncaptured hold; for a captured destination charge it reverses the transfer and
 refunds the application fee. Keep `STRIPE_LIVE_MODE=false` until staff access,
 audit procedures, and the legal policy are approved.
 
+Deploy participant cancellation together with its migrations and the updated
+payment webhook:
+
+```bash
+npx supabase functions deploy cancel-held-booking
+npx supabase functions deploy stripe-payment-webhook --no-verify-jwt
+```
+
+`cancel-held-booking` validates the signed-in participant and applies the V1
+policy server-side: full void at least 24 hours before showtime, full void for a
+musician bail, or a 50% musician payout on a late booker cancellation. Test all
+three paths with Stripe test cards before enabling live mode.
+
 Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
 the repository, or `.env.local.example`.
 

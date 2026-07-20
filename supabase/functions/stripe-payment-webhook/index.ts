@@ -201,12 +201,17 @@ Deno.serve(async (request) => {
         bookingTarget = "held";
       }
     } else if (intent.status === "succeeded") {
-      update.status = "transferred";
-      if (bookingStatus === "disputed") {
-        update.failure_code = "captured_while_disputed";
-        update.failure_message = "Captured payment requires operator dispute resolution";
+      if (intent.metadata.booking_resolution === "late_booker_cancel") {
+        update.status = "partially_refunded";
+        bookingTarget = "cancelled";
       } else {
-        bookingTarget = "released";
+        update.status = "transferred";
+        if (bookingStatus === "disputed") {
+          update.failure_code = "captured_while_disputed";
+          update.failure_message = "Captured payment requires operator dispute resolution";
+        } else {
+          bookingTarget = "released";
+        }
       }
     } else if (intent.status === "canceled") {
       update.status = "cancelled";

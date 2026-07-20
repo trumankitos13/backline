@@ -50,17 +50,17 @@ begin
   if not found then raise exception 'dispute not found'; end if;
   if dispute.booking_id is null then raise exception 'disputed booking was deleted'; end if;
 
-  select * into payment
-  from public.booking_payments
-  where booking_id = dispute.booking_id
-  for update;
-  if not found then raise exception 'disputed payment not found'; end if;
-
   select * into booking
   from public.bookings
   where id = dispute.booking_id
   for update;
   if not found then raise exception 'disputed booking not found'; end if;
+
+  select * into payment
+  from public.booking_payments
+  where booking_id = dispute.booking_id
+  for update;
+  if not found then raise exception 'disputed payment not found'; end if;
 
   if dispute.status <> 'open' then
     if dispute.status <> expected_status then

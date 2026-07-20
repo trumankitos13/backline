@@ -30,10 +30,21 @@ export function BookingCard({
   const [disputeDetails, setDisputeDetails] = useState("");
   const [disputeError, setDisputeError] = useState<string | null>(null);
   const [filingDispute, setFilingDispute] = useState(false);
+  const [showCancellation, setShowCancellation] = useState(false);
+  const [cancellationError, setCancellationError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const given = state.ratingsGiven[booking.playerId] ?? [];
   const rated = given.length > 0;
   const myStars = rated ? given[given.length - 1]! : 0;
+  const gigAtMs = booking.gigAt ? new Date(booking.gigAt).getTime() : Number.NaN;
+  const hoursUntilGig = (gigAtMs - Date.now()) / (60 * 60 * 1000);
+  const canCancelHeld = !Number.isFinite(gigAtMs) || hoursUntilGig > 0;
+  const lateBookerCancellation = !incoming && hoursUntilGig > 0 && hoursUntilGig < 24;
+  const latePayout = (booking.amount * 0.5).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
   async function submitDispute(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,6 +56,18 @@ export function BookingCard({
       setDisputeError(error instanceof Error ? error.message : "Could not file the dispute.");
     } finally {
       setFilingDispute(false);
+    }
+  }
+
+  async function cancelHeldBooking() {
+    setCancelling(true);
+    setCancellationError(null);
+    try {
+      await api.cancelHeldBooking(booking.id);
+    } catch (error) {
+      setCancellationError(error instanceof Error ? error.message : "Could not cancel the booking.");
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -230,11 +253,64 @@ export function BookingCard({
               variant="danger"
               size="sm"
               className="mt-2.5 w-full"
-              onClick={() => setShowDisputeForm(true)}
+              onClick={() => {
+                setShowCancellation(false);
+                setShowDisputeForm(true);
+              }}
             >
               Report a problem
             </Button>
           )}
+          {canCancelHeld && !showDisputeForm && (showCancellation ? (
+            <div className="mt-3 border-t border-hairline-subtle pt-3">
+              <p className="text-xs font-semibold text-text-hi">Cancel this booking?</p>
+              <p className="mt-1 text-xs leading-relaxed text-text-mid">
+                {incoming
+                  ? "The full hold goes back to the booker and the opening can be reopened."
+                  : lateBookerCancellation
+                    ? `$${latePayout} goes to ${first} as the 50% late-cancellation payout; the rest of the hold is released.`
+                    : "The full card hold is released. No cancellation fee is charged."}
+              </p>
+              {cancellationError && (
+                <p className="mt-2 text-xs text-[var(--color-danger)]" role="alert">
+                  {cancellationError}
+                </p>
+              )}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={cancelling}
+                  onClick={() => setShowCancellation(false)}
+                >
+                  Keep booking
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={cancelling}
+                  onClick={cancelHeldBooking}
+                >
+                  {cancelling ? "Cancelling…" : "Confirm cancellation"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={() => {
+                setShowDisputeForm(false);
+                setShowCancellation(true);
+              }}
+            >
+              Cancel booking
+            </Button>
+          ))}
         </div>
       )}
 

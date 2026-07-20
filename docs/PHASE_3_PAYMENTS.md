@@ -87,6 +87,28 @@ keeps the dispute frozen; retries retrieve the recorded Stripe Refund rather
 than creating another one. The resolution endpoint accepts only a Supabase
 secret key and must sit behind a future staff-authenticated operator surface.
 
+## Held-booking cancellation
+
+The cancellation endpoint authenticates the participant, then atomically moves
+the payment to `cancellation_pending` before contacting Stripe. That claim and
+the dispute insert lock booking/payment rows in the same order, so only one can
+win.
+
+- Booker at least 24 hours before showtime: cancel the authorization and release
+  the full hold.
+- Booker inside 24 hours: final-capture 50% of the musician amount plus 50% of
+  the original service fee. Stripe automatically releases the uncaptured rest.
+- Musician before showtime: cancel the authorization in full and reopen a linked
+  opening. The cancellation audit row is the durable input for the later
+  reliability score.
+- At/after showtime: cancellation closes; participants must use the dispute
+  process during its release window.
+
+The browser never supplies the role, cutoff, payout, or fee. The database derives
+all four from the canonical booking and payment rows. A signed success webhook
+recognizes late-cancellation metadata and reconciles the payment as partially
+refunded without marking the gig completed.
+
 ## Money model
 
 All persisted payment amounts are integer minor units:

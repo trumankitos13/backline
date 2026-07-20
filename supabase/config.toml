@@ -459,3 +459,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/resolve-booking-dispute/deno.json"
 entrypoint = "./functions/resolve-booking-dispute/index.ts"
+
+[functions.cancel-held-booking]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cancel-held-booking/deno.json"
+entrypoint = "./functions/cancel-held-booking/index.ts"

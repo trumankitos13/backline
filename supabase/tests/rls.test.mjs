@@ -347,6 +347,66 @@ async function main() {
   check("same dispute resolution is idempotent", !repeatedResolution.error && repeatedResolution.data?.alreadyResolved === true);
   check("opposite dispute resolution fails closed", conflictingResolution.error !== null);
 
+  const cancellationBookingId = `bk-cancel-${Date.now()}`;
+  const cancellationGigAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const cancellationOffer = await A.client.from("bookings").insert({
+    id: cancellationBookingId,
+    user_id: A.id,
+    musician_id: B.id,
+    musician_user_id: B.id,
+    gig_title: "Late cancellation test gig",
+    date: "Today",
+    time: "Soon",
+    gig_at: cancellationGigAt,
+    amount: 200,
+    status: "offer",
+  });
+  const cancellationAccept = await B.client.from("bookings")
+    .update({ status: "accepted" }).eq("id", cancellationBookingId);
+  const cancellationHold = await admin.from("bookings")
+    .update({ status: "held" }).eq("id", cancellationBookingId);
+  const lateCancellationPayment = await admin.from("booking_payments").insert({
+    booking_id: cancellationBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    stripe_payment_intent_id: `pi_RlsCancel${Date.now()}`,
+    currency: "usd",
+    musician_amount_cents: 20000,
+    service_fee_cents: 2000,
+    total_amount_cents: 22000,
+    status: "held",
+    authorization_expires_at: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+  }).select("id").single();
+  check("server can prepare a held booking for cancellation testing", !cancellationOffer.error && !cancellationAccept.error && !cancellationHold.error && !lateCancellationPayment.error);
+
+  const forgedCancellationClaim = await A.client.rpc("claim_held_booking_cancellation", {
+    booking_id: cancellationBookingId,
+    cancelled_by: A.id,
+  });
+  check("participant cannot bypass the cancellation Edge Function", forgedCancellationClaim.error !== null);
+
+  const cancellationClaim = await admin.rpc("claim_held_booking_cancellation", {
+    booking_id: cancellationBookingId,
+    cancelled_by: A.id,
+  });
+  check("late booker cancellation claims exactly 50% payout and fee", !cancellationClaim.error && cancellationClaim.data?.action === "late_fee" && cancellationClaim.data?.musicianPayoutCents === 10000 && cancellationClaim.data?.serviceFeeCents === 1000);
+
+  const cancellationFinalize = await admin.rpc("finalize_held_booking_cancellation", {
+    cancellation_id: cancellationClaim.data?.cancellationId,
+  });
+  const [cancelledBooking, partiallyRefundedPayment, cancellationNotice] = await Promise.all([
+    admin.from("bookings").select("status").eq("id", cancellationBookingId).single(),
+    admin.from("booking_payments").select("status").eq("booking_id", cancellationBookingId).single(),
+    B.client.from("notifications").select("kind,body").eq("recipient_id", B.id).eq("kind", "booking_cancelled").like("body", "%late-cancellation payout%"),
+  ]);
+  check("late cancellation atomically closes booking and payment", !cancellationFinalize.error && cancelledBooking.data?.status === "cancelled" && partiallyRefundedPayment.data?.status === "partially_refunded");
+  check("musician receives the private late-cancellation payout notice", cancellationNotice.data?.length === 1);
+
+  const repeatedCancellation = await admin.rpc("finalize_held_booking_cancellation", {
+    cancellation_id: cancellationClaim.data?.cancellationId,
+  });
+  check("booking cancellation finalization is idempotent", !repeatedCancellation.error && repeatedCancellation.data?.alreadyCompleted === true);
+
   const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
   const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
   check("B receives durable message and offer notifications", new Set((bNotifications.data ?? []).map((row) => row.kind)).size === 2);
@@ -405,6 +465,12 @@ async function main() {
   }
   if (disputePayment.data?.id) {
     await admin.from("booking_payments").delete().eq("id", disputePayment.data.id);
+  }
+  if (cancellationClaim.data?.cancellationId) {
+    await admin.from("booking_cancellations").delete().eq("id", cancellationClaim.data.cancellationId);
+  }
+  if (lateCancellationPayment.data?.id) {
+    await admin.from("booking_payments").delete().eq("id", lateCancellationPayment.data.id);
   }
   await admin.auth.admin.deleteUser(A.id);
   await admin.auth.admin.deleteUser(B.id);

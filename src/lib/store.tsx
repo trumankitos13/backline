@@ -314,6 +314,8 @@ export interface AppApi {
     reason: BookingDisputeReason,
     details: string,
   ): Promise<void>;
+  /** cancel a held booking through the server-owned refund/late-fee policy */
+  cancelHeldBooking(bookingId: string): Promise<void>;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -636,6 +638,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!user) throw new Error("Sign in before filing a dispute.");
         await backend.fileBookingDispute(user, bookingId, reason, details);
         dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "disputed" });
+      },
+
+      async cancelHeldBooking(bookingId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before cancelling a booking.");
+        await backend.cancelHeldBooking(user, bookingId);
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "cancelled" });
       },
 
       postOpening(input) {

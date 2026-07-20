@@ -968,6 +968,13 @@ export const supabaseBackend: Backend = {
     fail("file booking dispute", error);
   },
 
+  async cancelHeldBooking(_user, bookingId) {
+    const { error } = await supabase.functions.invoke("cancel-held-booking", {
+      body: { bookingId },
+    });
+    fail("cancel held booking", error);
+  },
+
   async addOpening(user, opening) {
     const { error } = await supabase.from("openings").insert({
       id: opening.id,
