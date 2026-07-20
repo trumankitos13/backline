@@ -59,6 +59,11 @@ Handlers must tolerate duplicate and out-of-order delivery by retrieving the
 current Stripe object when the event alone is insufficient. Full event payloads
 are not retained in Postgres.
 
+Webhook reconciliation also treats the booking row as authoritative: a delayed
+authorization cannot revive a cancelled booking or unfreeze a dispute. If a
+payment is captured outside the guarded worker while disputed, the money state
+is recorded but the booking remains frozen for operator resolution.
+
 The capture worker cannot select a disputed booking. Its database claim changes
 the payment to `capture_pending` in the same transaction that checks booking
 status and the absence of an open dispute. That closes the last-millisecond race

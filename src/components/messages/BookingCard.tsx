@@ -161,8 +161,8 @@ export function BookingCard({
             <LockIcon size={15} /> Held — releases after the gig
           </p>
           <p className="mt-1 text-[11px] leading-relaxed text-text-lo">
-            {first} is locked in. The money moves 24h after showtime —
-            cancel-friendly up to 24h before.
+            {first} is locked in. The money moves 24h after showtime unless a
+            participant reports a problem for review.
           </p>
           {isCloudBackend ? (
             <Button variant="secondary" size="sm" className="mt-2.5 w-full" disabled>

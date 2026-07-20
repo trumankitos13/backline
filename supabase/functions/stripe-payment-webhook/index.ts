@@ -164,35 +164,53 @@ Deno.serve(async (request) => {
       failure_code: intent.last_payment_error?.code ?? null,
       failure_message: intent.last_payment_error?.message?.slice(0, 500) ?? null,
     };
+    const { data: booking, error: bookingError } = await admin
+      .from("bookings")
+      .select("status,gig_at")
+      .eq("id", bookingId)
+      .single();
+    if (bookingError) throw bookingError;
+    const bookingStatus = booking.status as string;
     let bookingTarget: "held" | "released" | "cancelled" | null = null;
 
     if (intent.status === "requires_capture") {
       const captureBefore = charge?.payment_method_details?.card?.capture_before;
       if (!captureBefore) throw new Error("Card authorization expiry missing");
       update.authorization_expires_at = new Date(captureBefore * 1000).toISOString();
-      const { data: booking, error: bookingError } = await admin
-        .from("bookings")
-        .select("gig_at")
-        .eq("id", bookingId)
-        .single();
-      if (bookingError) throw bookingError;
       const releaseAt = new Date(booking.gig_at as string).getTime() + 24 * 60 * 60 * 1000;
       const captureSafetyMs = 15 * 60 * 1000;
-      if (!Number.isFinite(releaseAt) || captureBefore * 1000 <= releaseAt + captureSafetyMs) {
+      if (bookingStatus === "disputed") {
+        // An older authorization event must never unfreeze a participant dispute.
+        update.status = "disputed";
+      } else if (bookingStatus === "cancelled") {
+        await stripe.paymentIntents.cancel(intent.id);
+        update.status = "cancelled";
+        update.failure_code = "booking_cancelled";
+        update.failure_message = "Booking was cancelled before authorization completed";
+        bookingTarget = "cancelled";
+      } else if (!["accepted", "held"].includes(bookingStatus)) {
+        throw new Error(`Booking ${bookingId} cannot hold payment from ${bookingStatus}`);
+      } else if (!Number.isFinite(releaseAt) || captureBefore * 1000 <= releaseAt + captureSafetyMs) {
         await stripe.paymentIntents.cancel(intent.id);
         update.status = "cancelled";
         update.failure_code = "authorization_window";
         update.failure_message = "Card authorization expires before the post-gig release window";
+        bookingTarget = "cancelled";
       } else {
         update.status = "held";
         bookingTarget = "held";
       }
     } else if (intent.status === "succeeded") {
       update.status = "transferred";
-      bookingTarget = "released";
+      if (bookingStatus === "disputed") {
+        update.failure_code = "captured_while_disputed";
+        update.failure_message = "Captured payment requires operator dispute resolution";
+      } else {
+        bookingTarget = "released";
+      }
     } else if (intent.status === "canceled") {
       update.status = "cancelled";
-      bookingTarget = "cancelled";
+      if (bookingStatus !== "disputed") bookingTarget = "cancelled";
     } else if (intent.status === "requires_payment_method") {
       update.status = "failed";
     } else if (intent.status === "requires_action") {
@@ -201,11 +219,41 @@ Deno.serve(async (request) => {
       update.status = "pending";
     }
 
-    const { error: updateError } = await admin
-      .from("booking_payments")
-      .update(update)
-      .eq("id", payment.id);
-    if (updateError) throw updateError;
+    if (intent.status === "requires_capture" && update.status === "held") {
+      // Win the accepted→held transition before publishing the payment hold.
+      // A concurrent participant cancellation that commits first therefore
+      // prevents the payment update. A concurrent dispute changes the payment
+      // away from an allowed source state and cannot be overwritten here.
+      await advanceBooking(admin, bookingId, "held");
+      bookingTarget = null;
+      const { data: heldPayment, error: holdError } = await admin
+        .from("booking_payments")
+        .update(update)
+        .eq("id", payment.id)
+        .in("status", ["pending", "requires_payment_method", "requires_action", "held"])
+        .select("id")
+        .maybeSingle();
+      if (holdError) throw holdError;
+      if (!heldPayment) {
+        const { data: currentPayment, error: currentError } = await admin
+          .from("booking_payments")
+          .select("status")
+          .eq("id", payment.id)
+          .single();
+        if (currentError) throw currentError;
+        const safelyNewer = ["disputed", "cancelled", "capture_pending"]
+          .includes(currentPayment.status as string);
+        if (!safelyNewer) {
+          throw new Error(`Payment ${payment.id} could not safely enter held`);
+        }
+      }
+    } else {
+      const { error: updateError } = await admin
+        .from("booking_payments")
+        .update(update)
+        .eq("id", payment.id);
+      if (updateError) throw updateError;
+    }
     if (bookingTarget) await advanceBooking(admin, bookingId, bookingTarget);
 
     const { error: completeError } = await admin
