@@ -1,5 +1,5 @@
-// Full-bleed chat thread: messages, booking offer cards, and the mock payment
-// flow. The :id param is a conversation id (e.g. "c-m-dre"); a conversation
+// Full-bleed chat thread: messages, booking offer cards, and payment flow. The
+// :id param is a conversation id (e.g. "c-m-dre"); a conversation
 // may not exist yet — it's created lazily by the store on first send.
 
 import { useEffect, useRef, useState, type FormEvent } from "react";

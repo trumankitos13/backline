@@ -324,9 +324,9 @@ export interface AppApi {
   setStay(projectId: string, playerId: string, stay: "in" | "out"): void;
   /** send a message into a group chat; a roster member replies shortly */
   sendGroupMessage(conversationId: string, text: string): void;
-  /** commit the hold (mock of Stripe manual-capture) — booking becomes "held" */
+  /** demo-only manual-capture stand-in — booking becomes "held" */
   holdBooking(bookingId: string, playerId: string): void;
-  /** release the held payment post-gig (mock of the 24h auto-release) */
+  /** demo-only stand-in for the server's post-gig auto-release */
   releaseBooking(bookingId: string, playerId: string): void;
   toggleFollow(id: string): void;
   toggleLike(postId: string): void;

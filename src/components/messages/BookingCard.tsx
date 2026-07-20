@@ -1,8 +1,6 @@
 // In-thread booking offer card — the centerpiece of the money flow.
-// Status renders live from the store: offer → accepted → held → released
-// (or declined). Held shows the escrow lock + a mock of the post-gig
-// auto-release; released hosts the rating entry (Uber-style: rate after
-// the gig completes, not after paying).
+// Status renders live from the store. Cloud payment states come only from
+// verified Stripe/server paths; demo mode retains local hold/release controls.
 
 import { useState, type FormEvent } from "react";
 import type { Booking, BookingDisputeReason, Player } from "../../lib/types";

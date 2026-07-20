@@ -1,4 +1,5 @@
-// Domain model for the Backline prototype. All data is mock/local — see data.ts.
+// Shared Backline domain model. The catalog has a built-in demo fallback while
+// account and payment state use the cloud backend when configured.
 
 import type { SceneId } from "./scenes";
 

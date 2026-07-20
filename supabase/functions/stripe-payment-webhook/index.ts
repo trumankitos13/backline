@@ -246,7 +246,7 @@ Deno.serve(async (request) => {
           .eq("id", payment.id)
           .single();
         if (currentError) throw currentError;
-        const safelyNewer = ["disputed", "cancelled", "capture_pending"]
+        const safelyNewer = ["disputed", "cancelled", "capture_pending", "cancellation_pending"]
           .includes(currentPayment.status as string);
         if (!safelyNewer) {
           throw new Error(`Payment ${payment.id} could not safely enter held`);

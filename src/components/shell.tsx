@@ -13,6 +13,7 @@ import {
   UsersIcon,
 } from "./icons";
 import { useApp, useUnreadCount, useUnreadNotificationCount } from "../lib/store";
+import { isCloudBackend } from "../lib/backend";
 import { SCENES } from "../lib/scenes";
 import { Avatar, Wordmark } from "./ui";
 
@@ -109,7 +110,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </NavLink>
           )}
           <p className="mono mt-3 px-2 text-[9px] leading-relaxed text-text-faint">
-            Prototype · mock data
+            {isCloudBackend ? "Cloud synced" : "Demo · mock data"}
             <br />
             {sceneLabel}
           </p>
