@@ -169,15 +169,243 @@ async function main() {
   const afterWrongHolder = await admin.from("bookings").select("status").eq("id", realBookingId).single();
   check("invited player cannot place the payment hold", afterWrongHolder.data?.status === "accepted");
 
-  const aHold = await A.client.from("bookings").update({ status: "held" }).eq("id", realBookingId).select("status").single();
-  check("booker can move an accepted booking to held", aHold.data?.status === "held");
+  await A.client.from("bookings").update({ status: "held" }).eq("id", realBookingId);
+  const afterBookerHold = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("booker cannot forge a payment hold", afterBookerHold.data?.status === "accepted");
+
+  const serverHold = await admin.from("bookings").update({ status: "held" }).eq("id", realBookingId).select("status").single();
+  check("payment service can confirm a hold", serverHold.data?.status === "held");
 
   await B.client.from("bookings").update({ status: "released" }).eq("id", realBookingId);
   const afterWrongRelease = await admin.from("bookings").select("status").eq("id", realBookingId).single();
   check("invited player cannot release the demo payment", afterWrongRelease.data?.status === "held");
 
-  const aRelease = await A.client.from("bookings").update({ status: "released" }).eq("id", realBookingId).select("status").single();
-  check("booker can move a held booking to released", aRelease.data?.status === "released");
+  await A.client.from("bookings").update({ status: "released" }).eq("id", realBookingId);
+  const afterBookerRelease = await admin.from("bookings").select("status").eq("id", realBookingId).single();
+  check("booker cannot forge a payment release", afterBookerRelease.data?.status === "held");
+
+  const serverRelease = await admin.from("bookings").update({ status: "released" }).eq("id", realBookingId).select("status").single();
+  check("payment service can confirm a release", serverRelease.data?.status === "released");
+
+  // Phase 3 foundation: clients can read only their safe payment status and
+  // payout-readiness columns. Stripe ids and all writes remain server-only.
+  const paymentStamp = Date.now();
+  const paymentSeed = await admin.from("booking_payments").insert({
+    booking_id: realBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    currency: "usd",
+    musician_amount_cents: 20000,
+    service_fee_cents: 2000,
+    total_amount_cents: 22000,
+    status: "pending",
+  }).select("id").single();
+  check("server can create a payment record", !paymentSeed.error);
+
+  const connectSeed = await admin.from("connected_accounts").insert({
+    user_id: B.id,
+    stripe_account_id: `acct_Rls${paymentStamp}`,
+    details_submitted: true,
+    charges_enabled: true,
+    payouts_enabled: true,
+  });
+  check("server can record connected-account readiness", !connectSeed.error);
+
+  const [aPayment, bPayment, cPayment] = await Promise.all([
+    A.client.from("booking_payments").select("booking_id,status,total_amount_cents").eq("booking_id", realBookingId),
+    B.client.from("booking_payments").select("booking_id,status,total_amount_cents").eq("booking_id", realBookingId),
+    C.client.from("booking_payments").select("booking_id,status,total_amount_cents").eq("booking_id", realBookingId),
+  ]);
+  check("booker can read safe payment status", !aPayment.error && aPayment.data?.length === 1);
+  check("musician can read safe payment status", !bPayment.error && bPayment.data?.length === 1);
+  check("nonparticipant cannot read payment status", !cPayment.error && cPayment.data?.length === 0);
+
+  const hiddenStripeId = await B.client.from("connected_accounts").select("stripe_account_id").eq("user_id", B.id);
+  check("client cannot select the connected Stripe account id", hiddenStripeId.error !== null);
+  const forgedPayment = await A.client.from("booking_payments").insert({
+    booking_id: realBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    musician_amount_cents: 1,
+    service_fee_cents: 0,
+    total_amount_cents: 1,
+  });
+  check("client cannot create payment records", forgedPayment.error !== null);
+  const forgedReadiness = await B.client.from("connected_accounts").update({ payouts_enabled: true }).eq("user_id", B.id);
+  check("client cannot forge payout readiness", forgedReadiness.error !== null);
+  const forgedCaptureClaim = await A.client.rpc("claim_due_booking_payments", { batch_size: 1 });
+  check("client cannot invoke the scheduled capture claim", forgedCaptureClaim.error !== null);
+
+  // A held payment may be disputed by either participant through the narrow
+  // insert policy. The trigger freezes both state machines atomically; a
+  // stranger and a duplicate open dispute both fail closed.
+  const disputeBookingId = `bk-dispute-${Date.now()}`;
+  const gigAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const disputeOffer = await A.client.from("bookings").insert({
+    id: disputeBookingId,
+    user_id: A.id,
+    musician_id: B.id,
+    musician_user_id: B.id,
+    gig_title: "Disputed test gig",
+    date: "Today",
+    time: "Soon",
+    gig_at: gigAt,
+    amount: 175,
+    status: "offer",
+  });
+  const disputeAccept = await B.client.from("bookings")
+    .update({ status: "accepted" }).eq("id", disputeBookingId);
+  const disputeHold = await admin.from("bookings")
+    .update({ status: "held" }).eq("id", disputeBookingId);
+  const disputePayment = await admin.from("booking_payments").insert({
+    booking_id: disputeBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    stripe_payment_intent_id: `pi_Rls${Date.now()}`,
+    currency: "usd",
+    musician_amount_cents: 17500,
+    service_fee_cents: 1750,
+    total_amount_cents: 19250,
+    status: "held",
+    authorization_expires_at: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+  }).select("id").single();
+  check(
+    "server can prepare a held booking for dispute testing",
+    !disputeOffer.error && !disputeAccept.error && !disputeHold.error && !disputePayment.error,
+  );
+
+  const strangerDispute = await C.client.from("booking_disputes").insert({
+    booking_id: disputeBookingId,
+    filed_by: C.id,
+    reason: "other",
+    details: "not a participant",
+  });
+  check("nonparticipant cannot file a booking dispute", strangerDispute.error !== null);
+
+  const participantDispute = await B.client.from("booking_disputes").insert({
+    booking_id: disputeBookingId,
+    filed_by: B.id,
+    reason: "no_show",
+    details: "RLS freeze test",
+  }).select("id").single();
+  check("participant can file a timely dispute", !participantDispute.error);
+
+  const [frozenBooking, frozenPayment, aDisputeRead, bDisputeRead, cDisputeRead] = await Promise.all([
+    admin.from("bookings").select("status").eq("id", disputeBookingId).single(),
+    admin.from("booking_payments").select("status").eq("booking_id", disputeBookingId).single(),
+    A.client.from("booking_disputes").select("id").eq("booking_id", disputeBookingId),
+    B.client.from("booking_disputes").select("id").eq("booking_id", disputeBookingId),
+    C.client.from("booking_disputes").select("id").eq("booking_id", disputeBookingId),
+  ]);
+  check("dispute atomically freezes booking and payment", frozenBooking.data?.status === "disputed" && frozenPayment.data?.status === "disputed");
+  check("both booking participants can read the dispute", aDisputeRead.data?.length === 1 && bDisputeRead.data?.length === 1);
+  check("nonparticipant cannot read the dispute", !cDisputeRead.error && cDisputeRead.data?.length === 0);
+
+  const duplicateDispute = await A.client.from("booking_disputes").insert({
+    booking_id: disputeBookingId,
+    filed_by: A.id,
+    reason: "quality",
+    details: "duplicate open case",
+  });
+  check("participants cannot open a duplicate dispute", duplicateDispute.error !== null);
+
+  const forgedResolution = await A.client.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "refund",
+    resolution_note: "client must not resolve",
+    stripe_refund_id: `re_RlsForged${Date.now()}`,
+  });
+  check("participant cannot resolve their own dispute", forgedResolution.error !== null);
+
+  const refundId = `re_Rls${Date.now()}`;
+  const serverResolution = await admin.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "refund",
+    resolution_note: "Disposable-project resolution test",
+    stripe_refund_id: refundId,
+  });
+  const [resolvedDispute, refundedBooking, refundedPayment, refundNotice] = await Promise.all([
+    admin.from("booking_disputes").select("status,resolved_at").eq("id", participantDispute.data?.id).single(),
+    admin.from("bookings").select("status").eq("id", disputeBookingId).single(),
+    admin.from("booking_payments").select("status,stripe_refund_id").eq("booking_id", disputeBookingId).single(),
+    A.client.from("notifications").select("kind").eq("kind", "payment_refunded").eq("recipient_id", A.id),
+  ]);
+  check("payment service can atomically resolve a refund", !serverResolution.error && resolvedDispute.data?.status === "resolved_refund" && refundedBooking.data?.status === "refunded" && refundedPayment.data?.status === "refunded" && refundedPayment.data?.stripe_refund_id === refundId);
+  check("booker receives a durable refund notification", refundNotice.data?.length === 1);
+
+  const repeatedResolution = await admin.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "refund",
+    resolution_note: "Idempotent retry",
+    stripe_refund_id: refundId,
+  });
+  const conflictingResolution = await admin.rpc("resolve_booking_dispute", {
+    dispute_id: participantDispute.data?.id,
+    resolution: "release",
+    resolution_note: "Must fail",
+  });
+  check("same dispute resolution is idempotent", !repeatedResolution.error && repeatedResolution.data?.alreadyResolved === true);
+  check("opposite dispute resolution fails closed", conflictingResolution.error !== null);
+
+  const cancellationBookingId = `bk-cancel-${Date.now()}`;
+  const cancellationGigAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const cancellationOffer = await A.client.from("bookings").insert({
+    id: cancellationBookingId,
+    user_id: A.id,
+    musician_id: B.id,
+    musician_user_id: B.id,
+    gig_title: "Late cancellation test gig",
+    date: "Today",
+    time: "Soon",
+    gig_at: cancellationGigAt,
+    amount: 200,
+    status: "offer",
+  });
+  const cancellationAccept = await B.client.from("bookings")
+    .update({ status: "accepted" }).eq("id", cancellationBookingId);
+  const cancellationHold = await admin.from("bookings")
+    .update({ status: "held" }).eq("id", cancellationBookingId);
+  const lateCancellationPayment = await admin.from("booking_payments").insert({
+    booking_id: cancellationBookingId,
+    payer_id: A.id,
+    payee_id: B.id,
+    stripe_payment_intent_id: `pi_RlsCancel${Date.now()}`,
+    currency: "usd",
+    musician_amount_cents: 20000,
+    service_fee_cents: 2000,
+    total_amount_cents: 22000,
+    status: "held",
+    authorization_expires_at: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+  }).select("id").single();
+  check("server can prepare a held booking for cancellation testing", !cancellationOffer.error && !cancellationAccept.error && !cancellationHold.error && !lateCancellationPayment.error);
+
+  const forgedCancellationClaim = await A.client.rpc("claim_held_booking_cancellation", {
+    booking_id: cancellationBookingId,
+    cancelled_by: A.id,
+  });
+  check("participant cannot bypass the cancellation Edge Function", forgedCancellationClaim.error !== null);
+
+  const cancellationClaim = await admin.rpc("claim_held_booking_cancellation", {
+    booking_id: cancellationBookingId,
+    cancelled_by: A.id,
+  });
+  check("late booker cancellation claims exactly 50% payout and fee", !cancellationClaim.error && cancellationClaim.data?.action === "late_fee" && cancellationClaim.data?.musicianPayoutCents === 10000 && cancellationClaim.data?.serviceFeeCents === 1000);
+
+  const cancellationFinalize = await admin.rpc("finalize_held_booking_cancellation", {
+    cancellation_id: cancellationClaim.data?.cancellationId,
+  });
+  const [cancelledBooking, partiallyRefundedPayment, cancellationNotice] = await Promise.all([
+    admin.from("bookings").select("status").eq("id", cancellationBookingId).single(),
+    admin.from("booking_payments").select("status").eq("booking_id", cancellationBookingId).single(),
+    B.client.from("notifications").select("kind,body").eq("recipient_id", B.id).eq("kind", "booking_cancelled").like("body", "%late-cancellation payout%"),
+  ]);
+  check("late cancellation atomically closes booking and payment", !cancellationFinalize.error && cancelledBooking.data?.status === "cancelled" && partiallyRefundedPayment.data?.status === "partially_refunded");
+  check("musician receives the private late-cancellation payout notice", cancellationNotice.data?.length === 1);
+
+  const repeatedCancellation = await admin.rpc("finalize_held_booking_cancellation", {
+    cancellation_id: cancellationClaim.data?.cancellationId,
+  });
+  check("booking cancellation finalization is idempotent", !repeatedCancellation.error && repeatedCancellation.data?.alreadyCompleted === true);
 
   const bNotifications = await B.client.from("notifications").select("id,kind").in("kind", ["direct_message", "booking_offer"]);
   const cNotifications = await C.client.from("notifications").select("id").eq("recipient_id", B.id);
@@ -229,6 +457,21 @@ async function main() {
   check("B CAN read its own profile", !ownProfile.error && (ownProfile.data?.length ?? 0) === 1);
 
   // ---- cleanup ----
+  if (paymentSeed.data?.id) {
+    await admin.from("booking_payments").delete().eq("id", paymentSeed.data.id);
+  }
+  if (participantDispute.data?.id) {
+    await admin.from("booking_disputes").delete().eq("id", participantDispute.data.id);
+  }
+  if (disputePayment.data?.id) {
+    await admin.from("booking_payments").delete().eq("id", disputePayment.data.id);
+  }
+  if (cancellationClaim.data?.cancellationId) {
+    await admin.from("booking_cancellations").delete().eq("id", cancellationClaim.data.cancellationId);
+  }
+  if (lateCancellationPayment.data?.id) {
+    await admin.from("booking_payments").delete().eq("id", lateCancellationPayment.data.id);
+  }
   await admin.auth.admin.deleteUser(A.id);
   await admin.auth.admin.deleteUser(B.id);
   await admin.auth.admin.deleteUser(C.id);

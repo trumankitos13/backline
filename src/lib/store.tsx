@@ -21,6 +21,7 @@ import {
 import type {
   Band,
   Booking,
+  BookingDisputeReason,
   Conversation,
   CurrentUser,
   InstrumentId,
@@ -235,6 +236,7 @@ interface BookingOfferInput {
   venueName: string;
   date: string;
   time: string;
+  gigAt?: string;
   amount: number;
   note?: string;
   /** when the offer is for a posted Opening — holding it locks that seat */
@@ -302,6 +304,18 @@ export interface AppApi {
   enablePushNotifications(): Promise<void>;
   disablePushNotifications(): Promise<void>;
   updateNotificationPreferences(patch: Partial<NotificationPreferences>): void;
+  /** create a Stripe-hosted payout onboarding link for the signed-in musician */
+  startPayoutOnboarding(): Promise<string>;
+  /** create or resume secure card authorization for an accepted booking */
+  createBookingPaymentIntent(bookingId: string): Promise<string>;
+  /** freeze a held payment while support reviews a participant dispute */
+  fileBookingDispute(
+    bookingId: string,
+    reason: BookingDisputeReason,
+    details: string,
+  ): Promise<void>;
+  /** cancel a held booking through the server-owned refund/late-fee policy */
+  cancelHeldBooking(bookingId: string): Promise<void>;
   /** post an opening "acting as" a context; returns the opening id */
   postOpening(input: OpeningInput): string;
   /** assemble a pickup band: creates a project + one opening per seat */
@@ -310,9 +324,9 @@ export interface AppApi {
   setStay(projectId: string, playerId: string, stay: "in" | "out"): void;
   /** send a message into a group chat; a roster member replies shortly */
   sendGroupMessage(conversationId: string, text: string): void;
-  /** commit the hold (mock of Stripe manual-capture) — booking becomes "held" */
+  /** demo-only manual-capture stand-in — booking becomes "held" */
   holdBooking(bookingId: string, playerId: string): void;
-  /** release the held payment post-gig (mock of the 24h auto-release) */
+  /** demo-only stand-in for the server's post-gig auto-release */
   releaseBooking(bookingId: string, playerId: string): void;
   toggleFollow(id: string): void;
   toggleLike(postId: string): void;
@@ -506,6 +520,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           venueName: input.venueName,
           date: input.date,
           time: input.time,
+          gigAt: input.gigAt,
           amount: input.amount,
           status: "offer",
           openingId: input.openingId,
@@ -604,6 +619,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateNotificationPreferences(patch) {
         dispatch({ type: "UPDATE_NOTIFICATION_PREFERENCES", patch });
         persist((user) => backend.updateNotificationPreferences(user, patch));
+      },
+
+      async startPayoutOnboarding() {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before setting up payouts.");
+        return backend.createPayoutOnboardingLink(user);
+      },
+
+      async createBookingPaymentIntent(bookingId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before authorizing payment.");
+        return backend.createBookingPaymentIntent(user, bookingId);
+      },
+
+      async fileBookingDispute(bookingId, reason, details) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before filing a dispute.");
+        await backend.fileBookingDispute(user, bookingId, reason, details);
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "disputed" });
+      },
+
+      async cancelHeldBooking(bookingId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before cancelling a booking.");
+        await backend.cancelHeldBooking(user, bookingId);
+        dispatch({ type: "SET_BOOKING_STATUS", bookingId, status: "cancelled" });
       },
 
       postOpening(input) {

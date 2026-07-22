@@ -594,6 +594,7 @@ export const supabaseBackend: Backend = {
       venueName: b.venue_name as string,
       date: b.date as string,
       time: b.time as string,
+      gigAt: (b.gig_at as string) ?? undefined,
       amount: (b.amount as number) ?? 0,
       // legacy escrow rename: rows written before held/released say "paid"
       status: (b.status === "paid" ? "held" : b.status) as BookingStatus,
@@ -840,6 +841,7 @@ export const supabaseBackend: Backend = {
       venue_name: booking.venueName,
       date: booking.date,
       time: booking.time,
+      gig_at: booking.gigAt ?? null,
       amount: booking.amount,
       status: booking.status,
       opening_id: booking.openingId ?? null,
@@ -928,6 +930,49 @@ export const supabaseBackend: Backend = {
     if (patch.timezone !== undefined) row.timezone = patch.timezone;
     const { error } = await supabase.from("notification_preferences").upsert(row);
     fail("update notification preferences", error);
+  },
+
+  async createPayoutOnboardingLink(_user) {
+    const { data, error } = await supabase.functions.invoke("create-connect-onboarding-link", {
+      body: {},
+    });
+    fail("start payout onboarding", error);
+    const rawUrl = (data as { url?: unknown } | null)?.url;
+    if (typeof rawUrl !== "string") throw new Error("Stripe onboarding link missing");
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:" || url.hostname !== "connect.stripe.com") {
+      throw new Error("Stripe onboarding link invalid");
+    }
+    return url.toString();
+  },
+
+  async createBookingPaymentIntent(_user, bookingId) {
+    const { data, error } = await supabase.functions.invoke("create-booking-payment-intent", {
+      body: { bookingId },
+    });
+    fail("start booking payment", error);
+    const clientSecret = (data as { clientSecret?: unknown } | null)?.clientSecret;
+    if (typeof clientSecret !== "string" || !clientSecret.startsWith("pi_")) {
+      throw new Error("Stripe client secret missing");
+    }
+    return clientSecret;
+  },
+
+  async fileBookingDispute(user, bookingId, reason, details) {
+    const { error } = await supabase.from("booking_disputes").insert({
+      booking_id: bookingId,
+      filed_by: user.id,
+      reason,
+      details,
+    });
+    fail("file booking dispute", error);
+  },
+
+  async cancelHeldBooking(_user, bookingId) {
+    const { error } = await supabase.functions.invoke("cancel-held-booking", {
+      body: { bookingId },
+    });
+    fail("cancel held booking", error);
   },
 
   async addOpening(user, opening) {

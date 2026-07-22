@@ -285,6 +285,160 @@ Normal message alerts remain in-app unless the user later enables normal push.
 The Edge Function removes expired device subscriptions on HTTP 404/410 and
 claims each notification before fan-out to suppress duplicate webhook delivery.
 
+#### Phase 3 payout onboarding (test mode only)
+
+Do not deploy this stacked Phase 3 branch until Phase 2 is merged and its
+migrations are applied. `20260719214303_phase_3_payment_foundation.sql` adds
+server-owned Connect/payment records and read-only participant receipt access.
+
+Before deploying `create-connect-onboarding-link`:
+
+1. Complete Stripe Connect platform onboarding in **test mode** and confirm the
+   platform accepts responsibility for indirect-charge fees and losses.
+2. Store `STRIPE_SECRET_KEY=sk_test_...`, `STRIPE_LIVE_MODE=false`, and
+   `APP_URL=https://your-production-domain.example` in Supabase Edge Function
+   secrets. `APP_URL` must exactly match the browser origin; use a separate
+   local project secret for localhost testing.
+3. Deploy the authenticated function:
+
+   ```bash
+   npx supabase functions deploy create-connect-onboarding-link
+   ```
+
+The app sends musicians to a one-time Stripe-hosted onboarding URL from Profile
+→ Settings → Stripe payouts. Bank and identity data stays on Stripe. Returning
+from onboarding does not by itself prove approval; payout readiness will be
+updated from signed `account.updated` webhooks in the next Phase 3 slice.
+
+Deploy the Connect webhook function:
+
+```bash
+npx supabase functions deploy stripe-connect-webhook
+```
+
+In Stripe Workbench, create a **test-mode Connected accounts** event destination
+for `account.updated` pointing to
+`https://<project-ref>.supabase.co/functions/v1/stripe-connect-webhook`. Store
+that endpoint's signing secret as `STRIPE_CONNECT_WEBHOOK_SECRET`. This is not
+the same secret as a platform-account payment webhook. The handler verifies the
+raw-body signature, safely ignores the wrong test/live mode, and deduplicates
+event IDs before updating payout readiness.
+
+`create-booking-payment-intent` is the authenticated server boundary for card
+authorization. It derives the amount, 10% service fee, connected destination,
+and Stripe idempotency key from an accepted booking; the browser supplies only
+the booking ID. Deploy it only with the payment UI and platform-account payment
+webhook from the same release:
+
+```bash
+npx supabase functions deploy create-booking-payment-intent
+```
+
+Add the matching test publishable key to Vercel as
+`VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`. The publishable and secret keys must
+belong to the same Stripe sandbox/account.
+
+Deploy the platform-account payment webhook:
+
+```bash
+npx supabase functions deploy stripe-payment-webhook
+```
+
+In Stripe Workbench, create a **test-mode Account** event destination—not a
+Connected accounts destination—pointing to
+`https://<project-ref>.supabase.co/functions/v1/stripe-payment-webhook`. Select
+only:
+
+- `payment_intent.amount_capturable_updated`
+- `payment_intent.payment_failed`
+- `payment_intent.canceled`
+- `payment_intent.succeeded`
+
+Store its distinct signing secret as `STRIPE_PAYMENT_WEBHOOK_SECRET`. Deploy the
+Phase 3 migrations, payment functions, webhooks, and the Vercel client
+together; mixing the old browser-owned hold UI with the new server-only database
+guard intentionally fails closed.
+
+Deploy the scheduled capture worker after the dispute migrations are applied:
+
+```bash
+npx supabase functions deploy capture-due-booking-payments --no-verify-jwt
+```
+
+In Supabase Dashboard → Integrations, enable **Vault** and **Cron**. Store the
+project URL and a Supabase secret key in Vault; do not paste the secret directly
+into a cron command. Then schedule the function every ten minutes (replace only
+the two example values):
+
+```sql
+select vault.create_secret(
+  'https://your-project-ref.supabase.co',
+  'backline_project_url'
+);
+select vault.create_secret(
+  'sb_secret_your_secret_key',
+  'backline_capture_secret_key'
+);
+
+select cron.schedule(
+  'capture-due-booking-payments',
+  '*/10 * * * *',
+  $$
+  select net.http_post(
+    url := (
+      select decrypted_secret
+      from vault.decrypted_secrets
+      where name = 'backline_project_url'
+    ) || '/functions/v1/capture-due-booking-payments',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'backline_capture_secret_key'
+      )
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+The worker claims only bookings still held 24 hours after `gig_at`, with an
+unexpired authorization and no open dispute. Stripe's signed payment webhook
+remains responsible for marking a successful capture released/transferred.
+
+Deploy the server-only dispute resolver with the same Stripe and Supabase Edge
+Function secrets:
+
+```bash
+npx supabase functions deploy resolve-booking-dispute --no-verify-jwt
+```
+
+This endpoint is intentionally not connected to the browser. It requires a
+Supabase secret key in the `apikey` header and accepts a dispute ID, `release`
+or `refund`, and a required resolution note. Invoke it only from a trusted admin
+service or Supabase's authenticated function tester. A refund cancels an
+uncaptured hold; for a captured destination charge it reverses the transfer and
+refunds the application fee. Keep `STRIPE_LIVE_MODE=false` until staff access,
+audit procedures, and the legal policy are approved.
+
+Deploy participant cancellation together with its migrations and the updated
+payment webhook:
+
+```bash
+npx supabase functions deploy cancel-held-booking
+npx supabase functions deploy stripe-payment-webhook --no-verify-jwt
+```
+
+`cancel-held-booking` validates the signed-in participant and applies the V1
+policy server-side: full void at least 24 hours before showtime, full void for a
+musician bail, or a 50% musician payout on a late booker cancellation. Test all
+three paths with Stripe test cards before enabling live mode.
+
+Never add `STRIPE_SECRET_KEY` to a `VITE_` variable, Vercel browser environment,
+the repository, or `.env.local.example`.
+
 ---
 
 ### Optional — observability

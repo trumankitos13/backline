@@ -31,13 +31,14 @@ mobile.
 - Cloud DMs, offer responses, booking cancellation, durable in-app alerts, and
   browser-push delivery are implemented; group-chat replies remain simulated,
   and the Phase 2 migrations/function still need deployment verification.
-- Payments are a **UI mock** — the held/released escrow lifecycle is modeled,
-  but Stripe isn't wired (no real money).
+- Payments are wired through Stripe in the Phase 3 branch, but remain restricted
+  to test mode until the two-account flow, failure fixtures, and legal/operations
+  gates are complete.
 - Public TikTok/YouTube reels are real provider embeds; generative gradients
   remain the fallback for profiles without a reel.
 - Ratings are **session-only** (`state.ratingsGiven`, not persisted).
 - SOS matching is client-side; "near me" isn't geographic.
-- No notifications, no native app.
+- No native app.
 
 ## Guiding principles
 
@@ -124,14 +125,21 @@ the suite green.)*
 
 ### Phase 3 — Payments (real money) ⚠️ hardest, regulated
 **Goal:** money moves booker → escrow → musician's bank, minus platform fee.
+- **Foundation implemented (test-mode gate):** hosted Express onboarding,
+  server-owned destination-charge PaymentIntents, Payment Element authorization,
+  signed Connect/payment webhooks, participant dispute freezes, and an
+  idempotent scheduled capture worker. A server-only resolver safely releases
+  or fully refunds frozen destination charges. Held-booking cancellation now
+  enforces the 24-hour/50% V1 policy without trusting browser-supplied amounts.
 - **Stripe Connect (Express):** musicians onboard as connected accounts (Stripe
   handles KYC/identity/tax/1099). Replace `PaymentSheet` with Stripe
   Elements/Checkout.
 - **Escrow-style hold:** PaymentIntent with **manual capture** at booking; capture
   on **gig completion**; transfer/payout to the musician; **application fee** =
   platform take. Refunds + the "cancel-friendly up to 24h" policy as real logic.
-- **Webhooks** to keep booking/payment state in sync; handle failures, disputes,
-  payout schedules.
+- **Remaining hardening:** automated Stripe fixtures, a staff-authenticated
+  operator surface, reliability scoring from player-bail audit events, payout
+  schedule verification, and the full two-account test-mode runbook.
 - **Exit:** a completed real booking results in a real bank payout.
 
 > **After Phase 3 we have a real, working two-sided transaction.** Everything

@@ -1,4 +1,5 @@
-// Domain model for the Backline prototype. All data is mock/local — see data.ts.
+// Shared Backline domain model. The catalog has a built-in demo fallback while
+// account and payment state use the cloud backend when configured.
 
 import type { SceneId } from "./scenes";
 
@@ -252,11 +253,15 @@ export type BookingStatus =
   | "offer"
   | "accepted"
   | "held"
+  | "disputed"
   | "released"
+  | "refunded"
   | "declined"
   | "paid"
   | "completed"
   | "cancelled";
+
+export type BookingDisputeReason = "no_show" | "quality" | "other";
 
 export interface Booking {
   id: string;
@@ -265,6 +270,8 @@ export interface Booking {
   venueName: string;
   date: string;
   time: string;
+  /** canonical show instant; required before a real payment can be authorized */
+  gigAt?: string;
   amount: number;
   status: BookingStatus;
   /** whether the signed-in account sent or received this offer */
@@ -291,7 +298,10 @@ export type NotificationKind =
   | "booking_offer"
   | "booking_accepted"
   | "booking_declined"
-  | "booking_cancelled";
+  | "booking_cancelled"
+  | "booking_disputed"
+  | "payment_released"
+  | "payment_refunded";
 
 export interface NotificationItem {
   id: string;

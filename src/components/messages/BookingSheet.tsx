@@ -5,7 +5,8 @@ import { useState, type FormEvent } from "react";
 import type { InstrumentId, Player } from "../../lib/types";
 import { VENUES } from "../../lib/data";
 import { useApp } from "../../lib/store";
-import { Button, Modal } from "../ui";
+import { isSelectableGigDate, scheduleOpening, todayIso, tomorrowIso } from "../../lib/scheduling";
+import { Button, Chip, Modal } from "../ui";
 import { DollarIcon, LockIcon } from "../icons";
 import { Field, inputCls } from "./form";
 
@@ -25,8 +26,26 @@ const ROLE_NOUN: Record<InstrumentId, string> = {
   "lighting-tech": "lighting tech",
 };
 
-const CUSTOM_DATE = "Custom…";
-const DATE_OPTIONS = ["Tonight", "Tomorrow", "Sat Jul 11", CUSTOM_DATE];
+function scheduleInputs(gigAt?: string): { date: string; time: string } {
+  if (!gigAt || Number.isNaN(new Date(gigAt).getTime())) {
+    return { date: todayIso(), time: "21:00" };
+  }
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(gigAt));
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}`,
+  };
+}
 
 export function BookingSheet({
   open,
@@ -54,13 +73,9 @@ export function BookingSheet({
   const [gigTitle, setGigTitle] = useState(project?.name ?? "Fill-in gig");
   const [venue, setVenue] = useState<string>(VENUES[0]?.name ?? "Other");
   const [customVenue, setCustomVenue] = useState("");
-  const [dateOpt, setDateOpt] = useState<string>(
-    opening && !DATE_OPTIONS.includes(opening.when) ? CUSTOM_DATE : (opening?.when ?? "Tonight"),
-  );
-  const [customDate, setCustomDate] = useState(
-    opening && !DATE_OPTIONS.includes(opening.when) ? opening.when : "",
-  );
-  const [time, setTime] = useState("9:00 PM");
+  const initialSchedule = scheduleInputs(opening?.gigAt);
+  const [date, setDate] = useState(initialSchedule.date);
+  const [time, setTime] = useState(initialSchedule.time);
   const [amount, setAmount] = useState(String(opening?.fee ?? musician.rate.min));
   const [note, setNote] = useState(
     project
@@ -68,22 +83,32 @@ export function BookingSheet({
       : `Hey! Our ${ROLE_NOUN[primary]} can't make it — can you cover?`,
   );
 
+  let scheduled: ReturnType<typeof scheduleOpening> | null = null;
+  try {
+    scheduled = scheduleOpening(date, time);
+  } catch {
+    scheduled = null;
+  }
   const parsedAmount = Number(amount);
   const valid =
     gigTitle.trim().length > 0 &&
+    scheduled !== null &&
+    isSelectableGigDate(date, todayIso()) &&
     Number.isFinite(parsedAmount) &&
     parsedAmount > 0 &&
     parsedAmount <= 100000;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
+    if (!valid || !scheduled) return;
+    const [dateLabel = date, timeLabel = time] = scheduled.label.split(" · ");
     api.sendBookingOffer({
       playerId: musician.id,
       gigTitle: gigTitle.trim(),
       venueName: venue === "Other" ? customVenue.trim() || "Venue TBD" : venue,
-      date: dateOpt === CUSTOM_DATE ? customDate.trim() || "Date TBD" : dateOpt,
-      time: time.trim() || "9:00 PM",
+      date: dateLabel,
+      time: timeLabel,
+      gigAt: scheduled.gigAt,
       amount: Math.round(parsedAmount),
       note: note.trim() || undefined,
       openingId,
@@ -128,43 +153,29 @@ export function BookingSheet({
           )}
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date">
-            <select
-              className={inputCls}
-              value={dateOpt}
-              onChange={(e) => setDateOpt(e.target.value)}
-            >
-              {DATE_OPTIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Time">
+        <Field label="When's the gig?">
+          <div className="mb-2 flex flex-wrap gap-2">
+            <Chip active={date === todayIso()} onClick={() => setDate(todayIso())}>Today</Chip>
+            <Chip active={date === tomorrowIso()} onClick={() => setDate(tomorrowIso())}>Tomorrow</Chip>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <input
+              aria-label="Gig date"
+              type="date"
+              min={todayIso()}
+              className={inputCls}
+              value={date}
+              onChange={(event) => setDate(event.currentTarget.value)}
+            />
+            <input
+              aria-label="Gig time"
+              type="time"
               className={inputCls}
               value={time}
-              onChange={(e) => setTime(e.target.value)}
-              maxLength={80}
-              placeholder="9:00 PM"
+              onChange={(event) => setTime(event.currentTarget.value)}
             />
-          </Field>
-        </div>
-
-        {dateOpt === CUSTOM_DATE && (
-          <Field label="Custom date">
-            <input
-              className={inputCls}
-              value={customDate}
-              onChange={(e) => setCustomDate(e.target.value)}
-              maxLength={80}
-              placeholder="e.g. Fri Jul 24"
-              autoFocus
-            />
-          </Field>
-        )}
+          </div>
+        </Field>
 
         <Field
           label="Offer amount"

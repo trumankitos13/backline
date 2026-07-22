@@ -423,3 +423,45 @@ entrypoint = "./functions/deliver-push-notification/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/deliver-push-notification/*.html" ]
+
+[functions.create-connect-onboarding-link]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-connect-onboarding-link/deno.json"
+entrypoint = "./functions/create-connect-onboarding-link/index.ts"
+
+[functions.stripe-connect-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-connect-webhook/deno.json"
+entrypoint = "./functions/stripe-connect-webhook/index.ts"
+
+[functions.create-booking-payment-intent]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-booking-payment-intent/deno.json"
+entrypoint = "./functions/create-booking-payment-intent/index.ts"
+
+[functions.stripe-payment-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-payment-webhook/deno.json"
+entrypoint = "./functions/stripe-payment-webhook/index.ts"
+
+[functions.capture-due-booking-payments]
+enabled = true
+verify_jwt = false
+import_map = "./functions/capture-due-booking-payments/deno.json"
+entrypoint = "./functions/capture-due-booking-payments/index.ts"
+
+[functions.resolve-booking-dispute]
+enabled = true
+verify_jwt = false
+import_map = "./functions/resolve-booking-dispute/deno.json"
+entrypoint = "./functions/resolve-booking-dispute/index.ts"
+
+[functions.cancel-held-booking]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cancel-held-booking/deno.json"
+entrypoint = "./functions/cancel-held-booking/index.ts"

@@ -92,10 +92,22 @@ export function BookingStatusBadge({ status }: { status: BookingStatus }) {
           Held
         </Badge>
       );
+    case "disputed":
+      return (
+        <Badge tone="amber" icon={<ClockIcon size={11} />}>
+          Under review
+        </Badge>
+      );
     case "released":
       return (
         <Badge tone="cyan" icon={<CheckIcon size={11} />}>
           Released
+        </Badge>
+      );
+    case "refunded":
+      return (
+        <Badge tone="neutral" icon={<CloseIcon size={11} />}>
+          Refunded
         </Badge>
       );
     case "paid":

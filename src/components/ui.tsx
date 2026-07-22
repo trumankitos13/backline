@@ -129,19 +129,19 @@ export function Chip({
   onClick?: () => void;
   className?: string;
 }) {
-  const Tag = onClick ? "button" : "span";
-  return (
-    <Tag
-      onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-        active
-          ? "border-amber-500/50 bg-amber-500/15 text-amber-300"
-          : "border-hairline-strong bg-surface-800 text-text-mid"
-      } ${onClick ? "cursor-pointer hover:border-text-faint" : ""} ${className}`}
-    >
-      {children}
-    </Tag>
-  );
+  const classes = `inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+    active
+      ? "border-amber-500/50 bg-amber-500/15 text-amber-300"
+      : "border-hairline-strong bg-surface-800 text-text-mid"
+  } ${onClick ? "cursor-pointer hover:border-text-faint" : ""} ${className}`;
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={classes}>
+        {children}
+      </button>
+    );
+  }
+  return <span className={classes}>{children}</span>;
 }
 
 // ------------------------------------------------------------------ badges

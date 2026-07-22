@@ -3,7 +3,7 @@
 // the app (and the deployed site) always runs, even before the backend is set
 // up. Behavior matches the original SitIn prototype.
 
-import type { Band, Booking, BookingStatus, Conversation, CurrentUser, Message, NotificationPreferences, Opening } from "../types";
+import type { Band, Booking, BookingDisputeReason, BookingStatus, Conversation, CurrentUser, Message, NotificationPreferences, Opening } from "../types";
 import { demoCatalogForScene, SEED_CONVERSATIONS } from "../data";
 import { upsertMessage } from "../conversations";
 import { normalizePersistedData } from "../sceneScope";
@@ -178,6 +178,28 @@ export const localBackend: Backend = {
     mutate((d) => ({
       ...d,
       notificationPreferences: { ...d.notificationPreferences, ...patch },
+    }));
+  },
+  async createPayoutOnboardingLink() {
+    throw new Error("Payout onboarding is available only with the cloud backend.");
+  },
+  async createBookingPaymentIntent() {
+    throw new Error("Real payment setup is available only with the cloud backend.");
+  },
+  async fileBookingDispute(_user: AuthUser, bookingId: string, _reason: BookingDisputeReason) {
+    mutate((d) => ({
+      ...d,
+      bookings: d.bookings.map((booking) => (
+        booking.id === bookingId ? { ...booking, status: "disputed" } : booking
+      )),
+    }));
+  },
+  async cancelHeldBooking(_user: AuthUser, bookingId: string) {
+    mutate((d) => ({
+      ...d,
+      bookings: d.bookings.map((booking) => (
+        booking.id === bookingId ? { ...booking, status: "cancelled" } : booking
+      )),
     }));
   },
   async addOpening(_user: AuthUser, opening: Opening) {
