@@ -13,6 +13,13 @@ const STORAGE_KEY = "backline-state-v1";
 
 // Local mode has no accounts; every write is attributed to this synthetic user.
 const LOCAL_USER: AuthUser = { id: "local", email: null };
+const localSosBroadcasts = new Map<string, {
+  requesterName: string;
+  instrument: CurrentUser["instruments"][number];
+  whenLabel: string;
+  status: "open" | "matched";
+  expiresAt: string;
+}>();
 
 function demoDefault(): PersistedData {
   return {
@@ -106,6 +113,72 @@ export const localBackend: Backend = {
   },
   async updateUser(_user: AuthUser, patch: Partial<CurrentUser>) {
     mutate((d) => (d.user ? { ...d, user: { ...d.user, ...patch } } : d));
+  },
+  async setAvailability(_user, availableUntil) {
+    mutate((d) => d.user ? {
+      ...d,
+      user: { ...d.user, availableTonight: true, availableUntil },
+    } : d);
+  },
+  async clearAvailability() {
+    mutate((d) => d.user ? {
+      ...d,
+      user: { ...d.user, availableTonight: false, availableUntil: undefined },
+    } : d);
+  },
+  async findAvailablePlayers(_user, selectedInstrument, maxDistanceMiles = 25) {
+    const scene = read().user?.scene ?? "austin";
+    return demoCatalogForScene(scene).players
+      .filter((player) =>
+        player.availableTonight
+        && player.distanceMiles <= maxDistanceMiles
+        && player.instruments.some(({ id }) => id === selectedInstrument),
+      )
+      .sort((a, b) => a.distanceMiles - b.distanceMiles || a.responseMins - b.responseMins)
+      .map((player) => ({
+        playerId: player.id,
+        availableUntil: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        distanceMiles: player.distanceMiles,
+      }));
+  },
+  async createSosBroadcast(_user, selectedInstrument, whenLabel) {
+    const id = crypto.randomUUID();
+    const profile = read().user;
+    const recipients = demoCatalogForScene(profile?.scene ?? "austin").players.filter((player) =>
+      player.availableTonight
+      && player.distanceMiles <= 25
+      && player.instruments.some(({ id: instrumentId }) => instrumentId === selectedInstrument),
+    );
+    localSosBroadcasts.set(id, {
+      requesterName: profile?.name ?? "A local player",
+      instrument: selectedInstrument,
+      whenLabel,
+      status: "open",
+      expiresAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+    });
+    return { broadcastId: id, recipientCount: recipients.length };
+  },
+  async getSosBroadcast(_user, broadcastId) {
+    const broadcast = localSosBroadcasts.get(broadcastId);
+    if (!broadcast) throw new Error("SOS broadcast was not found.");
+    return {
+      broadcastId,
+      requesterId: "local-requester",
+      requesterName: broadcast.requesterName,
+      instrument: broadcast.instrument,
+      whenLabel: broadcast.whenLabel,
+      status: broadcast.status,
+      expiresAt: broadcast.expiresAt,
+      acceptedBy: broadcast.status === "matched" ? LOCAL_USER.id : null,
+      canAccept: broadcast.status === "open",
+    };
+  },
+  async acceptSosBroadcast(_user, broadcastId) {
+    const broadcast = localSosBroadcasts.get(broadcastId);
+    if (!broadcast || broadcast.status !== "open") {
+      throw new Error("This SOS was already filled or expired.");
+    }
+    localSosBroadcasts.set(broadcastId, { ...broadcast, status: "matched" });
   },
   async uploadAvatar(_user: AuthUser, file: File) {
     return await new Promise<string>((resolve, reject) => {

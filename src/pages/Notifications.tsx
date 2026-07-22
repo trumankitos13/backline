@@ -18,8 +18,8 @@ function relativeTime(iso: string): string {
 
 function NotificationIcon({ notification }: { notification: NotificationItem }) {
   if (notification.kind === "direct_message") return <ChatIcon size={18} />;
-  if (notification.kind === "booking_offer") return <BoltIcon size={18} />;
-  if (notification.kind === "booking_accepted") return <CheckIcon size={18} />;
+  if (notification.kind === "booking_offer" || notification.kind === "sos_request") return <BoltIcon size={18} />;
+  if (notification.kind === "booking_accepted" || notification.kind === "sos_accepted") return <CheckIcon size={18} />;
   return <CalendarIcon size={18} />;
 }
 

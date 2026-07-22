@@ -100,6 +100,72 @@ async function main() {
     C.client.from("profiles").update({ handle: `rls_c_${profileStamp}`, instruments: ["bass"] }).eq("id", C.id),
   ]);
   check("test accounts can complete valid public profiles", completedProfiles.every((result) => !result.error));
+
+  // Phase 4: raw availability (including optional exact location) is owner-only,
+  // while the matcher returns only same-scene active profile ids + coarse distance.
+  const availabilityUntil = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const bAvailability = await B.client.rpc("set_my_availability", {
+    p_available_until: availabilityUntil,
+    p_latitude: 30.2672,
+    p_longitude: -97.7431,
+  });
+  check("B can create an expiring private availability window", !bAvailability.error);
+
+  const [bOwnAvailability, aReadsBAvailability, anonReadsAvailability] = await Promise.all([
+    B.client.from("player_availability").select("user_id,available_until").eq("user_id", B.id),
+    A.client.from("player_availability").select("user_id,location").eq("user_id", B.id),
+    anon.from("player_availability").select("user_id"),
+  ]);
+  check("B can read their own availability", bOwnAvailability.data?.length === 1);
+  check("A cannot read B's coordinates", !aReadsBAvailability.error && aReadsBAvailability.data?.length === 0);
+  check("anon cannot read availability", anonReadsAvailability.error !== null);
+
+  const aFindsDrummer = await A.client.rpc("find_available_players", {
+    p_instrument: "drums",
+    p_max_distance_miles: 25,
+  });
+  check(
+    "same-scene matcher finds active B without exposing coordinates",
+    !aFindsDrummer.error
+      && aFindsDrummer.data?.some((row) => row.profile_id === B.id)
+      && aFindsDrummer.data?.every((row) => !("location" in row)),
+  );
+
+  const anonFind = await anon.rpc("find_available_players", {
+    p_instrument: "drums",
+    p_max_distance_miles: 25,
+  });
+  check("anon cannot call availability matcher", anonFind.error !== null);
+
+  const sosCreated = await A.client.rpc("create_sos_broadcast", {
+    p_instrument: "drums",
+    p_when_label: "Tonight at 9:00 PM",
+    p_max_distance_miles: 25,
+  });
+  const sosId = sosCreated.data?.[0]?.broadcast_id;
+  check(
+    "A can broadcast only to live matching players",
+    !sosCreated.error && Boolean(sosId) && sosCreated.data?.[0]?.recipient_count === 1,
+  );
+
+  const [bLoadsSos, cLoadsSos, anonLoadsSos] = await Promise.all([
+    B.client.rpc("get_sos_broadcast", { p_broadcast_id: sosId }),
+    C.client.rpc("get_sos_broadcast", { p_broadcast_id: sosId }),
+    anon.rpc("get_sos_broadcast", { p_broadcast_id: sosId }),
+  ]);
+  check("notified B can open the SOS", !bLoadsSos.error && bLoadsSos.data?.[0]?.can_accept === true);
+  check("unmatched C cannot inspect the SOS", cLoadsSos.error !== null);
+  check("anon cannot inspect the SOS", anonLoadsSos.error !== null);
+
+  const bAcceptsSos = await B.client.rpc("accept_sos_broadcast", { p_broadcast_id: sosId });
+  const bAcceptsTwice = await B.client.rpc("accept_sos_broadcast", { p_broadcast_id: sosId });
+  check("B can atomically accept the SOS", !bAcceptsSos.error);
+  check("the same SOS cannot be accepted twice", bAcceptsTwice.error !== null);
+
+  const matchedSos = await admin.from("sos_broadcasts").select("status,accepted_by").eq("id", sosId).single();
+  const requesterSosAlert = await A.client.from("notifications").select("kind").eq("kind", "sos_accepted");
+  check("first acceptance locks the broadcast to B", matchedSos.data?.status === "matched" && matchedSos.data?.accepted_by === B.id);
+  check("requester receives a durable SOS match alert", requesterSosAlert.data?.length === 1);
   console.log("\nseeding user A's private data:");
 
   // A writes a full set of owned rows

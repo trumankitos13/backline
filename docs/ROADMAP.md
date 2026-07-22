@@ -150,11 +150,15 @@ the suite green.)*
 ## Beyond MVP — the network and the platform
 
 ### Phase 4 — Discovery, SOS, geo, feed (make the network live)
-- **PostGIS** for true distance / "near me"; an **availability** model (the
-  "free tonight" flag becomes a real, time-boxed status; optional calendar).
-- **SOS as a real broadcast:** ping matching, available, nearby players (push +
-  SMS), **first-accept-wins**, with the offer flow attached. (Today it's a
-  client-side ranked list; make it actually reach people.)
+- ✅ **Live discovery foundation implemented:** PostGIS distance, owner-only
+  exact coordinates, expiring 2/4/8-hour availability, scene-scoped discovery,
+  and server-side instrument/distance matching. Location is opt-in; users who
+  decline it remain eligible for scene-wide matches.
+- ✅ **SOS broadcast foundation implemented:** a live search can create a
+  durable broadcast, high-priority notifications fan out to eligible players,
+  and an atomic database transition guarantees **first-accept-wins**. The
+  winner and requester land in the existing chat/offer path; losers receive a
+  filled notice. SMS delivery remains optional/future (browser push is wired).
 - **Feed** for real: bands/venues create posts, a following graph, ranking, and
   "need-sub" posts wired into the SOS/booking flow.
 - Server-side **search + filters**.

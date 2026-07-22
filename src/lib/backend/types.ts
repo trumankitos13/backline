@@ -48,6 +48,35 @@ export interface AuthResult {
   needsConfirmation?: boolean;
 }
 
+export interface AvailabilityLocation {
+  latitude: number;
+  longitude: number;
+}
+
+export interface AvailabilityMatch {
+  playerId: string;
+  availableUntil: string;
+  /** Rounded by Postgres; exact player coordinates never leave the database. */
+  distanceMiles: number | null;
+}
+
+export interface SosBroadcastResult {
+  broadcastId: string;
+  recipientCount: number;
+}
+
+export interface SosBroadcastDetails {
+  broadcastId: string;
+  requesterId: string;
+  requesterName: string;
+  instrument: CurrentUser["instruments"][number];
+  whenLabel: string;
+  status: "open" | "matched" | "expired" | "cancelled";
+  expiresAt: string;
+  acceptedBy: string | null;
+  canAccept: boolean;
+}
+
 export interface Backend {
   readonly mode: "local" | "supabase";
 
@@ -76,6 +105,26 @@ export interface Backend {
 
   saveUser(user: AuthUser, profile: CurrentUser): Promise<void>;
   updateUser(user: AuthUser, patch: Partial<CurrentUser>): Promise<void>;
+  setAvailability(
+    user: AuthUser,
+    availableUntil: string,
+    location?: AvailabilityLocation,
+  ): Promise<void>;
+  clearAvailability(user: AuthUser): Promise<void>;
+  findAvailablePlayers(
+    user: AuthUser,
+    instrument: CurrentUser["instruments"][number],
+    maxDistanceMiles?: number,
+  ): Promise<AvailabilityMatch[]>;
+  createSosBroadcast(
+    user: AuthUser,
+    instrument: CurrentUser["instruments"][number],
+    whenLabel: string,
+    openingId?: string,
+    maxDistanceMiles?: number,
+  ): Promise<SosBroadcastResult>;
+  getSosBroadcast(user: AuthUser, broadcastId: string): Promise<SosBroadcastDetails>;
+  acceptSosBroadcast(user: AuthUser, broadcastId: string): Promise<void>;
   /** upload and persist the current user's avatar, returning its display URL */
   uploadAvatar(user: AuthUser, file: File): Promise<string>;
   setFollow(user: AuthUser, targetId: string, following: boolean): Promise<void>;
