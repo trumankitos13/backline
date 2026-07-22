@@ -181,7 +181,7 @@ export const supabaseBackend: Backend = {
     // public-read tables, assembled into the app's four objects + feed.
     // An unseeded project (no musicians) returns null → demo catalog stays.
     type Row = Record<string, unknown>;
-    const [mus, profiles, bands, venues, gigs, posts] =
+    const [mus, profiles, bands, venues, gigs, posts, activeAvailability] =
       await Promise.all([
         supabase.from("musicians").select("*").eq("scene", scene).order("created_at"),
         supabase.from("profiles").select("*").eq("scene", scene).not("handle", "is", null).order("created_at"),
@@ -189,6 +189,7 @@ export const supabaseBackend: Backend = {
         supabase.from("venues").select("*").eq("scene", scene).order("created_at"),
         supabase.from("gigs").select("*").eq("scene", scene).order("created_at"),
         supabase.from("feed_posts").select("*").eq("scene", scene).order("created_at"),
+        supabase.rpc("list_available_players"),
       ]);
     for (const [what, res] of Object.entries({ mus, profiles, bands, venues, gigs, posts })) {
       fail(`load catalog ${what}`, res.error);
@@ -199,6 +200,13 @@ export const supabaseBackend: Backend = {
     const venueRows = filterCatalogRoots((venues.data ?? []) as Row[], scene);
     const gigRows = filterCatalogRoots((gigs.data ?? []) as Row[], scene);
     const postRows = filterCatalogRoots((posts.data ?? []) as Row[], scene);
+    // Signed-out catalog loads cannot call the authenticated RPC; they simply
+    // show no live badges. Exact availability locations are never returned.
+    const activeProfileIds = new Set(
+      activeAvailability.error
+        ? []
+        : ((activeAvailability.data ?? []) as { profile_id: string }[]).map((row) => row.profile_id),
+    );
     if (musRows.length + profileRows.length + bandRows.length + venueRows.length + gigRows.length + postRows.length === 0) {
       return null; // not seeded — keep the demo catalog
     }
@@ -302,7 +310,7 @@ export const supabaseBackend: Backend = {
         min: (p.rate_min as number) ?? 0,
         max: (p.rate_max as number) ?? 0,
       },
-      availableTonight: Boolean(p.available_tonight),
+      availableTonight: activeProfileIds.has(p.id as string),
       availability: (p.availability as string[]) ?? [],
       responseMins: 0,
       gigsPlayed: 0,
@@ -433,6 +441,7 @@ export const supabaseBackend: Backend = {
 
     const [
       profileRes,
+      availabilityRes,
       followsRes,
       bookingsRes,
       convosRes,
@@ -450,6 +459,12 @@ export const supabaseBackend: Backend = {
     ] =
       await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("player_availability")
+          .select("available_until")
+          .eq("user_id", user.id)
+          .gt("available_until", new Date().toISOString())
+          .maybeSingle(),
         supabase.from("follows").select("target_id").eq("user_id", user.id),
         supabase.from("bookings").select("*").order("created_at"),
         supabase.from("conversations").select("*").eq("user_id", user.id),
@@ -485,6 +500,7 @@ export const supabaseBackend: Backend = {
       ]);
 
     fail("load profile", profileRes.error);
+    fail("load availability", availabilityRes.error);
     fail("load follows", followsRes.error);
     fail("load bookings", bookingsRes.error);
     fail("load conversations", convosRes.error);
@@ -501,6 +517,7 @@ export const supabaseBackend: Backend = {
     fail("load group chats", groupsRes.error);
 
     const p = profileRes.data as Record<string, unknown> | null;
+    const activeAvailability = availabilityRes.data as { available_until: string } | null;
     // A profile row is created by a DB trigger at sign-up with no handle yet;
     // treat the user as "onboarded" (and skip the welcome flow) only once they
     // have picked a handle.
@@ -511,7 +528,8 @@ export const supabaseBackend: Backend = {
           handle: (p.handle as string) ?? "",
           instruments: ((p.instruments as InstrumentId[]) ?? []),
           neighborhood: (p.neighborhood as string) ?? "",
-          availableTonight: Boolean(p.available_tonight),
+          availableTonight: Boolean(activeAvailability),
+          availableUntil: activeAvailability?.available_until,
           scene: (p.scene as SceneId) ?? "austin",
           bio: (p.bio as string) ?? "",
           genres: (p.genres as string[]) ?? [],
@@ -668,7 +686,6 @@ export const supabaseBackend: Backend = {
       name: profile.name,
       handle: profile.handle,
       neighborhood: profile.neighborhood,
-      available_tonight: profile.availableTonight,
       instruments: profile.instruments,
       scene: profile.scene,
       bio: profile.bio ?? "",
@@ -681,6 +698,15 @@ export const supabaseBackend: Backend = {
       updated_at: new Date().toISOString(),
     });
     fail("save profile", error);
+    if (profile.availableTonight) {
+      const availableUntil = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+      const availability = await supabase.rpc("set_my_availability", {
+        p_available_until: availableUntil,
+        p_latitude: null,
+        p_longitude: null,
+      });
+      fail("set onboarding availability", availability.error);
+    }
   },
 
   async updateUser(user, patch) {
@@ -688,7 +714,6 @@ export const supabaseBackend: Backend = {
     if (patch.name !== undefined) row.name = patch.name;
     if (patch.handle !== undefined) row.handle = patch.handle;
     if (patch.neighborhood !== undefined) row.neighborhood = patch.neighborhood;
-    if (patch.availableTonight !== undefined) row.available_tonight = patch.availableTonight;
     if (patch.instruments !== undefined) row.instruments = patch.instruments;
     if (patch.scene !== undefined) row.scene = patch.scene;
     if (patch.bio !== undefined) row.bio = patch.bio;
@@ -702,6 +727,77 @@ export const supabaseBackend: Backend = {
     if (patch.reels !== undefined) row.reels = patch.reels;
     const { error } = await supabase.from("profiles").update(row).eq("id", user.id);
     fail("update profile", error);
+  },
+
+  async setAvailability(_user, availableUntil, location) {
+    const { error } = await supabase.rpc("set_my_availability", {
+      p_available_until: availableUntil,
+      p_latitude: location?.latitude ?? null,
+      p_longitude: location?.longitude ?? null,
+    });
+    fail("set availability", error);
+  },
+
+  async clearAvailability() {
+    const { error } = await supabase.rpc("clear_my_availability");
+    fail("clear availability", error);
+  },
+
+  async findAvailablePlayers(_user, selectedInstrument, maxDistanceMiles = 25) {
+    const { data, error } = await supabase.rpc("find_available_players", {
+      p_instrument: selectedInstrument,
+      p_max_distance_miles: maxDistanceMiles,
+    });
+    fail("find available players", error);
+    return ((data ?? []) as Array<{
+      profile_id: string;
+      available_until: string;
+      distance_miles: number | string | null;
+    }>).map((row) => ({
+      playerId: row.profile_id,
+      availableUntil: row.available_until,
+      distanceMiles: row.distance_miles == null ? null : Number(row.distance_miles),
+    }));
+  },
+
+  async createSosBroadcast(_user, selectedInstrument, whenLabel, openingId, maxDistanceMiles = 25) {
+    const { data, error } = await supabase.rpc("create_sos_broadcast", {
+      p_instrument: selectedInstrument,
+      p_when_label: whenLabel,
+      p_opening_id: openingId ?? null,
+      p_max_distance_miles: maxDistanceMiles,
+    });
+    fail("create SOS broadcast", error);
+    const row = (data as Array<{ broadcast_id: string; recipient_count: number }> | null)?.[0];
+    if (!row) throw new Error("create SOS broadcast: no result returned");
+    return { broadcastId: row.broadcast_id, recipientCount: row.recipient_count };
+  },
+
+  async getSosBroadcast(_user, broadcastId) {
+    const { data, error } = await supabase.rpc("get_sos_broadcast", {
+      p_broadcast_id: broadcastId,
+    });
+    fail("load SOS broadcast", error);
+    const row = (data as Array<Record<string, unknown>> | null)?.[0];
+    if (!row) throw new Error("SOS broadcast was not found.");
+    return {
+      broadcastId: row.broadcast_id as string,
+      requesterId: row.requester_id as string,
+      requesterName: row.requester_name as string,
+      instrument: row.instrument as InstrumentId,
+      whenLabel: row.when_label as string,
+      status: row.status as "open" | "matched" | "expired" | "cancelled",
+      expiresAt: row.expires_at as string,
+      acceptedBy: (row.accepted_by as string | null) ?? null,
+      canAccept: Boolean(row.can_accept),
+    };
+  },
+
+  async acceptSosBroadcast(_user, broadcastId) {
+    const { error } = await supabase.rpc("accept_sos_broadcast", {
+      p_broadcast_id: broadcastId,
+    });
+    fail("accept SOS broadcast", error);
   },
 
   async uploadAvatar(user, file) {

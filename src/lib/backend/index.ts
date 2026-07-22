@@ -12,4 +12,11 @@ export const backend: Backend = isSupabaseConfigured ? supabaseBackend : localBa
 /** true when running against real Supabase auth + Postgres */
 export const isCloudBackend = backend.mode === "supabase";
 
-export type { AuthUser, PersistedData } from "./types";
+export type {
+  AuthUser,
+  AvailabilityLocation,
+  AvailabilityMatch,
+  PersistedData,
+  SosBroadcastDetails,
+  SosBroadcastResult,
+} from "./types";

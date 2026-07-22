@@ -301,7 +301,10 @@ export type NotificationKind =
   | "booking_cancelled"
   | "booking_disputed"
   | "payment_released"
-  | "payment_refunded";
+  | "payment_refunded"
+  | "sos_request"
+  | "sos_accepted"
+  | "sos_missed";
 
 export interface NotificationItem {
   id: string;
@@ -353,6 +356,8 @@ export interface CurrentUser {
   instruments: InstrumentId[];
   neighborhood: string;
   availableTonight: boolean;
+  /** Active cloud availability expiry; absent when unavailable or in legacy demo data. */
+  availableUntil?: string;
   /** scene selected during onboarding; scopes local discovery and posting. */
   scene: SceneId;
   /** public Player profile fields, added progressively after onboarding */

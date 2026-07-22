@@ -55,6 +55,10 @@ export default function MyProfile() {
   const [reelAt, setReelAt] = useState<number | null>(null);
   const [payoutBusy, setPayoutBusy] = useState(false);
   const [payoutError, setPayoutError] = useState<string | null>(null);
+  const [availabilityHours, setAvailabilityHours] = useState(4);
+  const [shareLocationForMatching, setShareLocationForMatching] = useState(false);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const payoutRefreshStarted = useRef(false);
 
   const user = state.user;
@@ -130,6 +134,49 @@ export default function MyProfile() {
     else navigate("/welcome");
   };
 
+  const changeAvailability = async (next: boolean) => {
+    setAvailabilityBusy(true);
+    setAvailabilityError(null);
+    try {
+      if (!next) {
+        await api.clearAvailability();
+        return;
+      }
+
+      let location: { latitude: number; longitude: number } | undefined;
+      if (shareLocationForMatching) {
+        if (!("geolocation" in navigator)) {
+          throw new Error("This browser cannot provide location. Turn off nearby matching to continue.");
+        }
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 10_000,
+            maximumAge: 5 * 60_000,
+          });
+        });
+        location = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+      }
+
+      const availableUntil = new Date(
+        Date.now() + availabilityHours * 60 * 60 * 1000,
+      ).toISOString();
+      await api.setAvailability(availableUntil, location);
+    } catch (error) {
+      const isGeolocationError = typeof error === "object" && error !== null && "code" in error;
+      setAvailabilityError(isGeolocationError
+        ? "Location was not shared. Turn off nearby matching to go available scene-wide."
+        : error instanceof Error
+          ? error.message
+          : "Could not update availability.");
+    } finally {
+      setAvailabilityBusy(false);
+    }
+  };
+
   return (
     <Page>
       {/* -------------------------------------------------------- header */}
@@ -176,24 +223,57 @@ export default function MyProfile() {
         />
       )}
 
-      {/* ---------------------------------------------- availability toggle */}
-      <Card className="mt-6 flex items-center justify-between gap-4 p-4">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-text-hi">Available tonight</p>
+      {/* ------------------------------------------- expiring availability */}
+      <Card className="mt-6 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-text-hi">Available for last-minute gigs</p>
           <p className="mt-0.5 text-xs leading-relaxed text-text-lo">
             {user.availableTonight
-              ? "You're showing up in tonight's sub searches. Keep your phone loud."
-              : "Flip this on and bands hunting a last-minute sub will find you."}
+              ? user.availableUntil
+                ? `You're searchable until ${new Date(user.availableUntil).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Keep your phone loud.`
+                : "You're searchable for the next few hours. Keep your phone loud."
+              : "Go live for a limited window so bands hunting a last-minute sub can find you."}
           </p>
+          </div>
+          <Toggle
+            checked={user.availableTonight}
+            disabled={availabilityBusy}
+            onChange={(next) => { void changeAvailability(next); }}
+            label="Available for last-minute gigs"
+          />
         </div>
-        <Toggle
-          checked={user.availableTonight}
-          onChange={(next) => {
-            void api.updateUser({ availableTonight: next })
-              .catch((error) => console.error("[backline] availability update failed", error));
-          }}
-          label="Available tonight"
-        />
+        {!user.availableTonight && (
+          <div className="mt-4 space-y-3 border-t border-hairline-subtle pt-3">
+            <label className="flex items-center justify-between gap-3 text-xs text-text-mid">
+              <span>Availability window</span>
+              <select
+                value={availabilityHours}
+                onChange={(event) => setAvailabilityHours(Number(event.currentTarget.value))}
+                className="rounded-lg border border-hairline-strong bg-surface-900 px-2.5 py-2 text-xs text-text-hi focus:border-amber-500 focus:outline-none"
+              >
+                <option value={2}>2 hours</option>
+                <option value={4}>4 hours</option>
+                <option value={8}>8 hours</option>
+              </select>
+            </label>
+            <label className="flex items-start gap-2 text-xs leading-relaxed text-text-mid">
+              <input
+                type="checkbox"
+                checked={shareLocationForMatching}
+                onChange={(event) => setShareLocationForMatching(event.currentTarget.checked)}
+                className="mt-0.5 accent-amber-500"
+              />
+              <span>
+                Use my precise location for nearby matching. Coordinates stay private and matches
+                see only rounded distance. Leave this off for scene-wide matching.
+              </span>
+            </label>
+          </div>
+        )}
+        {availabilityError && (
+          <p className="mt-3 text-xs text-red-300" role="alert">{availabilityError}</p>
+        )}
       </Card>
 
       <Card className="mt-4 p-4">

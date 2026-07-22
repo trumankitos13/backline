@@ -34,7 +34,16 @@ import { getPlayer, installCatalog, loadAndInstallCatalog, loadCatalogPersistAnd
 import { instrument, instrumentLabel } from "./instruments";
 import { upsertMessage } from "./conversations";
 import { scopePersistedData } from "./sceneScope";
-import { backend, isCloudBackend, type AuthUser, type PersistedData } from "./backend";
+import {
+  backend,
+  isCloudBackend,
+  type AuthUser,
+  type AvailabilityLocation,
+  type AvailabilityMatch,
+  type PersistedData,
+  type SosBroadcastDetails,
+  type SosBroadcastResult,
+} from "./backend";
 import type { AuthResult } from "./backend/types";
 import {
   getBrowserPushSubscription,
@@ -336,6 +345,19 @@ export interface AppApi {
   markRead(conversationId: string): void;
   setUser(user: CurrentUser): void;
   updateUser(patch: Partial<CurrentUser>): Promise<void>;
+  setAvailability(availableUntil: string, location?: AvailabilityLocation): Promise<void>;
+  clearAvailability(): Promise<void>;
+  findAvailablePlayers(
+    instrument: InstrumentId,
+    maxDistanceMiles?: number,
+  ): Promise<AvailabilityMatch[]>;
+  createSosBroadcast(
+    instrument: InstrumentId,
+    whenLabel: string,
+    openingId?: string,
+  ): Promise<SosBroadcastResult>;
+  getSosBroadcast(broadcastId: string): Promise<SosBroadcastDetails>;
+  acceptSosBroadcast(broadcastId: string): Promise<void>;
   uploadAvatar(file: File): Promise<string>;
   reset(): void;
   // auth (cloud mode)
@@ -1053,6 +1075,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await loadAndInstallCatalog(scene, backend.loadCatalog.bind(backend));
         }
       },
+      async setAvailability(availableUntil, location) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before setting availability.");
+        await backend.setAvailability(user, availableUntil, location);
+        dispatch({
+          type: "UPDATE_USER",
+          patch: { availableTonight: true, availableUntil },
+        });
+        await loadAndInstallCatalog(
+          stateRef.current.user?.scene ?? "austin",
+          backend.loadCatalog.bind(backend),
+        );
+      },
+      async clearAvailability() {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before changing availability.");
+        await backend.clearAvailability(user);
+        dispatch({
+          type: "UPDATE_USER",
+          patch: { availableTonight: false, availableUntil: undefined },
+        });
+      },
+      async findAvailablePlayers(selectedInstrument, maxDistanceMiles) {
+        const user = authUserRef.current;
+        if (!user) return [];
+        return backend.findAvailablePlayers(user, selectedInstrument, maxDistanceMiles);
+      },
+      async createSosBroadcast(selectedInstrument, whenLabel, openingId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in before sending an SOS.");
+        return backend.createSosBroadcast(user, selectedInstrument, whenLabel, openingId, 25);
+      },
+      async getSosBroadcast(broadcastId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in to open this SOS.");
+        return backend.getSosBroadcast(user, broadcastId);
+      },
+      async acceptSosBroadcast(broadcastId) {
+        const user = authUserRef.current;
+        if (!user) throw new Error("Sign in to accept this SOS.");
+        await backend.acceptSosBroadcast(user, broadcastId);
+      },
       async uploadAvatar(file) {
         const user = authUserRef.current;
         if (!user) throw new Error("Sign in before uploading an avatar.");
@@ -1092,6 +1156,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
     };
   }, []);
+
+  // Keep badges and filters honest even when the app stays open past expiry;
+  // Postgres already excludes the row, this clears the matching client state.
+  useEffect(() => {
+    const availableUntil = state.user?.availableUntil;
+    if (!availableUntil) return;
+    const remaining = new Date(availableUntil).getTime() - Date.now();
+    if (remaining <= 0) {
+      void api.clearAvailability().catch((error) => {
+        console.error("[backline] expired availability cleanup failed", error);
+      });
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void api.clearAvailability().catch((error) => {
+        console.error("[backline] expired availability cleanup failed", error);
+      });
+    }, remaining);
+    return () => window.clearTimeout(timer);
+  }, [api, state.user?.availableUntil]);
 
   return (
     <AppContext.Provider value={{ state, api, auth }}>{children}</AppContext.Provider>

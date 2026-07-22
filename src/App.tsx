@@ -13,6 +13,7 @@ import MyProfile from "./pages/MyProfile";
 import Messages from "./pages/Messages";
 import Thread from "./pages/Thread";
 import Notifications from "./pages/Notifications";
+import SosResponse from "./pages/SosResponse";
 import VenueDetail from "./pages/VenueDetail";
 import EventDetail from "./pages/EventDetail";
 
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="/messages" element={<Messages />} />
         <Route path="/messages/:id" element={<Thread />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/sos/:id" element={<SosResponse />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>

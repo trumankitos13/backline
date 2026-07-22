@@ -5,7 +5,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PLAYERS } from "../../lib/data";
+import { getPlayer, PLAYERS } from "../../lib/data";
+import { isCloudBackend } from "../../lib/backend";
 import { INSTRUMENTS, instrument } from "../../lib/instruments";
 import { ratingSummary } from "../../lib/ratings";
 import { SCENES } from "../../lib/scenes";
@@ -25,7 +26,7 @@ import { VideoTile, ReelViewer } from "../video";
 type Phase = "config" | "searching" | "results" | "sent";
 type WhenKey = "tonight" | "tomorrow" | "weekend";
 
-const SEARCH_MS = 2100;
+const SEARCH_MS = 900;
 
 const WHEN_OPTIONS: { value: WhenKey; label: string }[] = [
   { value: "tonight", label: "Tonight" },
@@ -97,13 +98,18 @@ export function SosFlow({
   initialOpeningId?: string | null;
 }) {
   const navigate = useNavigate();
-  const { state } = useApp();
+  const { state, api } = useApp();
   const city = SCENES.find((scene) => scene.id === state.user?.scene)?.label.split(",")[0] ?? "your scene";
 
   const [phase, setPhase] = useState<Phase>("config");
   const [bailed, setBailed] = useState<InstrumentId | null>(initialRole ?? "drums");
   const [when, setWhen] = useState<WhenKey>("tonight");
   const [reel, setReel] = useState<{ musician: Player; index: number } | null>(null);
+  const [liveMatches, setLiveMatches] = useState<Player[] | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [broadcastBusy, setBroadcastBusy] = useState(false);
+  const [broadcastError, setBroadcastError] = useState<string | null>(null);
+  const [broadcastCount, setBroadcastCount] = useState(0);
 
   // fresh config each time the overlay is opened; honour the deep-linked role.
   useEffect(() => {
@@ -111,15 +117,53 @@ export function SosFlow({
       setPhase("config");
       setReel(null);
       setBailed(initialRole ?? "drums");
+      setLiveMatches(null);
+      setSearchError(null);
+      setBroadcastError(null);
+      setBroadcastCount(0);
     }
   }, [open, initialRole]);
 
-  // radar dwell, then reveal the ranked subs
+  // Cloud mode asks Postgres for active, same-scene availability. Demo and
+  // future-date searches retain the seeded calendar behavior.
   useEffect(() => {
     if (phase !== "searching") return;
-    const t = window.setTimeout(() => setPhase("results"), SEARCH_MS);
-    return () => window.clearTimeout(t);
-  }, [phase]);
+    let cancelled = false;
+    let revealTimer: number | undefined;
+    const startedAt = Date.now();
+    const search = async () => {
+      try {
+        setSearchError(null);
+        if (when === "tonight" && bailed) {
+          const found = await api.findAvailablePlayers(bailed, 25);
+          const players = found.flatMap((match) => {
+            const player = getPlayer(match.playerId);
+            if (!player) return [];
+            return [{
+              ...player,
+              availableTonight: true,
+              distanceMiles: match.distanceMiles ?? Number.NaN,
+            }];
+          });
+          if (!cancelled) setLiveMatches(players);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLiveMatches([]);
+          setSearchError(error instanceof Error ? error.message : "Could not search the scene.");
+        }
+      } finally {
+        if (cancelled) return;
+        const wait = Math.max(0, SEARCH_MS - (Date.now() - startedAt));
+        revealTimer = window.setTimeout(() => { if (!cancelled) setPhase("results"); }, wait);
+      }
+    };
+    void search();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(revealTimer);
+    };
+  }, [api, bailed, phase, when]);
 
   // esc + body scroll lock while the sheet is up
   useEffect(() => {
@@ -134,13 +178,14 @@ export function SosFlow({
   }, [open, onClose]);
 
   const matches = useMemo(() => {
+    if (when === "tonight" && liveMatches !== null) return liveMatches.slice(0, 6);
     const list = PLAYERS.filter((m) =>
       bailed ? m.instruments.some((i) => i.id === bailed) : true,
     ).filter((m) => (when === "tonight" ? m.availableTonight : true));
     return [...list]
       .sort((a, b) => a.responseMins - b.responseMins || a.distanceMiles - b.distanceMiles)
       .slice(0, 6);
-  }, [bailed, when]);
+  }, [bailed, liveMatches, when]);
 
   const hintCount = useMemo(
     () =>
@@ -161,6 +206,25 @@ export function SosFlow({
   function go(to: string, routerState?: Record<string, unknown>) {
     onClose();
     navigate(to, routerState ? { state: routerState } : undefined);
+  }
+
+  async function sendBroadcast() {
+    if (!bailed || when !== "tonight") return;
+    setBroadcastBusy(true);
+    setBroadcastError(null);
+    try {
+      const result = await api.createSosBroadcast(
+        bailed,
+        WHEN_LABEL[when],
+        initialOpeningId ?? undefined,
+      );
+      setBroadcastCount(result.recipientCount);
+      setPhase("sent");
+    } catch (error) {
+      setBroadcastError(error instanceof Error ? error.message : "Could not send the SOS.");
+    } finally {
+      setBroadcastBusy(false);
+    }
   }
 
   const phaseTitle =
@@ -244,7 +308,9 @@ export function SosFlow({
               <div className="flex items-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2.5">
                 <span className="blink h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400" />
                 <Mono className="text-[11px] text-cyan-300">
-                  {hintCount} {noun} free tonight within 5 mi
+                  {isCloudBackend
+                    ? "Live availability · private distance matching"
+                    : `${hintCount} ${noun} free tonight within 5 mi`}
                 </Mono>
               </div>
 
@@ -318,6 +384,12 @@ export function SosFlow({
                     )}
               </p>
 
+              {searchError && (
+                <p className="mt-3 rounded-xl border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-200" role="alert">
+                  {searchError}
+                </p>
+              )}
+
               <div className="mt-3 space-y-2.5">
                 {matches.map((m, i) => (
                   <SubRow
@@ -338,16 +410,25 @@ export function SosFlow({
                 ))}
               </div>
 
-              {matches.length > 0 && (
+              {matches.length > 0 && when === "tonight" && (
                 <Button
                   variant="sos"
                   size="lg"
                   className="mt-4 w-full"
-                  onClick={() => setPhase("sent")}
+                  disabled={broadcastBusy}
+                  onClick={() => { void sendBroadcast(); }}
                 >
                   <BoltIcon size={18} />
-                  Alert all {matches.length} at once
+                  {broadcastBusy ? "Sending…" : `Alert all ${matches.length} at once`}
                 </Button>
+              )}
+              {when !== "tonight" && matches.length > 0 && (
+                <p className="mt-3 text-center text-xs text-text-lo">
+                  Live broadcast is for tonight. Message a player directly for future dates.
+                </p>
+              )}
+              {broadcastError && (
+                <p className="mt-3 text-center text-xs text-red-300" role="alert">{broadcastError}</p>
               )}
               <button
                 onClick={() => setPhase("config")}
@@ -364,7 +445,7 @@ export function SosFlow({
               <SuccessCheck size={64} />
               <div>
                 <p className="text-lg font-semibold text-text-hi">
-                  Alert sent to {matches.length} {matches.length === 1 ? "sub" : "subs"}
+                  Alert sent to {broadcastCount} {broadcastCount === 1 ? "sub" : "subs"}
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-text-mid">
                   First yes wins. We&apos;ll ping you the second someone grabs it — keep an eye on
@@ -428,7 +509,7 @@ function SubRow({
       {fastest && (
         <span className="absolute -top-2.5 right-3 mono inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-ink-near shadow-[0_6px_20px_-8px_var(--accent)]">
           <span className="text-[11px] leading-none">⚡</span>
-          FASTEST · {m.distanceMiles} MI
+          FASTEST · {Number.isFinite(m.distanceMiles) ? `${m.distanceMiles} MI` : "SCENE-WIDE"}
         </span>
       )}
 
@@ -465,7 +546,9 @@ function SubRow({
             <span className="blink h-1.5 w-1.5 rounded-full bg-amber-500" />
             <Mono className="text-[10px] text-amber-300">
               {when === "tonight"
-                ? `Free tonight · can be there ${etaLabel(m.distanceMiles)}`
+                ? Number.isFinite(m.distanceMiles)
+                  ? `Free tonight · can be there ${etaLabel(m.distanceMiles)}`
+                  : `Free tonight · scene-wide match · replies ~${m.responseMins}m`
                 : `Free ${WHEN_LABEL[when]} · replies ~${m.responseMins}m`}
             </Mono>
           </div>

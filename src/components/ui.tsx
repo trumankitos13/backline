@@ -417,18 +417,21 @@ export function Toggle({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors ${
+      className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors disabled:cursor-wait disabled:opacity-60 ${
         checked ? "border-transparent bg-amber-500" : "border-hairline-strong bg-surface-raised"
       }`}
     >
