@@ -136,6 +136,11 @@ async function main() {
     p_max_distance_miles: 25,
   });
   check("anon cannot call availability matcher", anonFind.error !== null);
+  const privateFind = await A.client.schema("private").rpc("find_available_players", {
+    p_instrument: "drums",
+    p_max_distance_miles: 25,
+  });
+  check("privileged matcher implementation is not Data API exposed", privateFind.error !== null);
 
   const sosCreated = await A.client.rpc("create_sos_broadcast", {
     p_instrument: "drums",
