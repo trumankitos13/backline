@@ -209,10 +209,10 @@ begin
     where id = payment.id;
     update public.bookings set status = 'cancelled' where id = booking.id;
   elsif booking.status::text = 'cancelled'
-    and payment.status = case cancellation.action
+    and payment.status = (case cancellation.action
       when 'void' then 'cancelled'::public.payment_status
       else 'partially_refunded'::public.payment_status
-    end then
+    end) then
     -- The signed Stripe webhook reconciled first; finish the audit record and
     -- participant notification without replaying the state transition.
     null;
