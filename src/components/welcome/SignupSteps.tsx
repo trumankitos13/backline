@@ -13,6 +13,7 @@ import {
   BoltIcon,
   CheckIcon,
   ChevronRightIcon,
+  CloseIcon,
   InstrumentIcon,
 } from "../icons";
 import { INPUT_CLASS } from "./shared";
@@ -24,6 +25,10 @@ function suggestHandle(name: string): string {
     .replace(/[^a-z0-9]/g, "")
     .slice(0, 24);
 }
+
+// Mirrors the profiles_handle_format check constraint. Keep these in sync —
+// a client that accepts what Postgres rejects fails the write silently late.
+const HANDLE_PATTERN = /^[a-z0-9_]{3,30}$/;
 
 const STEP_META = [
   {
@@ -82,8 +87,11 @@ export function SignupSteps() {
   const [scene, setScene] = useState<SceneId | null>(null);
   const [availableTonight, setAvailableTonight] = useState(false);
 
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const stepValid = [
-    name.trim().length >= 2 && handle.length >= 2,
+    name.trim().length >= 2 && HANDLE_PATTERN.test(handle),
     instruments.length >= 1,
     scene !== null,
   ][step];
@@ -115,17 +123,34 @@ export function SignupSteps() {
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
 
-  const finish = () => {
-    if (!stepValid) return;
-    api.setUser({
-      name: name.trim(),
-      handle,
-      instruments,
-      neighborhood: scene === "nashville" ? "Nashville" : "Austin",
-      availableTonight,
-      scene: scene!,
-    });
-    navigate("/");
+  const finish = async () => {
+    if (!stepValid || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api.setUser({
+        name: name.trim(),
+        handle,
+        instruments,
+        neighborhood: scene === "nashville" ? "Nashville" : "Austin",
+        availableTonight,
+        scene: scene!,
+      });
+      navigate("/");
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error ? saveError.message : "Couldn't save your profile.";
+      // The unique index on profiles.handle is the collision every signup
+      // hits first — name it plainly and send them back to fix it.
+      if (message.includes("profiles_handle_key") || message.includes("duplicate key")) {
+        setError(`@${handle} is already taken — pick another handle.`);
+        setStep(0);
+      } else {
+        setError(`${message} — check your connection and try again.`);
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const meta = STEP_META[step];
@@ -175,9 +200,11 @@ export function SignupSteps() {
                 />
               </div>
               <span className="text-xs text-text-lo">
-                {handle
-                  ? `You'll show up in search and chat as @${handle}.`
-                  : "We'll suggest one from your name — or type your own."}
+                {!handle
+                  ? "We'll suggest one from your name — or type your own."
+                  : HANDLE_PATTERN.test(handle)
+                    ? `You'll show up in search and chat as @${handle}.`
+                    : "Handles need 3–30 lowercase letters, numbers, or underscores."}
               </span>
             </label>
           </div>
@@ -283,6 +310,13 @@ export function SignupSteps() {
         )}
       </div>
 
+      {error && (
+        <p className="mt-5 flex items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-danger)_12%,transparent)] px-3 py-2 text-xs text-[var(--color-danger)]">
+          <CloseIcon size={14} />
+          {error}
+        </p>
+      )}
+
       {/* footer nav */}
       <div className="mt-6 flex items-center justify-between gap-3">
         {step > 0 ? (
@@ -299,8 +333,8 @@ export function SignupSteps() {
             <ChevronRightIcon size={16} />
           </Button>
         ) : (
-          <Button type="button" size="lg" onClick={finish} disabled={!stepValid}>
-            Take me to the scene
+          <Button type="button" size="lg" onClick={finish} disabled={!stepValid || saving}>
+            {saving ? "Saving your profile…" : "Take me to the scene"}
           </Button>
         )}
       </div>

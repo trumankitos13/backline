@@ -40,13 +40,25 @@ const rows: Record<string, unknown> = {
 
 function query(data: unknown) {
   const result: QueryResult = { data, error: null };
+  // Mirrors the PostgREST builder surface `supabaseBackend.load` chains onto.
+  // Add a method here whenever the query in supabase.ts grows one, or the
+  // chain returns undefined and the load throws.
   const chain = {
     select: () => chain,
     eq: () => chain,
+    neq: () => chain,
+    gt: () => chain,
+    gte: () => chain,
+    lt: () => chain,
+    lte: () => chain,
+    in: () => chain,
+    is: () => chain,
+    not: () => chain,
     or: () => chain,
     order: () => chain,
     limit: () => chain,
     maybeSingle: () => Promise.resolve(result),
+    single: () => Promise.resolve(result),
     then: <TResult1 = QueryResult, TResult2 = never>(
       onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
       onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,

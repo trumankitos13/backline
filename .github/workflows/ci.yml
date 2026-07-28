@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         # runs tsc --noEmit && vite build; a Supabase URL isn't required —
         # the app falls back to demo mode when the env vars are absent.

@@ -48,7 +48,11 @@ export default function Welcome() {
   const navigate = useNavigate();
   // cloud mode with no session → collect credentials before onboarding
   const needsAuth = isCloudBackend && auth.status === "signedOut";
-  const [signupOpen, setSignupOpen] = useState(needsAuth);
+  // Someone who created an account but closed the tab mid-onboarding is routed
+  // back here by App's profile gate — drop them straight back on the stepper
+  // instead of the marketing hero.
+  const resumingOnboarding = auth.status === "signedIn" && !state.user;
+  const [signupOpen, setSignupOpen] = useState(needsAuth || resumingOnboarding);
   const signupRef = useRef<HTMLDivElement>(null);
 
   const tonight = PLAYERS.filter((m) => m.availableTonight);
@@ -62,16 +66,22 @@ export default function Welcome() {
     }, 60);
   };
 
-  const enterAsGuest = () => {
-    api.setUser({
-      name: "Guest",
-      handle: "guest",
-      instruments: ["guitar"],
-      neighborhood: "East Austin",
-      availableTonight: false,
-      scene: "austin",
-    });
-    navigate("/");
+  // Demo mode only (the button is hidden in cloud mode), so this write goes to
+  // localStorage and cannot realistically fail — but don't navigate if it does.
+  const enterAsGuest = async () => {
+    try {
+      await api.setUser({
+        name: "Guest",
+        handle: "guest",
+        instruments: ["guitar"],
+        neighborhood: "East Austin",
+        availableTonight: false,
+        scene: "austin",
+      });
+      navigate("/");
+    } catch (e) {
+      console.error("[backline] guest entry failed", e);
+    }
   };
 
   return (

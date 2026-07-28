@@ -343,7 +343,8 @@ export interface AppApi {
   rateMusician(playerId: string, stars: number): void;
   respondToSubPost(postId: string, bandName: string): void;
   markRead(conversationId: string): void;
-  setUser(user: CurrentUser): void;
+  /** Write the onboarding profile through to the backend, then adopt it. Rejects if the write fails. */
+  setUser(user: CurrentUser): Promise<void>;
   updateUser(patch: Partial<CurrentUser>): Promise<void>;
   setAvailability(availableUntil: string, location?: AvailabilityLocation): Promise<void>;
   clearAvailability(): Promise<void>;
@@ -1036,9 +1037,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           persist((u) => backend.markRead(u, key));
         }
       },
-      setUser(user) {
+      async setUser(user) {
+        // Onboarding is the one write we must NOT fire-and-forget: a rejected
+        // handle or a dropped connection would otherwise leave the account
+        // with no profile row while the UI walked on into the app. Persist
+        // first, and only then let the reducer (and the App route gate) treat
+        // the user as onboarded.
+        const authUser = authUserRef.current;
+        if (!authUser) throw new Error("Sign in before creating a profile.");
+        await backend.saveUser(authUser, user);
         dispatch({ type: "SET_USER", user });
-        persist((u) => backend.saveUser(u, user));
       },
       async updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });

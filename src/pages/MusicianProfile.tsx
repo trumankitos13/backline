@@ -105,7 +105,9 @@ export default function MusicianProfile() {
               <p className="mt-2 flex items-center gap-1.5 text-sm text-text-mid">
                 <MapPinIcon size={15} className="shrink-0 text-text-lo" />
                 <span>{m.neighborhood}</span>
-                <Mono className="text-[11px] text-text-lo">· {m.distanceMiles} MI AWAY</Mono>
+                {m.distanceMiles > 0 && (
+                  <Mono className="text-[11px] text-text-lo">· {m.distanceMiles} MI AWAY</Mono>
+                )}
               </p>
               {m.availableTonight && <FreeTonightBadge className="mt-2.5" />}
             </div>
@@ -134,10 +136,14 @@ export default function MusicianProfile() {
               </Mono>
             </div>
           </div>
+          {/* Placeholder dashes beat hard zeros on a profile with no history. */}
           <div className="grid grid-cols-3 divide-x divide-hairline-subtle">
-            <StatCell value={String(m.gigsPlayed)} label="gigs" />
-            <StatCell value={`~${m.responseMins}m`} label="reply" />
-            <StatCell value={`$${m.rate.min}–${m.rate.max}`} label="per gig" />
+            <StatCell value={m.gigsPlayed > 0 ? String(m.gigsPlayed) : "—"} label="gigs" />
+            <StatCell value={m.responseMins > 0 ? `~${m.responseMins}m` : "—"} label="reply" />
+            <StatCell
+              value={m.rate.max > 0 ? `$${m.rate.min}–${m.rate.max}` : "—"}
+              label="per gig"
+            />
           </div>
         </Card>
 
