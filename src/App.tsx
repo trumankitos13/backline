@@ -51,6 +51,17 @@ export default function App() {
     return <Navigate to="/welcome" replace />;
   }
 
+  // A successful sign-in can happen while Welcome is already mounted with its
+  // signup panel open. Once the saved profile has hydrated, leave Welcome
+  // instead of letting that stale panel render the onboarding steps again.
+  if (
+    auth.status === "signedIn" &&
+    state.user &&
+    location.pathname === "/welcome"
+  ) {
+    return <Navigate to="/" replace />;
+  }
+
   if (location.pathname === "/welcome") {
     return (
       <Routes>
