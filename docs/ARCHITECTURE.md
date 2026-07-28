@@ -6,9 +6,10 @@ booking offer → pay in-app**. Secondary pillars: profiles with short-form vide
 reels, bands/groups with open-slot recruiting, and a feed from venues and bands
 you follow.
 
-This is a **frontend prototype**: Vite + React 19 + TypeScript + Tailwind v4,
-mock data + localStorage. No backend. Mobile-first layout (bottom tab bar) with
-a desktop sidebar, because the roadmap is web now, native app later.
+The web client is Vite + React 19 + TypeScript + Tailwind v4. It has an explicit
+local demo backend and a hosted Supabase backend. Mobile-first layout (bottom
+tab bar) with a desktop sidebar keeps the web and planned native information
+architecture aligned.
 
 ## Layout & conventions
 
@@ -46,13 +47,13 @@ conversation id by stripping the `c-` prefix; a conversation may not exist in
 the store yet — the thread page must handle that and create one lazily on
 first send).
 
-## Data (`src/lib/data.ts`, all mock)
+## Data (`src/lib/data.ts`)
 
-Read-only catalogs: `MUSICIANS`, `BANDS`, `VENUES`, `GIGS`, `FEED_POSTS`,
-`SEED_CONVERSATIONS`, lookups `getMusician/getBand/getVenue/getGig`,
-`bandsNeeding(instrumentId)`. Types in `src/lib/types.ts`; instrument metadata
-in `src/lib/instruments.ts` (`INSTRUMENTS`, `instrument(id)`,
-`instrumentLabel(id)`).
+Demo mode installs the fictional catalog from `src/lib/data.ts`. Cloud mode
+replaces those arrays at boot with completed public account profiles from
+`public.profiles`; it installs empty collections rather than displaying
+fictional players, bands, venues, events, or feed posts. Types live in
+`src/lib/types.ts`; instrument metadata lives in `src/lib/instruments.ts`.
 
 ## State (`src/lib/store.tsx`)
 

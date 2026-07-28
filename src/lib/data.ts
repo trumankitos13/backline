@@ -1008,7 +1008,7 @@ function rebuildIndexes(): void {
   eventById = new Map(EVENTS.map((g) => [g.id, g]));
 }
 
-/** replace the active catalog (cloud mode, at boot) — demo seed stays the fallback. */
+/** Replace the active catalog at boot; cloud mode may intentionally install an empty catalog. */
 export function installCatalog(c: Catalog): void {
   PLAYERS.splice(0, PLAYERS.length, ...c.players);
   BANDS.splice(0, BANDS.length, ...c.bands);

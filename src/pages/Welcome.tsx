@@ -48,7 +48,8 @@ export default function Welcome() {
   const navigate = useNavigate();
   // cloud mode with no session → collect credentials before onboarding
   const needsAuth = isCloudBackend && auth.status === "signedOut";
-  const [signupOpen, setSignupOpen] = useState(needsAuth);
+  const resumingOnboarding = auth.status === "signedIn" && !state.user;
+  const [signupOpen, setSignupOpen] = useState(needsAuth || resumingOnboarding);
   const signupRef = useRef<HTMLDivElement>(null);
 
   const tonight = PLAYERS.filter((m) => m.availableTonight);
@@ -62,16 +63,20 @@ export default function Welcome() {
     }, 60);
   };
 
-  const enterAsGuest = () => {
-    api.setUser({
-      name: "Guest",
-      handle: "guest",
-      instruments: ["guitar"],
-      neighborhood: "East Austin",
-      availableTonight: false,
-      scene: "austin",
-    });
-    navigate("/");
+  const enterAsGuest = async () => {
+    try {
+      await api.setUser({
+        name: "Guest",
+        handle: "guest",
+        instruments: ["guitar"],
+        neighborhood: "East Austin",
+        availableTonight: false,
+        scene: "austin",
+      });
+      navigate("/");
+    } catch (error) {
+      console.error("[backline] guest entry failed", error);
+    }
   };
 
   return (

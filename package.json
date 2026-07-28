@@ -7,9 +7,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:staging": "tsc --noEmit && vite build --mode staging",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "check:milestone0": "node scripts/check-milestone0.mjs",
+    "verify": "npm test && npm run build && npm run check:milestone0",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=22 <23"
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.10",

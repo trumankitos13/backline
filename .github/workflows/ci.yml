@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
   pull_request:
-    branches: [dev, main]
+    branches: [main]
 
 # cancel superseded runs on the same ref
 concurrency:
@@ -26,6 +26,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Test
+        run: npm test
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -33,6 +36,9 @@ jobs:
         # runs tsc --noEmit && vite build; a Supabase URL isn't required —
         # the app falls back to demo mode when the env vars are absent.
         run: npm run build
+
+      - name: Milestone 0 readiness contract
+        run: npm run check:milestone0
 
   # RLS isolation tests run only when a test Supabase project is configured
   # (secrets present). They never run on forks. See supabase/tests/README.md.

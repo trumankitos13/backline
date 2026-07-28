@@ -82,7 +82,9 @@ export function MusicianCard({
               <FreeTonightBadge />
             ) : (
               <Mono className="text-[10px] text-text-lo">
-                Free {m.availability.join(" · ")}
+                {m.availability.length > 0
+                  ? `Free ${m.availability.join(" · ")}`
+                  : "Availability not set"}
               </Mono>
             )}
           </div>
@@ -105,12 +107,18 @@ export function MusicianCard({
             <span className="inline-flex items-center gap-1">
               <MapPinIcon size={13} className="text-text-lo" />
               {m.neighborhood}
-              <Mono className="text-[11px] text-text-mid">· {m.distanceMiles} MI</Mono>
+              {m.distanceMiles > 0 && (
+                <Mono className="text-[11px] text-text-mid">· {m.distanceMiles} MI</Mono>
+              )}
             </span>
-            <Mono className="text-[11px] text-text-hi">
-              ${m.rate.min}–{m.rate.max}
-              <span className="text-text-lo"> /GIG</span>
-            </Mono>
+            {m.rate.max > 0 ? (
+              <Mono className="text-[11px] text-text-hi">
+                ${m.rate.min}–{m.rate.max}
+                <span className="text-text-lo"> /GIG</span>
+              </Mono>
+            ) : (
+              <Mono className="text-[11px] text-text-lo">RATE ON REQUEST</Mono>
+            )}
           </div>
         </div>
 
@@ -129,10 +137,16 @@ export function MusicianCard({
       {/* stats + actions */}
       <div className="mt-3 border-t border-hairline-subtle pt-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-text-lo">
-          <span className="mono inline-flex items-center gap-1 text-[11px]">
-            <ClockIcon size={12} className="text-text-lo" />~{m.responseMins} MIN REPLY
-          </span>
-          <Mono className="text-[11px]">{m.gigsPlayed} EVENTS</Mono>
+          {m.responseMins > 0 && (
+            <span className="mono inline-flex items-center gap-1 text-[11px]">
+              <ClockIcon size={12} className="text-text-lo" />~{m.responseMins} MIN REPLY
+            </span>
+          )}
+          {m.gigsPlayed > 0 ? (
+            <Mono className="text-[11px]">{m.gigsPlayed} EVENTS</Mono>
+          ) : (
+            <Mono className="text-[11px]">NEW TO BACKLINE</Mono>
+          )}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button
