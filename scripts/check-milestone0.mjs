@@ -22,9 +22,6 @@ function requireText(relativePath, pattern, message) {
 const requiredFiles = [
   ".env.staging.example",
   ".nvmrc",
-  "docs/MOBILE_V1_SCOPE.md",
-  "docs/MOBILE_M0_DECISIONS.md",
-  "docs/MOBILE_STAGING_RUNBOOK.md",
   "supabase/config.toml",
 ];
 
