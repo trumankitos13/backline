@@ -339,6 +339,13 @@ export function RatingNumber({
 }) {
   const num = { sm: "text-sm", md: "text-base", lg: "text-3xl" }[size];
   const star = { sm: 12, md: 15, lg: 22 }[size];
+  if (count === 0) {
+    return (
+      <Mono className={`text-[10px] font-bold text-text-lo ${className}`}>
+        No ratings
+      </Mono>
+    );
+  }
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
       <span className={`font-bold text-text-hi ${num}`}>{avg.toFixed(1)}</span>

@@ -21,9 +21,8 @@ export function todayIso() {
 }
 
 export function tomorrowIso() {
-  const tomorrow = new Date();
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  return centralDateParts(tomorrow);
+  const [year, month, day] = todayIso().split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
 }
 
 function parseDateAndTime(date: string, time: string) {

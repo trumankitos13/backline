@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { isSelectableGigDate, scheduleOpening } from "./scheduling";
+import { describe, expect, it, vi } from "vitest";
+import { isSelectableGigDate, scheduleOpening, tomorrowIso } from "./scheduling";
 import { filterCatalogRoots } from "./backend/supabase";
 import { localBackend } from "./backend/local";
 import { scopePersistedData } from "./sceneScope";
@@ -112,6 +112,19 @@ describe("scheduleOpening", () => {
       gigAt: "2026-07-15T00:30:00.000Z",
       label: "Tue, Jul 14 · 7:30 PM",
     });
+  });
+});
+
+describe("tomorrowIso", () => {
+  it("advances the Central calendar date across the fall DST boundary", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-01T05:30:00.000Z"));
+
+    try {
+      expect(tomorrowIso()).toBe("2026-11-02");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

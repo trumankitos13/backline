@@ -49,6 +49,7 @@ import {
   getBrowserPushSubscription,
   subscribeBrowserToPush,
 } from "./push";
+import { captureError } from "./observability";
 
 export interface AppState {
   user: CurrentUser | null;
@@ -343,7 +344,8 @@ export interface AppApi {
   rateMusician(playerId: string, stars: number): void;
   respondToSubPost(postId: string, bandName: string): void;
   markRead(conversationId: string): void;
-  setUser(user: CurrentUser): void;
+  /** Persist onboarding before adopting the profile; rejects when the write fails. */
+  setUser(user: CurrentUser): Promise<void>;
   updateUser(patch: Partial<CurrentUser>): Promise<void>;
   setAvailability(availableUntil: string, location?: AvailabilityLocation): Promise<void>;
   clearAvailability(): Promise<void>;
@@ -379,10 +381,8 @@ const AppContext = createContext<{
   auth: AuthState;
 } | null>(null);
 
-let idCounter = 0;
 function uid(prefix: string): string {
-  idCounter += 1;
-  return `${prefix}-${Date.now().toString(36)}-${idCounter}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
 function nowLabel(): string {
@@ -414,20 +414,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     async function hydrateFor(user: AuthUser | null) {
       // catalog + user slice in parallel; the DB catalog (cloud mode) is
-      // installed before hydrate renders anything. loadCatalog() returns null
-      // in demo mode or on an unseeded project → the built-in catalog stays.
+      // installed before hydrate renders anything. Local mode explicitly
+      // supplies the built-in demo catalog; cloud mode always supplies an
+      // account-backed catalog, even when that catalog is empty.
       const [guestCatalog, data] = await Promise.all([
         // Profiles load separately, so guest sessions must have a stable
         // default catalog until their saved scene is known.
         backend.loadCatalog("austin").catch((e) => {
-          console.error("[backline] catalog load failed — using demo catalog", e);
+          console.error("[backline] catalog load failed", e);
           return null;
         }),
         backend.load(user),
       ]);
       if (cancelled) return;
       const catalog = data.user?.scene && data.user.scene !== "austin"
-        ? await backend.loadCatalog(data.user.scene).catch((e) => {
+          ? await backend.loadCatalog(data.user.scene).catch((e) => {
             console.error("[backline] scene catalog load failed — using Austin catalog", e);
             return guestCatalog;
           })
@@ -482,7 +483,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         backend.load(user)
-          .then((data) => dispatch({ type: "HYDRATE", data }))
+          .then(async (data) => {
+            const catalog = await backend.loadCatalog(data.user?.scene ?? "austin");
+            if (catalog) installCatalog(catalog);
+            dispatch({ type: "HYDRATE", data });
+          })
           .catch((error) => console.error("[backline] realtime reload failed", error));
       }, 80);
     });
@@ -493,11 +498,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [auth.status, auth.user?.id]);
 
   const api = useMemo<AppApi>(() => {
-    // fire-and-forget write-through; errors are logged, UI already updated
+    // Fire-and-forget write-through; errors reach optional release telemetry
+    // as well as the console. The optimistic UI remains responsive.
     function persist(run: (user: AuthUser) => Promise<void>) {
       const user = authUserRef.current;
       if (!user) return;
-      run(user).catch((e) => console.error("[backline] persist failed", e));
+      run(user).catch((error) => {
+        captureError(error, { operation: "persist" });
+        console.error("[backline] persist failed", error);
+      });
     }
 
     function reload(): Promise<void> {
@@ -1036,9 +1045,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           persist((u) => backend.markRead(u, key));
         }
       },
-      setUser(user) {
+      async setUser(user) {
+        const authUser = authUserRef.current;
+        if (!authUser) throw new Error("Sign in before creating a profile.");
+        await backend.saveUser(authUser, user);
         dispatch({ type: "SET_USER", user });
-        persist((u) => backend.saveUser(u, user));
       },
       async updateUser(patch) {
         dispatch({ type: "UPDATE_USER", patch });

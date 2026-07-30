@@ -155,7 +155,11 @@ function ThreadView({ id }: { id: string }) {
             </p>
             <p className="truncate text-xs text-text-lo">
               {labels} ·{" "}
-              <Mono className="text-[10px]">~{musician.responseMins}m reply</Mono>
+              <Mono className="text-[10px]">
+                {musician.responseMins > 0
+                  ? `~${musician.responseMins}m reply`
+                  : "New to Backline"}
+              </Mono>
             </p>
           </div>
         </Link>
@@ -177,7 +181,11 @@ function ThreadView({ id }: { id: string }) {
               </p>
               <p className="mt-1 text-sm text-text-lo">
                 {labels} ·{" "}
-                <Mono className="text-[10px]">replies ~{musician.responseMins}m</Mono>
+                <Mono className="text-[10px]">
+                  {musician.responseMins > 0
+                    ? `replies ~${musician.responseMins}m`
+                    : "New to Backline"}
+                </Mono>
               </p>
             </div>
             <p className="max-w-xs text-sm text-text-mid">

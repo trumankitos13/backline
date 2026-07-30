@@ -37,12 +37,19 @@ const rows: Record<string, unknown> = {
   user_projects: [],
   group_conversations: [],
 };
+const deletedTables: string[] = [];
 
-function query(data: unknown) {
+function query(data: unknown, table?: string) {
   const result: QueryResult = { data, error: null };
   const chain = {
     select: () => chain,
+    delete: () => {
+      if (table) deletedTables.push(table);
+      return chain;
+    },
     eq: () => chain,
+    gt: () => chain,
+    not: () => chain,
     or: () => chain,
     order: () => chain,
     limit: () => chain,
@@ -57,7 +64,15 @@ function query(data: unknown) {
 
 vi.mock("../supabase", () => ({
   supabase: {
-    from: (table: string) => query(rows[table]),
+    from: (table: string) => query(rows[table], table),
+    rpc: () => Promise.resolve({ data: [], error: null }),
+    storage: {
+      from: () => ({
+        getPublicUrl: (path: string) => ({
+          data: { publicUrl: `https://example.test/${path}` },
+        }),
+      }),
+    },
   },
 }));
 
@@ -71,5 +86,68 @@ describe("supabaseBackend.load", () => {
       ["nashville-opening", "nashville"],
       ["legacy-opening", "austin"],
     ]);
+  });
+});
+
+describe("supabaseBackend.loadCatalog", () => {
+  it("returns completed account profiles without requiring media or legacy seed rows", async () => {
+    const previousProfiles = rows.profiles;
+    rows.profiles = [
+      {
+        id: "9db031de-bb23-4da7-826c-f47aa12cc5e5",
+        scene: "austin",
+        name: "Fresh Account",
+        handle: "fresh_account",
+        instruments: ["drums"],
+        genres: [],
+        bio: "",
+        gear: [],
+        neighborhood: "East Austin",
+        rate_min: null,
+        rate_max: null,
+        availability: [],
+        reels: [],
+        avatar_path: null,
+      },
+    ];
+
+    try {
+      const catalog = await supabaseBackend.loadCatalog("austin");
+
+      expect(catalog).not.toBeNull();
+      expect(catalog?.players).toHaveLength(1);
+      expect(catalog?.players[0]).toMatchObject({
+        id: "9db031de-bb23-4da7-826c-f47aa12cc5e5",
+        handle: "fresh_account",
+        videos: [],
+        reels: [],
+      });
+      expect(catalog?.bands).toEqual([]);
+      expect(catalog?.venues).toEqual([]);
+      expect(catalog?.events).toEqual([]);
+      expect(catalog?.feedPosts).toEqual([]);
+    } finally {
+      rows.profiles = previousProfiles;
+    }
+  });
+});
+
+describe("supabaseBackend.reset", () => {
+  it("clears every user-owned prototype activity table while keeping the profile", async () => {
+    deletedTables.length = 0;
+
+    await supabaseBackend.reset({ id: "user-1", email: null });
+
+    expect(deletedTables).toEqual([
+      "follows",
+      "bookings",
+      "conversations",
+      "liked_posts",
+      "responded_sub_posts",
+      "openings",
+      "user_projects",
+      "group_conversations",
+    ]);
+    expect(deletedTables).not.toContain("profiles");
   });
 });

@@ -31,13 +31,15 @@ The app runs in one of two modes, chosen automatically at build time:
 - **Demo mode** (no env vars): a fictional Austin, TX scene, all state persisted
   to `localStorage`, no accounts, no real payments. Use **Reset demo data** on
   the profile page to start over. This is what runs with `npm run dev` out of
-  the box, and what the deployed site falls back to until Supabase is wired.
+  the box.
 - **Cloud mode** (`VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set): real
   Supabase Auth (email + password) and Postgres persistence, with per-user
-  data protected by row-level security. See [`DEPLOYMENT.md`](DEPLOYMENT.md).
+  data protected by row-level security. Discover shows completed account
+  profiles from the selected scene and never falls back to fictional catalog
+  data. See [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
-The musician/band/venue catalog is demo data in both modes (seeded into Postgres
-via `supabase/seed.sql` in cloud mode).
+The musician/band/venue seed in `supabase/seed.sql` is retained only for local
+prototype work. Do not load it into hosted beta environments.
 
 ## Run it
 
@@ -56,18 +58,15 @@ For an existing Supabase project, apply the release in this order:
 npx supabase db push
 ```
 
-Then run the regenerated `supabase/seed.sql` in the Supabase dashboard's **SQL
-editor**, then verify the app:
+Do not run `supabase/seed.sql` in a hosted beta. Verify the repository instead:
 
 ```bash
-npm test
-npm run build
+npm run verify
 ```
 
-`db push` does not reset user data. The catalog seed is additive and adds the
-Nashville records. Run the Supabase RLS suite only against disposable project
-credentials—never production—because it creates and deletes test users. See
-[`DEPLOYMENT.md`](DEPLOYMENT.md) for setup and RLS-test details.
+`db push` does not reset user data. Run the Supabase RLS suite only against
+disposable project credentials—never production—because it creates and deletes
+test users. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for setup and RLS-test details.
 
 ## Stack & architecture
 

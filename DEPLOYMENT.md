@@ -13,12 +13,12 @@ Backline picks its data source automatically at build time:
 
 - **Demo mode** — no Supabase env vars. All state lives in `localStorage`, no
   accounts, no real payments. This is what runs with `npm run dev` out of the
-  box, and what the deployed site falls back to until Supabase is wired. The
-  site never breaks while you're mid-setup.
+  box.
 - **Cloud mode** — `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set. Real
   Supabase Auth + Postgres, per-user data behind Row-Level Security. The welcome
   screen shows a sign-in panel; profiles, follows, conversations, bookings, and
-  likes persist per account.
+  likes persist per account. Hosted discovery uses completed account profiles
+  only and does not fall back to fictional catalog rows.
 
 The seam is `src/lib/backend/` (`local.ts` vs `supabase.ts`), selected in
 `src/lib/backend/index.ts`. The rest of the app doesn't know which is live.
@@ -30,13 +30,24 @@ The seam is `src/lib/backend/` (`local.ts` vs `supabase.ts`), selected in
 `vercel.json` is already committed (builds with `npm run build`, serves `dist/`,
 and rewrites all routes to `index.html` so client-side deep links don't 404).
 
-1. Push to GitHub (you're on `dev`; `main` is the production branch).
+1. Push a short-lived feature branch and open a pull request into `main`.
 2. <https://vercel.com/new> → sign in with GitHub → import
-   `trumankitos13/musician-finder`. Vercel auto-detects **Vite**; confirm
+   `trumankitos13/backline`. Vercel auto-detects **Vite**; confirm
    Build `npm run build`, Output `dist`. **Deploy.**
-3. Production branch: **Settings → Git → Production Branch** → `main` (or point
-   it at `dev` while iterating). Every push to that branch auto-deploys;
-   other branches get preview URLs.
+3. Production branch: **Settings → Git → Production Branch** → `main`.
+   Pull-request branches get preview URLs; merging to `main` is the only
+   production deployment path.
+
+### Branch flow
+
+- `main` is protected, releasable, and never used as a working branch.
+- `codex/*` (or another short-lived feature branch) is where development
+  happens. Open a pull request to get CI and a Vercel Preview deployment.
+- Test the exact preview commit, then merge the reviewed pull request into
+  `main`. Delete the feature branch after the merge.
+- There is intentionally no permanent `dev` branch. If a stable staging URL is
+  needed, use a protected Vercel custom environment or a dedicated `staging`
+  branch with staging-only variables; do not point it at production data.
 
 With no env vars set, the deploy runs in **demo mode** — safe to ship now.
 
@@ -175,10 +186,8 @@ For a real, deployed backend.
    (Or paste each file in `supabase/migrations/` into the dashboard SQL editor,
    in filename order.) `db push` applies pending migrations; it does **not**
    reset user data.
-4. **Add the regenerated catalog seed.** `db push` does *not* run `seed.sql`
-   against a remote. Run the regenerated `supabase/seed.sql` in the dashboard
-   **SQL editor**. It adds the Nashville catalog records alongside the existing
-   catalog; it does not reset user data.
+4. **Do not add the prototype seed.** `supabase/seed.sql` is for local demo
+   work only. Hosted beta discovery reads completed rows from `public.profiles`.
 5. **Auth settings.** Cloud projects **require email confirmation by default**.
    For real use, keep it on (the app handles the "check your email" state). For
    quick testing, **Authentication → Providers → Email** → temporarily disable
@@ -208,8 +217,7 @@ For a real, deployed backend.
    cleanly when absent.
 8. **Verify the application before release:**
    ```bash
-   npm test
-   npm run build
+   npm run verify
    ```
 
 ### Additive cloud rollout checklist
@@ -220,17 +228,15 @@ For an existing cloud project, use this order:
 npx supabase db push
 ```
 
-Then run the regenerated `supabase/seed.sql` in the Supabase **SQL editor**,
-followed by:
+Do not run `supabase/seed.sql` in a hosted beta. Follow the migration with:
 
 ```bash
-npm test
-npm run build
+npm run verify
 ```
 
-`db push` does not reset user data. The catalog seed is additive and adds the
-Nashville records. If you run `supabase/tests/rls.test.mjs`, use disposable
-project credentials only—not production.
+`db push` does not reset user data. If you run
+`supabase/tests/rls.test.mjs`, use disposable project credentials only—not
+production.
 
 For the Phase 1 profile release, apply migrations **before** Vercel deploys the
 new client. The new client reads the added profile columns during catalog boot.
@@ -450,15 +456,14 @@ Both are dormant until keyed (see `.env.local.example`):
 Add the same vars in Vercel for the deployed app.
 
 ### Phase 0 status: complete (code side)
-- **The catalog is DB-backed in cloud mode.** At boot the app loads
-  players/bands/venues/events/feed from Postgres and installs them over the
-  static arrays; `src/lib/data.ts` remains the demo catalog and the fallback
-  when the project isn't seeded (the app never boots empty).
+- **Hosted discovery is account-backed.** At boot the app loads completed
+  profiles from Postgres and installs an empty hosted catalog for surfaces that
+  do not yet have real public data. `src/lib/data.ts` remains demo-mode only.
 - **Everything the app writes persists in cloud mode**: profiles, follows,
   chats (DMs *and* group chats), bookings (held/released), openings, and
   pickup projects.
 - What remains for Phase 0 exit is on your side: stand up the project (Track A
-  or B above), seed it, and run the RLS suite green.
+  or B above) and run the RLS suite green.
 
 ---
 
@@ -468,7 +473,8 @@ Add the same vars in Vercel for the deployed app.
 |---|---|
 | Welcome screen shows no sign-in panel | Env vars not picked up — confirm `.env.local` has both `VITE_SUPABASE_*` and restart `npm run dev`. |
 | `npx supabase start` fails | Docker isn't running, or ports 54321–54324 are taken. |
-| RLS tests: "Catalog is empty" | Seed first: `npx supabase db reset` (local) or run `seed.sql` (cloud). |
+| Local RLS tests: "Catalog is empty" | Reset the disposable local stack with `npx supabase db reset`; never seed a hosted beta. |
+| Cloud Discover is empty | Complete onboarding (including a handle and instrument) for another account in the same scene. |
 | Signup succeeds but can't sign in (cloud) | Email confirmation is on — confirm via the email, or disable it for testing. |
 | Local password-reset email not arriving | Check **Inbucket** at `:54324`; also set `[auth] site_url` in `config.toml` to your dev URL if the reset link points at `:3000`. |
 

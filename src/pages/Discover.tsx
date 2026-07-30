@@ -5,7 +5,7 @@
 // the shell's SOS button (?sos=open) or the in-page banner, and honours the
 // SOS deep-link contract (?sos=open&role=<instrumentId>). Backline throughout.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Page } from "../components/shell";
 import { useApp } from "../lib/store";
@@ -29,6 +29,7 @@ import { PostFlow } from "../components/post/PostFlow";
 import { AssembleFlow } from "../components/post/AssembleFlow";
 import { ReelGridTile } from "../components/discover/ReelGridTile";
 import { BandRecruitStrip } from "../components/discover/BandRecruitStrip";
+import { MusicianCard } from "../components/discover/MusicianCard";
 
 /** the few instrument chips surfaced inline; the rest stay searchable by text. */
 const CHIP_INSTRUMENTS: InstrumentId[] = ["drums", "keys", "guitar", "bass", "vocals"];
@@ -43,6 +44,48 @@ function isInstrumentId(v: string | null): v is InstrumentId {
     "sound-tech",
     "lighting-tech",
   ).includes(v as InstrumentId);
+}
+
+interface DiscoveryFilters {
+  query: string;
+  selected: InstrumentId[];
+  tonightOnly: boolean;
+  verifiedOnly: boolean;
+  near3: boolean;
+  currentUserId?: string;
+}
+
+export function hasPlayerMedia(player: Player): boolean {
+  return (player.reels?.length ?? 0) > 0 || player.videos.length > 0;
+}
+
+export function matchesDiscoverPlayer(
+  player: Player,
+  filters: DiscoveryFilters,
+): boolean {
+  if (player.id === filters.currentUserId) return false;
+  if (filters.tonightOnly && !player.availableTonight) return false;
+  if (filters.verifiedOnly && !player.verified) return false;
+  if (filters.near3 && player.distanceMiles >= 3) return false;
+  if (
+    filters.selected.length > 0
+    && !player.instruments.some((item) => filters.selected.includes(item.id))
+  ) {
+    return false;
+  }
+
+  const query = filters.query.trim().toLowerCase();
+  if (!query) return true;
+  const haystack = [
+    player.name,
+    player.handle,
+    player.neighborhood,
+    ...player.genres,
+    ...player.instruments.map((item) => instrumentLabel(item.id)),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(query);
 }
 
 export default function Discover() {
@@ -97,37 +140,26 @@ export default function Discover() {
     setSearchParams(next, { replace: true });
   }
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return PLAYERS.filter((p) => {
-      if ((p.reels?.length ?? 0) === 0 && p.videos.length === 0) return false;
-      if (tonightOnly && !p.availableTonight) return false;
-      if (verifiedOnly && !p.verified) return false;
-      if (near3 && p.distanceMiles >= 3) return false;
-      if (selected.length > 0 && !p.instruments.some((i) => selected.includes(i.id)))
-        return false;
-      if (q) {
-        const hay = [
-          p.name,
-          p.handle,
-          p.neighborhood,
-          ...p.genres,
-          ...p.instruments.map((i) => instrumentLabel(i.id)),
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    }).sort((a, b) => a.distanceMiles - b.distanceMiles);
-  }, [query, selected, tonightOnly, verifiedOnly, near3]);
+  // The catalog arrays are replaced in place when Realtime reports a profile
+  // change, so derive results on every render rather than memoizing stale rows.
+  const results = PLAYERS
+    .filter((player) => matchesDiscoverPlayer(player, {
+      query,
+      selected,
+      tonightOnly,
+      verifiedOnly,
+      near3,
+      currentUserId: state.user?.id,
+    }))
+    .sort((a, b) => a.distanceMiles - b.distanceMiles);
+  const reelResults = results.filter(hasPlayerMedia);
+  const profileResults = results.filter((player) => !hasPlayerMedia(player));
 
-  const tonightTotal = useMemo(
-    () => PLAYERS.filter((p) => p.availableTonight).length,
-    [],
-  );
+  const tonightTotal = PLAYERS.filter(
+    (player) => player.id !== state.user?.id && player.availableTonight,
+  ).length;
 
-  const recruitingBands = useMemo<Band[]>(() => {
+  const recruitingBands: Band[] = (() => {
     if (selected.length > 0) {
       const seen = new Set<string>();
       const out: Band[] = [];
@@ -142,7 +174,7 @@ export default function Discover() {
       return out;
     }
     return BANDS.filter((b) => b.openSlots.length > 0);
-  }, [selected]);
+  })();
 
   const filtersActive =
     query.trim() !== "" || selected.length > 0 || tonightOnly || verifiedOnly || near3;
@@ -166,10 +198,10 @@ export default function Discover() {
       {/* header — mono kicker + city */}
       <header className="mb-5">
         <Mono className="text-[11px] font-bold text-text-lo">Discover</Mono>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-text-hi">Reels near you</h1>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-text-hi">Players near you</h1>
         <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-text-mid">
           <MapPinIcon size={14} className="text-amber-500" />
-          {sceneLabel} — tap a reel to watch, tap a name to book
+          {sceneLabel} — search, message, and book real local accounts
         </p>
       </header>
 
@@ -206,7 +238,7 @@ export default function Discover() {
             enterKeyHint="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Players, bands, venues near you"
+            placeholder="Search players by name, handle, role, or genre"
             aria-label="Search players"
             className="w-full rounded-xl border border-hairline-strong bg-surface-900 py-2.5 pr-10 pl-10 text-sm text-text-hi transition-colors placeholder:text-text-lo focus:border-amber-500 focus:outline-none"
           />
@@ -249,7 +281,7 @@ export default function Discover() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-text-lo">
             <Mono className="text-text-mid">{results.length}</Mono>{" "}
-            {results.length === 1 ? "reel" : "reels"} near you
+            {results.length === 1 ? "player" : "players"} near you
           </p>
           {filtersActive && (
             <button
@@ -261,11 +293,12 @@ export default function Discover() {
           )}
         </div>
 
-        {/* reels grid */}
+        {/* Reels remain the visual lead, while completed accounts without
+            media still appear as messageable profile cards. */}
         {results.length === 0 ? (
           <EmptyState
             icon={<SearchIcon size={30} />}
-            title="No reels match those filters"
+            title="No players match those filters"
             body={`Try clearing an instrument, widening the distance, or turning off free-tonight — the ${sceneLabel} scene runs deeper than it looks.`}
             action={
               <Button variant="secondary" size="sm" onClick={clearFilters}>
@@ -273,12 +306,32 @@ export default function Discover() {
               </Button>
             }
           />
-        ) : (
+        ) : reelResults.length > 0 ? (
           <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
-            {results.map((p) => (
+            {reelResults.map((p) => (
               <ReelGridTile key={p.id} player={p} onOpenReel={setReel} />
             ))}
           </div>
+        ) : null}
+
+        {profileResults.length > 0 && (
+          <section className="space-y-3" aria-label="Player profiles">
+            <div>
+              <Mono className="text-[11px] font-bold text-text-lo">Players</Mono>
+              <h2 className="mt-1 text-lg font-semibold text-text-hi">
+                Profiles in {sceneLabel}
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {profileResults.map((player) => (
+                <MusicianCard
+                  key={player.id}
+                  musician={player}
+                  onOpenReel={(profile) => setReel(profile)}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* bands recruiting — below the grid */}
